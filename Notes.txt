@@ -1,0 +1,9 @@
+Conventions:
+1. Anything ending in _t is a typedef.
+2. There shall be no direct printf calls. All console logging will go through Logger.c
+
+Engine:
+1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
+   there will be no y coordinate. Thus, this will happen on a purely 2d plane. These chunk coordinates
+   are signed 32-bit integers.
+2. 
