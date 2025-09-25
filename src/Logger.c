@@ -1,6 +1,5 @@
 #include "Logger.h"
 #include <stdio.h>
-#include <stdarg.h>
 #include <time.h>
 
 static const char *LogLevelStrs[] = {

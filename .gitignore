@@ -21,7 +21,6 @@ _CPack_Packages/
 *.obj
 
 # Editor and IDE specific files (examples)
-.vscode/
 .idea/
 *.suo
 *.user
