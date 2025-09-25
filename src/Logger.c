@@ -20,7 +20,7 @@ void logger(LogLevel_t level, const char *format, ...) // log() is built-in don'
     // ISO 8601 Timestamp minus time zone and miliseconds
     // https://stackoverflow.com/questions/1442116/how-can-i-get-the-date-and-time-values-in-a-c-program
     // https://en.wikipedia.org/wiki/ISO_8601
-    printf("\n[%s][%d-%02d-%02dT%02d:%02d:%02d] ", LogLevelStrs[level], currentTime.tm_year + 1900, currentTime.tm_mon + 1, currentTime.tm_mday, currentTime.tm_hour, currentTime.tm_min, currentTime.tm_sec);
+    printf("[%s][%d-%02d-%02dT%02d:%02d:%02d] ", LogLevelStrs[level], currentTime.tm_year + 1900, currentTime.tm_mon + 1, currentTime.tm_mday, currentTime.tm_hour, currentTime.tm_min, currentTime.tm_sec);
 
     va_list args;
     va_start(args, format);
@@ -29,5 +29,7 @@ void logger(LogLevel_t level, const char *format, ...) // log() is built-in don'
 
     va_end(args);
 
+    // By including the trailing newline, the output stream is flushed which allows the printed line to show up immediately.
+    // Otherwise, the reader would have to wait until program exit or something else is printed.
     printf("\n");
 }

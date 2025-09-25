@@ -1,6 +1,10 @@
 Conventions:
 1. Anything ending in _t is a typedef.
-2. There shall be no direct printf calls. All console logging will go through Logger.c
+2. There shall be no direct printf calls. All console logging will go through Logger
+3. All pointers will be with the varaible name insteady of the type. Ex PointerType *typeName ... 
+   and NOT PointerType* typeName ...
+4. EVERY glfw and vulkan method must be ran through LOG_ERROR(...) for proper error catching/announcing.
+5. Follow the First-In-Last-Out principal for destruction to avoid potential unexpected interdependencies.
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
