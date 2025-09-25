@@ -7,16 +7,6 @@
 
 #define PROGRAM_NAME "VoxelC"
 
-// If error is anything but zero, log that
-#define LOG_ERROR(ERROR, FORMAT, ...)                                                                                         \
-    {                                                                                                                         \
-        if (ERROR)                                                                                                            \
-        {                                                                                                                     \
-            fprintf(stderr, "%s -> %s -> %i -> Error(%i):\n\t" FORMAT, __FILE__, __FUNCTION__, __LINE__, ERROR, __VA_ARGS__); \
-            raise(SIGABRT);                                                                                                   \
-        }                                                                                                                     \
-    }
-
 int main(void)
 {
 
@@ -24,7 +14,7 @@ int main(void)
 
     logger(LOG_INFO, "Starting %s...\n", PROGRAM_NAME);
 
-    LOG_ERROR(1, "Hello world %d", 1);
+    LOG_ERROR(2, "Hello world");
 
     return 0;
 }
