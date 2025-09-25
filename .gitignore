@@ -1,0 +1,36 @@
+# CMake generated files and directories
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+CTestTestfile.cmake
+_CPack_Packages/
+
+# Executables and libraries
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Object files
+*.o
+*.obj
+
+# Editor and IDE specific files (examples)
+.vscode/
+.idea/
+*.suo
+*.user
+*.ncb
+*.aps
+*.ilk
+*.pdb
+
+# Other temporary files
+*.log
+*.swp
+*~

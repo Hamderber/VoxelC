@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
-#include "./Chunk/Chunk.h"
-#include "./Debug/Logger.h"
+#include "Chunk.h"
+#include "Logger.h"
 const int NUM_TESTS = 100000;
 
 int chunkCoordPackingTest(unsigned int seed)
@@ -47,7 +47,7 @@ int chunkCoordPackingTest(unsigned int seed)
     return failures;
 }
 
-int main(void)
+int unitTester()
 {
     // Random seed using unsigned time at .exe start
     unsigned int seed = (unsigned int)time(NULL);

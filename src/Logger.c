@@ -5,8 +5,7 @@
 
 static const char *LogLevelStrs[] = {
     "Info",
-    "Warn",
-    "Error"};
+    "Warn"};
 
 /// @brief Logs the passed formatted str to the console with the given level.
 /// @param level
