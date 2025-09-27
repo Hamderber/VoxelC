@@ -5,6 +5,12 @@ Conventions:
    and NOT PointerType* typeName ...
 4. EVERY glfw and vulkan method must be ran through LOG_ERROR(...) for proper error catching/announcing.
 5. Follow the First-In-Last-Out principal for destruction to avoid potential unexpected interdependencies.
+6. When defining a new struct, take the time to order the members in descending order of memory size. This
+   is a memory optimization since all types take up 8 bytes on their own unless paired together with multiple
+   of the same type.
+7. Every time malloc(...) is written, IMMEDIATELY write the associated free(...) function so that it isn't 
+   forgotten. Just do whatever you needed to bewtween those two calls.
+8. All header files shall start with "#pragma once" to prevent any unintentional function/etc redefinitions.
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,

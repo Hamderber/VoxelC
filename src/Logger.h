@@ -8,7 +8,7 @@ typedef enum
 
 /// @brief If error is anything but zero, log that (in red). Include originating filepath,
 /// function name, line number, and the passed error. Optional additional variable args.
-/// Throw a signal abort to notfy the debugger as well. Both vulkan and glfw "error code"
+/// Throw a signal abort to notify the debugger as well. Both vulkan and glfw "error code"
 /// 0 means "success" / "not an error" which is convenient.
 #define LOG_ERROR(ERROR, FORMAT, ...)                                                   \
     {                                                                                   \
