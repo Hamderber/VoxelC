@@ -333,6 +333,8 @@ void freeSwapchainImages(State_t *state)
 
 void createSwapchain(State_t *state)
 {
+    logger(LOG_INFO, "Creating the swapchain...");
+
     VkSurfaceCapabilitiesKHR capabilities;
     LOG_IF_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(state->physicalDevice, state->surface, &capabilities),
                  "Failed to query physical device surface capabilities.");
@@ -525,7 +527,7 @@ void loop(State_t *state)
         if (state->recreateSwapchain)
         {
             state->recreateSwapchain = false;
-            createSurface(state);
+            createSwapchain(state);
             logger(LOG_INFO, "Re-created the swapchain.");
         }
 
@@ -585,7 +587,7 @@ void cleanup(State_t *state)
 int main(void)
 {
     // Vulkan initialization:
-    // 4 min https://www.youtube.com/watch?v=yZrUWoIp_to&list=PLlKj-4rp1Gz0eBLIcq2wzd8uigFrJduJ-&index=3
+    // 0 min https://youtu.be/-sdcRqpuOkU?si=TL-e2GkngVIV_h4c
 
     // Swapchain
     // https://www.youtube.com/watch?v=nSzQcyQTtRY
