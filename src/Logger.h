@@ -10,7 +10,7 @@ typedef enum
 /// function name, line number, and the passed error. Optional additional variable args.
 /// Throw a signal abort to notify the debugger as well. Both vulkan and glfw "error code"
 /// 0 means "success" / "not an error" which is convenient.
-#define LOG_ERROR(ERROR, FORMAT, ...)                                                   \
+#define LOG_IF_ERROR(ERROR, FORMAT, ...)                                                \
     {                                                                                   \
         if (ERROR)                                                                      \
         {                                                                               \

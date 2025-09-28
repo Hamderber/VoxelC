@@ -1,16 +1,26 @@
+References:
+1. https://www.cs.umd.edu/~nelson/classes/resources/cstyleguide/
+2. 
+
 Conventions:
 1. Anything ending in _t is a typedef.
 2. There shall be no direct printf calls. All console logging will go through Logger
 3. All pointers will be with the varaible name insteady of the type. Ex PointerType *typeName ... 
    and NOT PointerType* typeName ...
-4. EVERY glfw and vulkan method must be ran through LOG_ERROR(...) for proper error catching/announcing.
+4. EVERY glfw and vulkan method must be ran through LOG_IF_ERROR(...) for proper error catching/announcing.
 5. Follow the First-In-Last-Out principal for destruction to avoid potential unexpected interdependencies.
 6. When defining a new struct, take the time to order the members in descending order of memory size. This
    is a memory optimization since all types take up 8 bytes on their own unless paired together with multiple
    of the same type.
 7. Every time malloc(...) is written, IMMEDIATELY write the associated free(...) function so that it isn't 
-   forgotten. Just do whatever you needed to bewtween those two calls.
+   forgotten. Just do whatever you needed to bewtween those two calls. Unless that allocation is handled
+   elsewhere, obviously.
 8. All header files shall start with "#pragma once" to prevent any unintentional function/etc redefinitions.
+9. Don't include the semicolon after any C macro. Because macros are replaced as in-lines at compile, the
+   semicolon is just an unnecessary no-op that could be added.
+10. Follow each malloc with a LOG_IF_ERROR to verify that memory allocation was successful.
+11. Have the logged string of every LOG_IF_ERROR on a new line for code legibility.
+12. 
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
