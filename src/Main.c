@@ -417,7 +417,8 @@ void createSwapchain(State_t *state)
         .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
         // https://www.youtube.com/watch?v=yZrUWoIp_to 26 min has a good explanation of these
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        .oldSwapchain = state->swapchain, // Here the value is null anyway but it's helpful to explicitly show that
+        // The value is initially null but is still stored when the swapchain needs to be recreated.
+        .oldSwapchain = state->swapchain,
         // Only really applicable to mobile devices. Phone screens etc. obviously have to support rotating 90/180 but this same
         // support is often not included with desktop/laptop GPUs. Identity just means keep the image the same.
         // Current transform is almost certainly VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR

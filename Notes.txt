@@ -20,7 +20,7 @@ Conventions:
    semicolon is just an unnecessary no-op that could be added.
 10. Follow each malloc with a LOG_IF_ERROR to verify that memory allocation was successful.
 11. Have the logged string of every LOG_IF_ERROR on a new line for code legibility.
-12. 
+12. For legibility, when using malloc, use sizeof(...) * numberOfItems in that order.
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
