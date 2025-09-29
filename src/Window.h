@@ -1,6 +1,11 @@
 #pragma once
 
-bool windowShouldClose(State_t *state)
+void windowPollEvents(const State_t *state)
+{
+    glfwPollEvents();
+}
+
+bool windowShouldClose(const State_t *state)
 {
     return glfwWindowShouldClose(state->window.windowHandle);
 }
@@ -38,22 +43,25 @@ void swapchainImagesFree(State_t *state)
     }
 }
 
-void swapchainCreate(State_t *state)
+VkSurfaceCapabilitiesKHR surfaceCapabilitiesGet(const Context_t *context, const Window_t *window)
 {
-    logger(LOG_INFO, "Creating the swapchain...");
-
     VkSurfaceCapabilitiesKHR capabilities;
-    LOG_IF_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(state->context.physicalDevice, state->window.surface, &capabilities),
+    LOG_IF_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, window->surface, &capabilities),
                  "Failed to query physical device surface capabilities.");
 
+    return capabilities;
+}
+
+VkSurfaceFormatKHR surfaceFormatsSelect(const Context_t *context, const Window_t *window)
+{
     uint32_t formatCount;
     // null so that we just get the number of formats
-    LOG_IF_ERROR(vkGetPhysicalDeviceSurfaceFormatsKHR(state->context.physicalDevice, state->window.surface, &formatCount, NULL),
+    LOG_IF_ERROR(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, NULL),
                  "Failed to query physical device surface format count.")
     VkSurfaceFormatKHR *formats = malloc(sizeof(VkSurfaceFormatKHR) * formatCount);
     LOG_IF_ERROR(formats == NULL,
                  "Unable to allocate memory for Vulkan surface formats")
-    LOG_IF_ERROR(vkGetPhysicalDeviceSurfaceFormatsKHR(state->context.physicalDevice, state->window.surface, &formatCount, formats),
+    LOG_IF_ERROR(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, formats),
                  "Failed to query physical device surface formats.")
 
     VkSurfaceFormatKHR format = formats[0]; // Default to the first format ...
@@ -70,22 +78,23 @@ void swapchainCreate(State_t *state)
 
     free(formats);
 
-    logger(LOG_INFO, "The physical device has the following features:");
-    logger(LOG_INFO, "\t\tImage count range: [%d-%d]", capabilities.minImageCount, capabilities.maxImageCount);
-    logger(LOG_INFO, "\t\tMax Image Array Layers: %d", capabilities.maxImageArrayLayers);
+    return format;
+}
 
+VkPresentModeKHR surfacePresentModesSelect(const Context_t *context, const Window_t *window)
+{
     // See https://www.youtube.com/watch?v=nSzQcyQTtRY for the different present modes (visual examples)
     // Immedaite causes screen tearing (don't use) and I think Mailbox sounds the best. Unfortunately,
     // Mailbox isn't universally supported and is much more power-intensive (constant frame generation/discarding)
     // FIFO is required to exist on all platforms. All others are potentially not :(
     uint32_t presentModeCount;
     // null so that we just get the number of present modes
-    LOG_IF_ERROR(vkGetPhysicalDeviceSurfacePresentModesKHR(state->context.physicalDevice, state->window.surface, &presentModeCount, NULL),
+    LOG_IF_ERROR(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, NULL),
                  "Failed to query physical device surface presentation modes.")
     VkPresentModeKHR *presentModes = malloc(sizeof(VkPresentModeKHR) * presentModeCount);
     LOG_IF_ERROR(presentModes == NULL,
                  "Unable to allocate memory for Vulkan present modes.")
-    LOG_IF_ERROR(vkGetPhysicalDeviceSurfacePresentModesKHR(state->context.physicalDevice, state->window.surface, &presentModeCount, presentModes),
+    LOG_IF_ERROR(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, presentModes),
                  "Failed to query physical device surface presentation modes.")
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // Default to FIFO ...
@@ -100,11 +109,101 @@ void swapchainCreate(State_t *state)
 
     free(presentModes);
 
+    return presentMode;
+}
+
+void swapchainImagesGet(State_t *state)
+{
+    // null so that we just get the number of formats
+    LOG_IF_ERROR(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle, &state->window.swapchain.imageCount, NULL),
+                 "Failed to query the number of images in the swapchain.")
+    logger(LOG_INFO, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
+
+    state->window.swapchain.images = malloc(sizeof(VkImage) * state->window.swapchain.imageCount);
+    LOG_IF_ERROR(state->window.swapchain.images == NULL,
+                 "Unable to allocate memory for swapchain images.")
+
+    LOG_IF_ERROR(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
+                                         &state->window.swapchain.imageCount, state->window.swapchain.images),
+                 "Failed to get the images in the swapchain.")
+}
+
+void swapchainImageViewsCreate(State_t *state)
+{
+    state->window.swapchain.imageViews = malloc(sizeof(VkImageView) * state->window.swapchain.imageCount);
+    LOG_IF_ERROR(state->window.swapchain.imageViews == NULL,
+                 "Unable to allocate memory for swapchain image views.")
+
+    // Allows for supporting multiple image view layers for the same image etc.
+    VkImageSubresourceRange subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .layerCount = 1,
+        .levelCount = 1,
+    };
+
+    for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
+    {
+        // This is defined in the loop because of using i for the swapchain image
+        VkImageViewCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .format = state->window.swapchain.format,
+            .image = state->window.swapchain.images[i],
+            // You could map the green component to red to do color shifting if desired or something
+            .components = state->config.swapchainComponentMapping,
+            .subresourceRange = subresourceRange,
+            // The view type of the window itself. Obviously, a screen is 2D. Maybe 3D is for VR or something.
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        };
+        // Pass the address of the specific spot in the array of swapchain image views
+        LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.allocator, &state->window.swapchain.imageViews[i]),
+                     "Failed to create swapchain image view %d", i)
+    }
+}
+
+uint32_t swapchainGetMinImageCount(const Config_t *config, const VkPresentModeKHR presentMode, uint32_t min, uint32_t max)
+{
+    // It is good to add 1 to the minimum image count when using Mailbox so that the pipeline isn't blocked while the image is
+    // still being presented. Also have to make sure that the max image count isn't exceeded.
+    // This number is basically how many images should be able to be stored/queued/generated in the buffer while the screen is still
+    // drawing. This has a *** HUGE *** impact on performance.
+
+    if (config->swapchainBuffering != SWAPCHAIN_BUFFERING_DEFAULT)
+    {
+        // If swapchainBuffering isn't default (0) then assign it ourselves
+        return config->swapchainBuffering;
+    }
+
+    // maxImageCount may not be assigned if GPU doesn't declare/is unbounded
+    max = (max ? max : UINT32_MAX);
+
+    if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR && min + 1U <= max)
+        return min + 1; // Mailbox
+    else
+    {
+        return min; // Not Mailbox (FIFO)
+    }
+}
+
+void swapchainCreate(State_t *state)
+{
+    logger(LOG_INFO, "Creating the swapchain...");
+
+    VkSurfaceCapabilitiesKHR capabilities = surfaceCapabilitiesGet(&state->context, &state->window);
+
+    VkSurfaceFormatKHR surfaceFormat = surfaceFormatsSelect(&state->context, &state->window);
+
+    logCapabilitiesInfo(capabilities);
+
+    VkPresentModeKHR presentMode = surfacePresentModesSelect(&state->context, &state->window);
+
     // Prevent the image extend from somehow exceeding what the physical device is capable of
     VkExtent2D imageExtent = {
         .width = clamp_uint32_t(capabilities.currentExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
         .height = clamp_uint32_t(capabilities.currentExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
     };
+
+    state->window.swapchain.format = surfaceFormat.format;
+    state->window.swapchain.colorSpace = surfaceFormat.colorSpace;
 
     VkSwapchainCreateInfoKHR createInfo = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -132,16 +231,9 @@ void swapchainCreate(State_t *state)
         // Current transform is almost certainly VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
         .preTransform = capabilities.currentTransform,
         .imageExtent = imageExtent,
-        // It is good to add 1 to the minimum image count when using Mailbox so that the pipeline isn't blocked while the image is
-        // still being presented. Also have to make sure that the max image count isn't exceeded.
-        // This number is basically how many images should be able to be stored/queued/generated in the buffer while the screen is still
-        // drawing. This has a *** HUGE *** impact on performance.
-        .minImageCount = presentMode == (VK_PRESENT_MODE_MAILBOX_KHR && // maxImageCount may not be assigned if GPU doesn't declare/is unbounded
-                                         capabilities.minImageCount + 1U <= (capabilities.maxImageCount ? capabilities.maxImageCount : UINT32_MAX))
-                             ? capabilities.minImageCount + 1 // Mailbox
-                             : capabilities.minImageCount,    // Not Mailbox (FIFO)
-        .imageFormat = format.format,
-        .imageColorSpace = format.colorSpace,
+        .minImageCount = swapchainGetMinImageCount(&state->config, presentMode, capabilities.minImageCount, capabilities.maxImageCount),
+        .imageFormat = state->window.swapchain.format,
+        .imageColorSpace = state->window.swapchain.colorSpace,
         .presentMode = presentMode,
     };
 
@@ -151,57 +243,16 @@ void swapchainCreate(State_t *state)
 
     LOG_IF_ERROR(vkCreateSwapchainKHR(state->context.device, &createInfo, state->context.allocator, &swapchain),
                  "Failed to create Vulkan swapchain!")
+
     // Even though the state's initial swapchain is obviously null, this sets us up to properly assign the new one (drivers/etc.)
     vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.allocator);
     state->window.swapchain.handle = swapchain;
 
-    // null so that we just get the number of formats
-    LOG_IF_ERROR(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle, &state->window.swapchain.imageCount, NULL),
-                 "Failed to query the number of images in the swapchain.");
-    logger(LOG_INFO, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
-    state->window.swapchain.images = malloc(sizeof(VkImage) * state->window.swapchain.imageCount);
-    LOG_IF_ERROR(state->window.swapchain.images == NULL,
-                 "Unable to allocate memory for swapchain images.")
-    LOG_IF_ERROR(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
-                                         &state->window.swapchain.imageCount, state->window.swapchain.images),
-                 "Failed to get the images in the swapchain.")
-    state->window.swapchain.imageViews = malloc(sizeof(VkImageView) * state->window.swapchain.imageCount);
-    LOG_IF_ERROR(state->window.swapchain.imageViews == NULL,
-                 "Unable to allocate memory for swapchain image views.")
+    // state->window.swapchain.format = surfaceFormat.format;
 
-    VkComponentMapping componentMapping = {
-        // RGBA is still red/blue/green/alpha. Identity is keep it default but it could be .._A/etc
-        // Identity = 0 so this could be omitted, but explicit declaration is better visually
-        .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-    };
+    swapchainImagesGet(state);
 
-    // Allows for supporting multiple image view layers for the same image etc.
-    VkImageSubresourceRange subresourceRange = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .layerCount = 1,
-        .levelCount = 1,
-    };
-
-    for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
-    {
-        // This is defined in the loop because of using i for the swapchain image
-        VkImageViewCreateInfo createInfo = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .format = format.format,
-            .image = state->window.swapchain.images[i],
-            // You could map the green component to red to do color shifting if desired or something
-            .components = componentMapping,
-            .subresourceRange = subresourceRange,
-            // The view type of the window itself. Obviously, a screen is 2D. Maybe 3D is for VR or something.
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        };
-        // Pass the address of the specific spot in the array of swapchain image views
-        LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.allocator, &state->window.swapchain.imageViews[i]),
-                     "Failed to create swapchain image view %d", i)
-    }
+    swapchainImageViewsCreate(state);
 }
 
 void swapchainDestroy(State_t *state)

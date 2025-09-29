@@ -47,7 +47,7 @@ void logger(LogLevel_t level, const char *format, ...) // log() is built-in don'
     printf("\n");
 }
 
-void logInfo()
+void logVulkanInfo()
 {
     uint32_t instanceAPIVersion;
     LOG_IF_ERROR(vkEnumerateInstanceVersion(&instanceAPIVersion),
@@ -60,6 +60,13 @@ void logInfo()
 
     logger(LOG_INFO, "Vulkan API %i.%i.%i.%i", apiVersionVariant, apiVersionMajor, apiVersionMinor, apiVersionPatch);
     logger(LOG_INFO, "GLWF %s", glfwGetVersionString());
+}
+
+void logCapabilitiesInfo(const VkSurfaceCapabilitiesKHR capabilities)
+{
+    logger(LOG_INFO, "The physical device has the following features:");
+    logger(LOG_INFO, "\t\tImage count range: [%d-%d]", capabilities.minImageCount, capabilities.maxImageCount);
+    logger(LOG_INFO, "\t\tMax Image Array Layers: %d", capabilities.maxImageArrayLayers);
 }
 
 void glfwErrorCallback(int errorCode, const char *description)
@@ -76,7 +83,7 @@ void exitCallback(void)
     glfwTerminate();
 }
 
-void setupErrorHandling()
+void errorHandlingSetup()
 {
     // Set function that is called when a glfw error is caught
     glfwSetErrorCallback(glfwErrorCallback);

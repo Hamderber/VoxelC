@@ -9,16 +9,16 @@
 /// the ERROR to an int errorCode for proper handling. Because this is a macro, the preprocessor
 /// would just copy-paste the actual function call itself into the if statement AND the fprintf
 /// otherwise. So if a funciton errors, it would actually be called TWICE if just ERROR was used
-/// in the if and the fprintf. It must be "errCode" instead of "errorCode" because functions that
+/// in the if and the fprintf. It must be "macroErrorCode" instead of "errorCode" because functions that
 /// the preprocessor will paste this into may already define an "errorCode" variable, which would
 /// be overshadowed by this one.
 #define LOG_IF_ERROR(ERROR, FORMAT, ...)                                                \
     {                                                                                   \
-        int errCode;                                                                    \
-        if ((errCode = ERROR))                                                          \
+        int macroErrorCode = ERROR;                                                     \
+        if (macroErrorCode)                                                             \
         {                                                                               \
             fprintf(stderr, "\n\033[31m%s -> %s -> %i -> Error(%i):\033[0m\n\t" FORMAT, \
-                    __FILE__, __FUNCTION__, __LINE__, errCode, ##__VA_ARGS__);          \
+                    __FILE__, __func__, __LINE__, macroErrorCode, ##__VA_ARGS__);       \
             raise(SIGABRT);                                                             \
         }                                                                               \
     }
@@ -29,12 +29,23 @@ typedef enum
     LOG_WARN
 } LogLevel_t;
 
+typedef enum
+{
+    SWAPCHAIN_BUFFERING_DEFAULT = 0,
+    SWAPCHAIN_BUFFERING_SINGLE = 1,
+    SWAPCHAIN_BUFFERING_DOUBLE = 2,
+    SWAPCHAIN_BUFFERING_TRIPLE = 3,
+    SWAPCHAIN_BUFFERING_QUADRUPLE = 4,
+} SwapchainBuffering_t;
+
 typedef struct
 {
     const char *applicationName;
     const char *engineName;
     const char *windowTitle;
     uint32_t vkAPIVersion;
+    SwapchainBuffering_t swapchainBuffering;
+    VkComponentMapping swapchainComponentMapping;
     int windowWidth;
     int windowHeight;
     bool windowResizable;
@@ -54,11 +65,16 @@ typedef struct
 
 typedef struct
 {
+    // Swapchain
+    // https://www.youtube.com/watch?v=nSzQcyQTtRY
     VkSwapchainKHR handle;
     uint32_t imageCount;
     bool recreate;
     VkImage *images;
     VkImageView *imageViews;
+    VkFormat format;
+    VkColorSpaceKHR colorSpace;
+    VkExtent2D imageExtent;
 } Swapchain_t;
 
 typedef struct

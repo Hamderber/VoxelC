@@ -3,11 +3,11 @@
 void init(State_t *state)
 {
     logger(LOG_INFO, "Starting %s...", PROGRAM_NAME);
-    logInfo();
+    logVulkanInfo();
 
     // Must init glfw first so that we can actually assign its error handler
     glfwInit();
-    setupErrorHandling();
+    errorHandlingSetup();
 
     contextCreate(state);
     windowCreate(state);
@@ -19,12 +19,12 @@ void loop(State_t *state)
     while (!windowShouldClose(state))
     {
         // Handle the window events, including actually closing the window with the X
-        glfwPollEvents();
+        windowPollEvents(state);
 
-        // Must call this after the glfw poll events because resizing the window and the associated callback would be
-        // generated from that function. This will only hit AFTER the user has LET GO of the side of the window during resize.
-        // This means that each time the window changes, the swapchain will only be recreated once the user STOPS the resize
-        // process.
+        // Must call this after the window poll events (glfwPollEvents(); specifically) because resizing the window and the
+        // associated callback would be generated from that function. This will only hit AFTER the user has LET GO of the
+        // side of the window during resize. This means that each time the window changes, the swapchain will only be recreated
+        // once the user STOPS the resize process.
         if (state->window.swapchain.recreate)
         {
             state->window.swapchain.recreate = false;
