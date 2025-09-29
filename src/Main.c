@@ -105,7 +105,7 @@ void glfwFramebufferSizeCallback(GLFWwindow *window, int frameBufferWidth, int f
     state->window.frameBufferHeight = frameBufferHeight;
 }
 
-void createSurface(State_t *state){
+void surfaceCreate(State_t *state){
     // surface is just a cross-platform abstraction of the window (helps with vulkan)
     LOG_IF_ERROR(glfwCreateWindowSurface(state -> context.instance, state->window.windowHandle, state->context.allocator, &state->window.surface),
                  "Unable to create Vulkan window surface")}
@@ -130,7 +130,7 @@ uint32_t clamp_uint32_t(uint32_t num, uint32_t min, uint32_t max)
 /// after the swapchain has already been made. If this happens, then there would be a memory leak from where the previous
 /// swapchain image views were. The actual swapchain images themselves are deleted by the OS regardless.
 /// @param state
-void freeSwapchainImages(State_t *state)
+void swapchainImagesFree(State_t *state)
 {
     if (state->window.swapchain.handle != NULL && state->window.swapchain.imageViews)
     {
@@ -147,7 +147,7 @@ void freeSwapchainImages(State_t *state)
     }
 }
 
-void createSwapchain(State_t *state)
+void swapchainCreate(State_t *state)
 {
     logger(LOG_INFO, "Creating the swapchain...");
 
@@ -255,7 +255,7 @@ void createSwapchain(State_t *state)
     };
 
     // Prevent memory leak by freeing previous swapchain's image views if they exist
-    freeSwapchainImages(state);
+    swapchainImagesFree(state);
     VkSwapchainKHR swapchain;
 
     LOG_IF_ERROR(vkCreateSwapchainKHR(state->context.device, &createInfo, state->context.allocator, &swapchain),
@@ -313,7 +313,7 @@ void createSwapchain(State_t *state)
     }
 }
 
-void createWindow(State_t *state)
+void windowCreate(State_t *state)
 {
     // Vulkan => no api. OpenGL would require the OpenGL api
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -354,11 +354,11 @@ void createWindow(State_t *state)
     // which would change the frame buffer size but NOT the actual window dimensions.
     glfwSetFramebufferSizeCallback(state->window.windowHandle, glfwFramebufferSizeCallback);
 
-    createSurface(state);
-    createSwapchain(state);
+    surfaceCreate(state);
+    swapchainCreate(state);
 }
 
-void createInstance(State_t *state)
+void instanceCreate(State_t *state)
 {
     uint32_t requiredExtensionsCount;
     const char **requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredExtensionsCount);
@@ -394,7 +394,7 @@ void logInfo()
     logger(LOG_INFO, "GLWF %s", glfwGetVersionString());
 }
 
-void selectPhysicalDevice(State_t *state)
+void physicalDeviceSelect(State_t *state)
 {
     uint32_t count;
 
@@ -455,7 +455,7 @@ void selectPhysicalDevice(State_t *state)
     }
 }
 
-void selectQueueFamily(State_t *state)
+void queueFamilySelect(State_t *state)
 {
     state->context.queueFamily = UINT32_MAX;
     // Different GPUs have different capabilities for different families. This can be very device-specific
@@ -492,7 +492,7 @@ void selectQueueFamily(State_t *state)
     free(queueFamilies);
 }
 
-void createDevice(State_t *state)
+void deviceCreate(State_t *state)
 {
     const VkDeviceQueueCreateInfo queueCreateInfos = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -511,7 +511,7 @@ void createDevice(State_t *state)
                  "Unable to create the Vulkan device.")
 }
 
-void getQueue(State_t *state)
+void queueGet(State_t *state)
 {
     // Just like the CPU has threads for different cores, the GPU has queues for different families.
     // Unlike the CPU cores, the GPU's families are often used for different purposes instead of just
@@ -523,35 +523,40 @@ void getQueue(State_t *state)
     vkGetDeviceQueue(state->context.device, state->context.queueFamily, 0, &state->context.queue);
 }
 
-void destroyWindow(State_t *state)
+void swapchainDestroy(State_t *state)
 {
-    freeSwapchainImages(state);
+    swapchainImagesFree(state);
     vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.allocator);
     vkDestroySurfaceKHR(state->context.instance, state->window.surface, state->context.allocator);
+}
+
+void windowDestroy(State_t *state)
+{
+    swapchainDestroy(state);
     glfwDestroyWindow(state->window.windowHandle);
 }
 
-void destroyContext(State_t *state)
+void contextDestroy(State_t *state)
 {
     vkDestroyDevice(state->context.device, state->context.allocator);
     vkDestroyInstance(state->context.instance, state->context.allocator);
 }
 
-void destroyRenderer(State_t *state)
+void rendererDestroy(State_t *state)
 {
     // Placeholder
 }
 
-void createContext(State_t *state)
+void contextCreate(State_t *state)
 {
-    createInstance(state);
-    selectPhysicalDevice(state);
-    selectQueueFamily(state);
-    createDevice(state);
-    getQueue(state);
+    instanceCreate(state);
+    physicalDeviceSelect(state);
+    queueFamilySelect(state);
+    deviceCreate(state);
+    queueGet(state);
 }
 
-void createRenderer(State_t *state)
+void rendererCreate(State_t *state)
 {
     // Placeholder
 }
@@ -570,9 +575,9 @@ void init(State_t *state)
     glfwInit();
     setupErrorHandling();
 
-    createContext(state);
-    createWindow(state);
-    createRenderer(state);
+    contextCreate(state);
+    windowCreate(state);
+    rendererCreate(state);
 }
 
 void loop(State_t *state)
@@ -589,7 +594,7 @@ void loop(State_t *state)
         if (state->window.swapchain.recreate)
         {
             state->window.swapchain.recreate = false;
-            createSwapchain(state);
+            swapchainCreate(state);
             logger(LOG_INFO, "Re-created the swapchain.");
         }
 
@@ -631,11 +636,11 @@ void loop(State_t *state)
 void cleanup(State_t *state)
 {
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
-    // createInstance() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
+    // instanceCreate() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.
-    destroyRenderer(state);
-    destroyWindow(state);
-    destroyContext(state);
+    rendererDestroy(state);
+    windowDestroy(state);
+    contextDestroy(state);
     // Best practice to mitigate dangling pointers. Not strictly necessary, though
     state->window.swapchain.handle = NULL;
     state->context.instance = NULL;
