@@ -1,10 +1,6 @@
 #pragma once
 
-typedef enum
-{
-    LOG_INFO,
-    LOG_WARN
-} LogLevel_t;
+#define PROGRAM_NAME "VoxelC"
 
 /// @brief If error is anything but zero, log that (in red). Include originating filepath,
 /// function name, line number, and the passed error. Optional additional variable args.
@@ -27,4 +23,65 @@ typedef enum
         }                                                                               \
     }
 
-void logger(LogLevel_t level, const char *format, ...);
+typedef enum
+{
+    LOG_INFO,
+    LOG_WARN
+} LogLevel_t;
+
+typedef struct
+{
+    const char *applicationName;
+    const char *engineName;
+    const char *windowTitle;
+    uint32_t vkAPIVersion;
+    int windowWidth;
+    int windowHeight;
+    bool windowResizable;
+    bool windowFullscreen;
+} Config_t;
+
+typedef struct
+{
+    VkInstance instance;
+    VkPhysicalDevice physicalDevice;
+    VkDevice device;
+    VkQueue queue;
+    VkAllocationCallbacks *allocator;
+    /// @brief UINT32_MAX means no family assigned (set to max during creation)
+    uint32_t queueFamily;
+} Context_t;
+
+typedef struct
+{
+    VkSwapchainKHR handle;
+    uint32_t imageCount;
+    bool recreate;
+    VkImage *images;
+    VkImageView *imageViews;
+} Swapchain_t;
+
+typedef struct
+{
+    // Vulkan
+    Swapchain_t swapchain;
+    VkSurfaceKHR surface;
+
+    // GLFW
+    GLFWwindow *windowHandle;
+    int frameBufferWidth;
+    int frameBufferHeight;
+} Window_t;
+
+typedef struct
+{
+    int placeholder;
+} Renderer_t;
+
+typedef struct
+{
+    Config_t config;
+    Window_t window;
+    Context_t context;
+    Renderer_t renderer;
+} State_t;

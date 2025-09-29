@@ -1,5 +1,6 @@
 #pragma once
-#include <stdint.h>
+
+#include "Toolkit.h"
 
 /// @brief First 32 bits (X) Second 32 bits (Z)
 typedef uint64_t ChunkPosPacked_t;
