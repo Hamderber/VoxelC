@@ -18,8 +18,8 @@ typedef enum
 /// be overshadowed by this one.
 #define LOG_IF_ERROR(ERROR, FORMAT, ...)                                                \
     {                                                                                   \
-        int errCode = ERROR;                                                            \
-        if (errCode)                                                                    \
+        int errCode;                                                                    \
+        if ((errCode = ERROR))                                                          \
         {                                                                               \
             fprintf(stderr, "\n\033[31m%s -> %s -> %i -> Error(%i):\033[0m\n\t" FORMAT, \
                     __FILE__, __FUNCTION__, __LINE__, errCode, ##__VA_ARGS__);          \
