@@ -9,7 +9,9 @@
 			"stdio.h": "c",
 			"logger.h": "c",
 			"vulkan.h": "c",
-			"vector": "c"
+			"vector": "c",
+			"headers.h": "c",
+			"toolkit.h": "c"
 		}
 	}
 }

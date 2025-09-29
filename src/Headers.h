@@ -1,0 +1,12 @@
+#pragma once
+
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <signal.h>
+#include <time.h>
+#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
+#include "Definitions.h"

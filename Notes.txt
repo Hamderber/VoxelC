@@ -4,7 +4,7 @@ References:
 
 Conventions:
 1. Anything ending in _t is a typedef.
-2. There shall be no direct printf calls. All console logging will go through Logger
+2. There shall be no direct printf calls. All console logging will go through a logger function
 3. All pointers will be with the varaible name insteady of the type. Ex PointerType *typeName ... 
    and NOT PointerType* typeName ...
 4. EVERY glfw and vulkan method must be ran through LOG_IF_ERROR(...) for proper error catching/announcing.
@@ -21,6 +21,9 @@ Conventions:
 10. Follow each malloc with a LOG_IF_ERROR to verify that memory allocation was successful.
 11. Have the logged string of every LOG_IF_ERROR on a new line for code legibility.
 12. For legibility, when using malloc, use sizeof(...) * numberOfItems in that order.
+13. Function naming should be along the lines of objectModifiersVerb. Ex: swapchainDestroy(). This will make
+    context-specific typing recommendations better.
+14. Any function that logs things should start with log. Ex: LOG_IF_ERROR or logCapabilitiesInfo
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
