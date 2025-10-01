@@ -6,8 +6,68 @@
    2. Don't forget to change to VK_CULL_MODE_FRONT_BIT in the future
 */
 
-// https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
-void rendererCreate(State_t *state)
+/// @brief The render pass is basically the blueprint for the graphics operation in the graphics pipeline
+/// @param state
+void renderPassCreate(State_t *state)
+{
+    VkAttachmentReference colorAttachmentReferences[] = {
+        (VkAttachmentReference){
+            // This 0 is the output location of the outColor vec4 in the fragment shader. If other outputs are needed, the attachment
+            // number would be the same as the output location
+            .attachment = 0U,
+            // Render target for color output
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+    };
+
+    state->renderer.renderpassAttachmentCount = sizeof(colorAttachmentReferences) / sizeof(*colorAttachmentReferences);
+
+    VkSubpassDescription subpassDescriptions[] = {
+        (VkSubpassDescription){
+            // Use for graphics pipeline instead of a compute pipeline
+            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+            .colorAttachmentCount = state->renderer.renderpassAttachmentCount,
+            .pColorAttachments = colorAttachmentReferences,
+        },
+    };
+
+    VkAttachmentDescription attachmentDescriptions[] = {
+        (VkAttachmentDescription){
+            .format = state->window.swapchain.format,
+            // No MSAA at this time
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            // We don't know what the original layout will be
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            // Tells Vulkan to transition the image layout to presentation source for presenting to the screen
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            // The load operation will be clear (clear image initially)
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            // We want to store the results of this render
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        },
+    };
+
+    VkRenderPassCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .subpassCount = sizeof(subpassDescriptions) / sizeof(*subpassDescriptions),
+        .pSubpasses = subpassDescriptions,
+        .attachmentCount = sizeof(attachmentDescriptions) / sizeof(*attachmentDescriptions),
+        .pAttachments = attachmentDescriptions,
+    };
+
+    LOG_IF_ERROR(vkCreateRenderPass(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.pRenderPass),
+                 "Failed to create the render pass.")
+}
+
+void renderPassDestroy(State_t *state)
+{
+    vkDestroyRenderPass(state->context.device, state->renderer.pRenderPass, state->context.pAllocator);
+
+    state->renderer.renderpassAttachmentCount = 0U;
+}
+
+void graphicsPipelineCreate(State_t *state)
 {
     // This is literally just a hardcoded copy-paste of the files generated from shaders.bat
     // This way is nice for not having to ship the shaders as separate files with the exe. But this is also
@@ -293,16 +353,19 @@ void rendererCreate(State_t *state)
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        // layout, pVertexInputState, and pInputAssemblyState all rely on the vertex layout
+        .layout = state->renderer.pPipelineLayout,
+        .pVertexInputState = &vertexInputState,
+        .pInputAssemblyState = &inputAssemblyState,
         // Get the length of the array by dividing the size of the shaderStages array by the size of the type of the first index of the array
         .stageCount = sizeof(shaderStages) / sizeof(*shaderStages),
         .pStages = shaderStages,
         .pDynamicState = &dynamicState,
-        .pVertexInputState = &vertexInputState,
-        .pInputAssemblyState = &inputAssemblyState,
         .pRasterizationState = &rasterizationState,
         .pMultisampleState = &multisamplingState,
         .pColorBlendState = &colorBlendState,
-        .layout = state->renderer.pPipelineLayout};
+        .renderPass = state->renderer.pRenderPass,
+    };
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfos[] = {
         graphicsPipelineCreateInfo,
@@ -319,7 +382,67 @@ void rendererCreate(State_t *state)
     vkDestroyShaderModule(state->context.device, vertexShaderModule, state->context.pAllocator);
 }
 
-void rendererDestroy(State_t *state)
+void graphicsPipelineDestroy(State_t *state)
 {
     vkDestroyPipeline(state->context.device, state->renderer.pGraphicsPipeline, state->context.pAllocator);
+    vkDestroyPipelineLayout(state->context.device, state->renderer.pPipelineLayout, state->context.pAllocator);
+}
+
+void framebuffersCreate(State_t *state)
+{
+
+    state->renderer.framebufferCount = state->window.swapchain.imageCount;
+    state->renderer.pFramebuffers = malloc(sizeof(VkFramebuffer) * state->renderer.framebufferCount);
+
+    LOG_IF_ERROR(!state->renderer.pFramebuffers,
+                 "Failed to allocate memory for the framebuffers.")
+
+    for (uint32_t framebufferIndex = 0U; framebufferIndex < state->renderer.framebufferCount; framebufferIndex++)
+    {
+        VkFramebufferCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            // Only one image layer for the current swapchain configuration
+            .layers = 1U,
+            .renderPass = state->renderer.pRenderPass,
+            .width = state->window.swapchain.imageExtent.width,
+            .height = state->window.swapchain.imageExtent.height,
+            // The attachment count must be the same as the amount of attachment descriptions in the renderpass
+            .attachmentCount = state->renderer.renderpassAttachmentCount,
+            .pAttachments = &state->window.swapchain.pImageViews[framebufferIndex],
+        };
+
+        LOG_IF_ERROR(vkCreateFramebuffer(state->context.device, &createInfo, state->context.pAllocator,
+                                         &state->renderer.pFramebuffers[framebufferIndex]),
+                     "Failed to create frame buffer %d.", framebufferIndex)
+    }
+}
+
+void framebuffersDestroy(State_t *state)
+{
+    // There is a hypothtical situation where the cause of detroying framebuffers is due to changing the amount of swapchain
+    // images. In such a case, directly relying on state->window.swapchain.imageCount would be insufficient and cause a memory leak.
+    for (uint32_t i = 0; i < state->renderer.framebufferCount; i++)
+    {
+        vkDestroyFramebuffer(state->context.device, state->renderer.pFramebuffers[i], state->context.pAllocator);
+    }
+
+    free(state->renderer.pFramebuffers);
+
+    state->renderer.pFramebuffers = NULL;
+    state->renderer.framebufferCount = 0U;
+}
+
+// https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
+void rendererCreate(State_t *state)
+{
+    renderPassCreate(state);
+    graphicsPipelineCreate(state);
+    framebuffersCreate(state);
+}
+
+void rendererDestroy(State_t *state)
+{
+    framebuffersDestroy(state);
+    graphicsPipelineDestroy(state);
+    renderPassDestroy(state);
 }

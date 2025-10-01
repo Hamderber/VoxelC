@@ -99,6 +99,10 @@ typedef struct
 {
     VkPipeline pGraphicsPipeline;
     VkPipelineLayout pPipelineLayout;
+    uint32_t renderpassAttachmentCount;
+    VkRenderPass pRenderPass;
+    uint32_t framebufferCount;
+    VkFramebuffer *pFramebuffers;
 } Renderer_t;
 
 typedef struct

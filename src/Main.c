@@ -3,7 +3,7 @@
 int main(void)
 {
     // Vulkan initialization:
-    // 4 min https://www.youtube.com/watch?v=BjAuqcYLSIo
+    // 0 min https://www.youtube.com/watch?v=fTJ8BMAEJJk
 
     VkComponentMapping componentMapping = {
         // RGBA is still red/blue/green/alpha. Identity is keep it default but it could be .._A/etc

@@ -26,7 +26,8 @@ Conventions:
 14. Any function that logs things should start with log. Ex: LOG_IF_ERROR or logCapabilitiesInfo
 15. Any struct member that contains a pointer shall start with a 'p' ex: 
    typedef struct { ... GLFWwindow *pWindow, ... } exampleStruct;
-16. 
+16. Whenever vkCreateSomething is called ensure that there is a vkDestroySomething of the same reference called
+    during cleanup to prevent memory leaks.
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
@@ -37,3 +38,7 @@ Engine:
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
 2. 
+
+TODO:
+1. At some point in the future, check EVERY entry of LOG_IF_ERROR to ensure that if anything allocates memory but fails,
+   that allocated memory is actually freed when VKResult != VK_SUCCESS. Ex: when trying to create framebuffers
