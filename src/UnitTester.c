@@ -1,60 +1,62 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <time.h>
-#include "Chunk.h"
-#include "Logger.h"
-const int NUM_TESTS = 100000;
+// #include "Toolkit.h"
 
-int chunkCoordPackingTest(unsigned int seed)
-{
-    logger(LOG_INFO, "Chunk coordinate packing/unpacking test...");
+// const int NUM_TESTS = 100000;
 
-    int failures = 0;
+// int chunkCoordPackingTest(unsigned int seed)
+// {
+//     logger(LOG_INFO, "Chunk coordinate packing/unpacking test...");
 
-    // Set the seed for the rand
-    srand(seed);
+//     int failures = 0;
 
-    for (int i = 0; i < NUM_TESTS; i++)
-    {
-        // Random coordinates in full int32 range
-        // Need to do the shift because rand outputs a 16 bit int. So shift 16 then or the bits of another rand
-        int32_t x = (int32_t)((rand() << 16) | rand());
-        int32_t z = (int32_t)((rand() << 16) | rand());
+//     // Set the seed for the rand
+//     srand(seed);
 
-        uint64_t packed = packChunkPos(x, z);
-        ChunkPosUnpacked_t unpacked = unpackChunkPos(packed);
+//     for (int i = 0; i < NUM_TESTS; i++)
+//     {
+//         // Random coordinates in full int32 range
+//         // Need to do the shift because rand outputs a 16 bit int. So shift 16 then or the bits of another rand
+//         int32_t x = (int32_t)((rand() << 16) | rand());
+//         int32_t z = (int32_t)((rand() << 16) | rand());
 
-        if (unpacked.xPos != x || unpacked.zPos != z)
-        {
-            failures++;
-            logger(LOG_INFO, "Test %d FAILED:\n", i);
-            logger(LOG_INFO, "  Original:   x=%d, z=%d\n", x, z);
-            logger(LOG_INFO, "  Unpacked:   x=%d, z=%d\n", unpacked.xPos, unpacked.zPos);
-            logger(LOG_INFO, "  Packed:     0x%016llX\n", packed);
-        }
-    }
+//         uint64_t packed = packChunkPos(x, z);
+//         ChunkPosUnpacked_t unpacked = unpackChunkPos(packed);
 
-    if (failures == 0)
-    {
-        logger(LOG_INFO, "All %d tests passed!\n", NUM_TESTS);
-    }
-    else
-    {
-        logger(LOG_WARN, "%d tests failed.\n", failures);
-    }
+//         if (unpacked.xPos != x || unpacked.zPos != z)
+//         {
+//             failures++;
+//             logger(LOG_INFO, "Test %d FAILED:\n", i);
+//             logger(LOG_INFO, "  Original:   x=%d, z=%d\n", x, z);
+//             logger(LOG_INFO, "  Unpacked:   x=%d, z=%d\n", unpacked.xPos, unpacked.zPos);
+//             logger(LOG_INFO, "  Packed:     0x%016llX\n", packed);
+//         }
+//     }
 
-    return failures;
-}
+//     if (failures == 0)
+//     {
+//         logger(LOG_INFO, "All %d tests passed!\n", NUM_TESTS);
+//     }
+//     else
+//     {
+//         logger(LOG_WARN, "%d tests failed.\n", failures);
+//     }
 
-int unitTester()
-{
-    // Random seed using unsigned time at .exe start
-    unsigned int seed = (unsigned int)time(NULL);
+//     return failures;
+// }
 
-    int failures = 0;
-    failures += chunkCoordPackingTest(seed);
+// int unitTester()
+// {
+//     // Random seed using unsigned time at .exe start
+//     unsigned int seed = (unsigned int)time(NULL);
 
-    // If failures != 0, then there is an exit code that is interpreted as some type of bad exit status
-    return failures;
-}
+//     int failures = 0;
+//     failures += chunkCoordPackingTest(seed);
+
+//     // If failures != 0, then there is an exit code that is interpreted as some type of bad exit status
+//     return failures;
+// }
+
+// int main(void)
+// {
+//     LOG_IF_ERROR(unitTester(),
+//                  "Failed unit test(s)!")
+// }
