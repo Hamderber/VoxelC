@@ -27,3 +27,6 @@ Engine:
    there will be no y coordinate. Thus, this will happen on a purely 2d plane. These chunk coordinates
    are signed 32-bit integers.
 2. 
+
+References:
+1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
