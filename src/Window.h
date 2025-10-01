@@ -202,6 +202,7 @@ void swapchainCreate(State_t *state)
         .height = clamp_uint32_t(capabilities.currentExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
     };
 
+    state->window.swapchain.imageExtent = imageExtent;
     state->window.swapchain.format = surfaceFormat.format;
     state->window.swapchain.colorSpace = surfaceFormat.colorSpace;
 
@@ -230,7 +231,7 @@ void swapchainCreate(State_t *state)
         // support is often not included with desktop/laptop GPUs. Identity just means keep the image the same.
         // Current transform is almost certainly VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
         .preTransform = capabilities.currentTransform,
-        .imageExtent = imageExtent,
+        .imageExtent = state->window.swapchain.imageExtent,
         .minImageCount = swapchainGetMinImageCount(&state->config, presentMode, capabilities.minImageCount, capabilities.maxImageCount),
         .imageFormat = state->window.swapchain.format,
         .imageColorSpace = state->window.swapchain.colorSpace,

@@ -97,7 +97,8 @@ typedef struct
 
 typedef struct
 {
-    VkPipeline graphicsPipeline;
+    VkPipeline pGraphicsPipeline;
+    VkPipelineLayout pPipelineLayout;
 } Renderer_t;
 
 typedef struct

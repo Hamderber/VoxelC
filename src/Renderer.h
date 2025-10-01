@@ -218,7 +218,7 @@ void rendererCreate(State_t *state)
             .y = 0,
             .width = (float)state->window.swapchain.imageExtent.width,
             .height = (float)state->window.swapchain.imageExtent.height,
-        }};
+            .maxDepth = 1.0F}};
 
     VkRect2D scissors[] = {
         (VkRect2D){
@@ -240,12 +240,12 @@ void rendererCreate(State_t *state)
         // renderer is passed a triangle with verticies going clockwise when the front face is assigned as counter-clockwise then that
         // means the triangle is backwards/facing away from the camera reference and can be culled/etc.
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-        // Tells the render pipeline what faces should be drawn. Front but means that back (covered/blocked) bits won't be rendered. This is
-        // literally the backface culling that makes Minecraft playable
+        // Tells the render pipeline what faces should be culled (hidden). Back but means that back (covered/blocked) bits won't be rendered.
+        // This is literally the backface culling that makes Minecraft playable
 
-        // .cullMode = VK_CULL_MODE_FRONT_BIT, enable this when performance is needed and meshing and stuff is known to work correctly
+        // .cullMode = VK_CULL_MODE_BACK_BIT, enable this when performance is needed and meshing and stuff is known to work. (backface culling)
 
-        .cullMode = VK_CULL_MODE_FRONT_AND_BACK, // Both purely for debugging to make sure meshing and whatnot works.
+        .cullMode = VK_CULL_MODE_NONE, // Both purely for debugging to make sure meshing and whatnot works.
         // Fill is opaque normally rendered object and line is wireframe
         .polygonMode = VK_POLYGON_MODE_FILL,
     };
@@ -256,25 +256,60 @@ void rendererCreate(State_t *state)
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
     };
 
+    const VkPipelineColorBlendAttachmentState colorBlendAttachmentStates[] = {
+        // Color blending omitted at this time
+        (VkPipelineColorBlendAttachmentState){
+            // Bitwise OR to build the mask of what color bits the blend will write to
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+        }};
+
+    // Default blend constants applied to all the color blend attachments. When default, this declaration isn't necessary
+    // but this is good to include for legibility. The struct doesn't accept the array directly and requires index replacement.
+    float blendConstants[4] = {0.0F, 0.0F, 0.0F, 0.0F};
+
+    // This configuration will need to be changed if alpha (transparency) is to be supported in the future.
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        . // https://youtu.be/6hFJvlYbtF0?si=1R0f-dthm0ZV-uDq&t=8143
+        .attachmentCount = sizeof(colorBlendAttachmentStates) / sizeof(*colorBlendAttachmentStates),
+        .pAttachments = colorBlendAttachmentStates,
+        .blendConstants[0] = blendConstants[0],
+        .blendConstants[1] = blendConstants[1],
+        .blendConstants[2] = blendConstants[2],
+        .blendConstants[3] = blendConstants[3],
     };
+
+    VkDescriptorSetLayout descriptorSetLayouts[] = {
+        (VkDescriptorSetLayout){
+            0}, // Default
+    };
+
+    const VkPipelineLayoutCreateInfo layoutCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = sizeof(descriptorSetLayouts) / sizeof(*descriptorSetLayouts),
+        .pSetLayouts = descriptorSetLayouts};
+
+    LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pPipelineLayout),
+                 "Failed to create the pipeline layout.");
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         // Get the length of the array by dividing the size of the shaderStages array by the size of the type of the first index of the array
         .stageCount = sizeof(shaderStages) / sizeof(*shaderStages),
-        .pStages = &shaderStages,
+        .pStages = shaderStages,
         .pDynamicState = &dynamicState,
         .pVertexInputState = &vertexInputState,
         .pInputAssemblyState = &inputAssemblyState,
         .pRasterizationState = &rasterizationState,
         .pMultisampleState = &multisamplingState,
-        .pColorBlendState = &colorBlendState};
+        .pColorBlendState = &colorBlendState,
+        .layout = state->renderer.pPipelineLayout};
+
+    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfos[] = {
+        graphicsPipelineCreateInfo,
+    };
     // Don't care about pipeline cache right now and only need to create 1 pipeline
-    LOG_IF_ERROR(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, &graphicsPipelineCreateInfo, state->context.pAllocator,
-                                           &state->renderer.graphicsPipeline),
+    LOG_IF_ERROR(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
+                                           &state->renderer.pGraphicsPipeline),
                  "Failed to create the graphics pipeline.")
 
     // Once the render pipeline has been created, the shader information is stored within it. Thus, the shader modules can
@@ -286,5 +321,5 @@ void rendererCreate(State_t *state)
 
 void rendererDestroy(State_t *state)
 {
-    vkDestroyPipeline(state->context.device, state->renderer.graphicsPipeline, state->context.pAllocator);
+    vkDestroyPipeline(state->context.device, state->renderer.pGraphicsPipeline, state->context.pAllocator);
 }
