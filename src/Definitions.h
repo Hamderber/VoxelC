@@ -38,11 +38,17 @@ typedef enum
     SWAPCHAIN_BUFFERING_QUADRUPLE = 4,
 } SwapchainBuffering_t;
 
+typedef enum
+{
+    SHADER_STAGE_VERTEX = 0,
+    SHADER_STAGE_FRAGMENT = 1,
+} ShaderStage_t;
+
 typedef struct
 {
-    const char *applicationName;
-    const char *engineName;
-    const char *windowTitle;
+    const char *pApplicationName;
+    const char *pEngineName;
+    const char *pWindowTitle;
     uint32_t vkAPIVersion;
     SwapchainBuffering_t swapchainBuffering;
     VkComponentMapping swapchainComponentMapping;
@@ -58,7 +64,7 @@ typedef struct
     VkPhysicalDevice physicalDevice;
     VkDevice device;
     VkQueue queue;
-    VkAllocationCallbacks *allocator;
+    VkAllocationCallbacks *pAllocator;
     /// @brief UINT32_MAX means no family assigned (set to max during creation)
     uint32_t queueFamily;
 } Context_t;
@@ -70,8 +76,8 @@ typedef struct
     VkSwapchainKHR handle;
     uint32_t imageCount;
     bool recreate;
-    VkImage *images;
-    VkImageView *imageViews;
+    VkImage *pImages;
+    VkImageView *pImageViews;
     VkFormat format;
     VkColorSpaceKHR colorSpace;
     VkExtent2D imageExtent;
@@ -84,7 +90,7 @@ typedef struct
     VkSurfaceKHR surface;
 
     // GLFW
-    GLFWwindow *windowHandle;
+    GLFWwindow *pWindow;
     int frameBufferWidth;
     int frameBufferHeight;
 } Window_t;

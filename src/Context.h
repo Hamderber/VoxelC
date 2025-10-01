@@ -8,8 +8,8 @@ void instanceCreate(State_t *state)
     const VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = state->config.vkAPIVersion,
-        .pApplicationName = state->config.applicationName,
-        .pEngineName = state->config.engineName};
+        .pApplicationName = state->config.pApplicationName,
+        .pEngineName = state->config.pEngineName};
 
     const VkInstanceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -17,7 +17,7 @@ void instanceCreate(State_t *state)
         .enabledExtensionCount = requiredExtensionsCount,
         .ppEnabledExtensionNames = requiredExtensions};
 
-    LOG_IF_ERROR(vkCreateInstance(&createInfo, state->context.allocator, &state->context.instance),
+    LOG_IF_ERROR(vkCreateInstance(&createInfo, state->context.pAllocator, &state->context.instance),
                  "Couldn't create Vulkan instance.")
 }
 
@@ -138,7 +138,7 @@ void deviceCreate(State_t *state)
         .enabledExtensionCount = 1,
         .ppEnabledExtensionNames = &(const char *){VK_KHR_SWAPCHAIN_EXTENSION_NAME}};
 
-    LOG_IF_ERROR(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.allocator, &state->context.device),
+    LOG_IF_ERROR(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.pAllocator, &state->context.device),
                  "Unable to create the Vulkan device.")
 }
 
@@ -165,8 +165,8 @@ void contextCreate(State_t *state)
 
 void contextDestroy(State_t *state)
 {
-    vkDestroyDevice(state->context.device, state->context.allocator);
-    vkDestroyInstance(state->context.instance, state->context.allocator);
+    vkDestroyDevice(state->context.device, state->context.pAllocator);
+    vkDestroyInstance(state->context.instance, state->context.pAllocator);
 }
 
 #pragma once
@@ -179,8 +179,8 @@ void instanceCreate(State_t *state)
     const VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = state->config.vkAPIVersion,
-        .pApplicationName = state->config.applicationName,
-        .pEngineName = state->config.engineName};
+        .pApplicationName = state->config.pApplicationName,
+        .pEngineName = state->config.pEngineName};
 
     const VkInstanceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -188,7 +188,7 @@ void instanceCreate(State_t *state)
         .enabledExtensionCount = requiredExtensionsCount,
         .ppEnabledExtensionNames = requiredExtensions};
 
-    LOG_IF_ERROR(vkCreateInstance(&createInfo, state->context.allocator, &state->context.instance),
+    LOG_IF_ERROR(vkCreateInstance(&createInfo, state->context.pAllocator, &state->context.instance),
                  "Couldn't create Vulkan instance.")
 }
 
@@ -305,7 +305,7 @@ void deviceCreate(State_t *state)
         .enabledExtensionCount = 1,
         .ppEnabledExtensionNames = &(const char *){VK_KHR_SWAPCHAIN_EXTENSION_NAME}};
 
-    LOG_IF_ERROR(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.allocator, &state->context.device),
+    LOG_IF_ERROR(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.pAllocator, &state->context.device),
                  "Unable to create the Vulkan device.")
 }
 
@@ -332,6 +332,6 @@ void contextCreate(State_t *state)
 
 void contextDestroy(State_t *state)
 {
-    vkDestroyDevice(state->context.device, state->context.allocator);
-    vkDestroyInstance(state->context.instance, state->context.allocator);
+    vkDestroyDevice(state->context.device, state->context.pAllocator);
+    vkDestroyInstance(state->context.instance, state->context.pAllocator);
 }

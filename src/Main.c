@@ -15,9 +15,9 @@ int main(void)
     };
 
     Config_t config = {
-        .applicationName = (PROGRAM_NAME, " Application"),
-        .engineName = (PROGRAM_NAME, " Engine"),
-        .windowTitle = PROGRAM_NAME,
+        .pApplicationName = (PROGRAM_NAME, " Application"),
+        .pEngineName = (PROGRAM_NAME, " Engine"),
+        .pWindowTitle = PROGRAM_NAME,
         .windowWidth = 720,
         .windowHeight = 480,
         // If the window gets resized, the swapchain MUST be recreated

@@ -78,7 +78,7 @@ void cleanup(State_t *state)
     // Best practice to mitigate dangling pointers. Not strictly necessary, though
     state->window.swapchain.handle = NULL;
     state->context.instance = NULL;
-    state->context.allocator = NULL;
+    state->context.pAllocator = NULL;
 
     logger(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

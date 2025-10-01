@@ -7,19 +7,19 @@ void windowPollEvents(const State_t *state)
 
 bool windowShouldClose(const State_t *state)
 {
-    return glfwWindowShouldClose(state->window.windowHandle);
+    return glfwWindowShouldClose(state->window.pWindow);
 }
 
 void surfaceCreate(State_t *state)
 {
     // surface is just a cross-platform abstraction of the window (helps with vulkan)
-    LOG_IF_ERROR(glfwCreateWindowSurface(state->context.instance, state->window.windowHandle, state->context.allocator, &state->window.surface),
+    LOG_IF_ERROR(glfwCreateWindowSurface(state->context.instance, state->window.pWindow, state->context.pAllocator, &state->window.surface),
                  "Unable to create Vulkan window surface")
 }
 
 void surfaceDestroy(State_t *state)
 {
-    vkDestroySurfaceKHR(state->context.instance, state->window.surface, state->context.allocator);
+    vkDestroySurfaceKHR(state->context.instance, state->window.surface, state->context.pAllocator);
 }
 
 /// @brief Destroy the swapchain's image views before allocating new ones. This is imporant because this method could be called
@@ -28,18 +28,18 @@ void surfaceDestroy(State_t *state)
 /// @param state
 void swapchainImagesFree(State_t *state)
 {
-    if (state->window.swapchain.handle != NULL && state->window.swapchain.imageViews)
+    if (state->window.swapchain.handle != NULL && state->window.swapchain.pImageViews)
     {
         for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
         {
-            vkDestroyImageView(state->context.device, state->window.swapchain.imageViews[i], state->context.allocator);
+            vkDestroyImageView(state->context.device, state->window.swapchain.pImageViews[i], state->context.pAllocator);
         }
 
-        free(state->window.swapchain.imageViews);
-        state->window.swapchain.imageViews = NULL;
+        free(state->window.swapchain.pImageViews);
+        state->window.swapchain.pImageViews = NULL;
 
-        free(state->window.swapchain.images);
-        state->window.swapchain.images = NULL;
+        free(state->window.swapchain.pImages);
+        state->window.swapchain.pImages = NULL;
     }
 }
 
@@ -119,19 +119,19 @@ void swapchainImagesGet(State_t *state)
                  "Failed to query the number of images in the swapchain.")
     logger(LOG_INFO, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
 
-    state->window.swapchain.images = malloc(sizeof(VkImage) * state->window.swapchain.imageCount);
-    LOG_IF_ERROR(state->window.swapchain.images == NULL,
+    state->window.swapchain.pImages = malloc(sizeof(VkImage) * state->window.swapchain.imageCount);
+    LOG_IF_ERROR(state->window.swapchain.pImages == NULL,
                  "Unable to allocate memory for swapchain images.")
 
     LOG_IF_ERROR(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
-                                         &state->window.swapchain.imageCount, state->window.swapchain.images),
+                                         &state->window.swapchain.imageCount, state->window.swapchain.pImages),
                  "Failed to get the images in the swapchain.")
 }
 
 void swapchainImageViewsCreate(State_t *state)
 {
-    state->window.swapchain.imageViews = malloc(sizeof(VkImageView) * state->window.swapchain.imageCount);
-    LOG_IF_ERROR(state->window.swapchain.imageViews == NULL,
+    state->window.swapchain.pImageViews = malloc(sizeof(VkImageView) * state->window.swapchain.imageCount);
+    LOG_IF_ERROR(state->window.swapchain.pImageViews == NULL,
                  "Unable to allocate memory for swapchain image views.")
 
     // Allows for supporting multiple image view layers for the same image etc.
@@ -147,7 +147,7 @@ void swapchainImageViewsCreate(State_t *state)
         VkImageViewCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .format = state->window.swapchain.format,
-            .image = state->window.swapchain.images[i],
+            .image = state->window.swapchain.pImages[i],
             // You could map the green component to red to do color shifting if desired or something
             .components = state->config.swapchainComponentMapping,
             .subresourceRange = subresourceRange,
@@ -155,7 +155,7 @@ void swapchainImageViewsCreate(State_t *state)
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
         };
         // Pass the address of the specific spot in the array of swapchain image views
-        LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.allocator, &state->window.swapchain.imageViews[i]),
+        LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &state->window.swapchain.pImageViews[i]),
                      "Failed to create swapchain image view %d", i)
     }
 }
@@ -241,11 +241,11 @@ void swapchainCreate(State_t *state)
     swapchainImagesFree(state);
     VkSwapchainKHR swapchain;
 
-    LOG_IF_ERROR(vkCreateSwapchainKHR(state->context.device, &createInfo, state->context.allocator, &swapchain),
+    LOG_IF_ERROR(vkCreateSwapchainKHR(state->context.device, &createInfo, state->context.pAllocator, &swapchain),
                  "Failed to create Vulkan swapchain!")
 
     // Even though the state's initial swapchain is obviously null, this sets us up to properly assign the new one (drivers/etc.)
-    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.allocator);
+    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
     state->window.swapchain.handle = swapchain;
 
     // state->window.swapchain.format = surfaceFormat.format;
@@ -258,7 +258,7 @@ void swapchainCreate(State_t *state)
 void swapchainDestroy(State_t *state)
 {
     swapchainImagesFree(state);
-    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.allocator);
+    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
 }
 
 void windowCreate(State_t *state)
@@ -282,25 +282,25 @@ void windowCreate(State_t *state)
     }
 
     // If not fullscreen, set window resolution to the default state values (set in main())
-    state->window.windowHandle = glfwCreateWindow(width, height, state->config.windowTitle, monitor, NULL);
+    state->window.pWindow = glfwCreateWindow(width, height, state->config.pWindowTitle, monitor, NULL);
 
     int frameBufferWidth;
     int frameBufferHeight;
-    glfwGetFramebufferSize(state->window.windowHandle, &frameBufferWidth, &frameBufferHeight);
+    glfwGetFramebufferSize(state->window.pWindow, &frameBufferWidth, &frameBufferHeight);
     state->window.frameBufferWidth = frameBufferWidth;
     state->window.frameBufferHeight = frameBufferHeight;
 
     // This allows for the glfw window to keep a reference to the state. Thus, we don't have to make state a global variable.
     // This is necessary for things such as callback functions (see below in this method) where the callback function
     // otherwise wouldn't have access to the state.
-    glfwSetWindowUserPointer(state->window.windowHandle, state);
+    glfwSetWindowUserPointer(state->window.pWindow, state);
 
     // If the window changes size, call this function. There is a window-specific one, but the frame buffer one is better.
     // This allows for supporting retina displays and other screens that use subpixels (Vulkan sees subpixels as normal pixels).
     // For those types of displays, the window width/height and the frame buffer size would be different numbers. Also consider
     // that if the user has two monitors with only one being a retina display, they could drag the window from one screen to another
     // which would change the frame buffer size but NOT the actual window dimensions.
-    glfwSetFramebufferSizeCallback(state->window.windowHandle, glfwFramebufferSizeCallback);
+    glfwSetFramebufferSizeCallback(state->window.pWindow, glfwFramebufferSizeCallback);
 
     surfaceCreate(state);
     swapchainCreate(state);
@@ -310,5 +310,5 @@ void windowDestroy(State_t *state)
 {
     swapchainDestroy(state);
     surfaceDestroy(state);
-    glfwDestroyWindow(state->window.windowHandle);
+    glfwDestroyWindow(state->window.pWindow);
 }

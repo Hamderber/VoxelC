@@ -24,6 +24,9 @@ Conventions:
 13. Function naming should be along the lines of objectModifiersVerb. Ex: swapchainDestroy(). This will make
     context-specific typing recommendations better.
 14. Any function that logs things should start with log. Ex: LOG_IF_ERROR or logCapabilitiesInfo
+15. Any struct member that contains a pointer shall start with a 'p' ex: 
+   typedef struct { ... GLFWwindow *pWindow, ... } exampleStruct;
+16. 
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
@@ -33,3 +36,4 @@ Engine:
 
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
+2. 
