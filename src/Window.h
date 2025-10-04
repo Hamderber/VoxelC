@@ -13,7 +13,8 @@ bool windowShouldClose(const State_t *state)
 void surfaceCreate(State_t *state)
 {
     // surface is just a cross-platform abstraction of the window (helps with vulkan)
-    LOG_IF_ERROR(glfwCreateWindowSurface(state->context.instance, state->window.pWindow, state->context.pAllocator, &state->window.surface),
+    LOG_IF_ERROR(glfwCreateWindowSurface(state->context.instance, state->window.pWindow, state->context.pAllocator,
+                                         &state->window.surface),
                  "Unable to create Vulkan window surface")
 }
 
@@ -112,10 +113,76 @@ VkPresentModeKHR surfacePresentModesSelect(const Context_t *context, const Windo
     return presentMode;
 }
 
+void swapchainImageAcquireNext(State_t *state)
+{
+    uint64_t imageTimeout = UINT64_MAX;
+    VkFence fence = NULL;
+    // Don't care about the a fence for displaying images right now
+    // It is worth considering to handle certain errors here eventially because not all errors mean the swapchain
+    // failed completely
+    VkResult result = vkAcquireNextImageKHR(state->context.device, state->window.swapchain.handle, imageTimeout,
+                                            state->renderer.imageAcquiredSemaphore, fence, &state->window.swapchain.imageAcquiredIndex);
+    //  "Failed to aquire the next image from the swapchain. Index: %d", state->window.swapchain.imageAcquiredIndex)
+
+    // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
+    // MUST be recreated immediately and presentation will just be attempted on the next frame.
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    {
+        logger(LOG_WARN, "The swapchain is out of date and must be recreated! VkResult = %d", result);
+        state->window.swapchain.recreate = true;
+
+        // If this happens, does the CPU wait for a fence that will never compelte/reset?
+    }
+    else
+    {
+        LOG_IF_ERROR(result,
+                     "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.")
+    }
+}
+
+void swapchainImagePresent(State_t *state)
+{
+    VkPresentInfoKHR presentInfo = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pImageIndices = &state->window.swapchain.imageAcquiredIndex,
+        .swapchainCount = 1U,
+        .pSwapchains = &state->window.swapchain.handle,
+        .waitSemaphoreCount = 1U,
+        .pWaitSemaphores = &state->renderer.renderFinishedSemaphore,
+    };
+
+    // Can't just catch this result with the error logger. Actually have to handle it.
+    VkResult result = vkQueuePresentKHR(state->context.queue, &presentInfo);
+
+    // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
+    // MUST be recreated immediately and presentation will just be attempted on the next frame.
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    {
+        logger(LOG_WARN, "The swapchain is out of date and must be recreated! VkResult = %d", result);
+        state->window.swapchain.recreate = true;
+
+        // If this happens, does the CPU wait for a fence that will never compelte/reset?
+    }
+    else
+    {
+        LOG_IF_ERROR(result,
+                     "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.")
+    }
+
+    // One fence at this time with an unlimited wait period
+    LOG_IF_ERROR(vkWaitForFences(state->context.device, 1U, &state->renderer.inFlightFence, VK_TRUE, UINT64_MAX),
+                 "Failed to wait for fences.")
+
+    // Must reset the fence after waiting for it for reuse
+    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFence),
+                 "Failed to reset fences")
+}
+
 void swapchainImagesGet(State_t *state)
 {
     // null so that we just get the number of formats
-    LOG_IF_ERROR(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle, &state->window.swapchain.imageCount, NULL),
+    LOG_IF_ERROR(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
+                                         &state->window.swapchain.imageCount, NULL),
                  "Failed to query the number of images in the swapchain.")
     logger(LOG_INFO, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
 

@@ -48,12 +48,22 @@ void renderPassCreate(State_t *state)
         },
     };
 
+    VkSubpassDependency dependencies = {
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        // Destination is the first subpass
+        .dstSubpass = 0U,
+        // No mask needed at this time
+        .srcAccessMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstStageMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    };
+
     VkRenderPassCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .subpassCount = sizeof(subpassDescriptions) / sizeof(*subpassDescriptions),
         .pSubpasses = subpassDescriptions,
         .attachmentCount = sizeof(attachmentDescriptions) / sizeof(*attachmentDescriptions),
         .pAttachments = attachmentDescriptions,
+        .pDependencies = &dependencies,
     };
 
     LOG_IF_ERROR(vkCreateRenderPass(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.pRenderPass),
@@ -432,16 +442,208 @@ void framebuffersDestroy(State_t *state)
     state->renderer.framebufferCount = 0U;
 }
 
+void commandPoolCreate(State_t *state)
+{
+    VkCommandPoolCreateFlags createFlags = {
+        // Necessary because the command pool will be recaptured every frame
+        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+    };
+
+    VkCommandPoolCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .queueFamilyIndex = state->context.queueFamily,
+        .flags = createFlags,
+    };
+
+    LOG_IF_ERROR(vkCreateCommandPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.commandPool),
+                 "Failed to create command pool.")
+}
+
+void commandPoolDestroy(State_t *state)
+{
+    vkDestroyCommandPool(state->context.device, state->renderer.commandPool, state->context.pAllocator);
+}
+
+void commandBufferAllocate(State_t *state)
+{
+    VkCommandBufferAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandBufferCount = 1U,
+        .commandPool = state->renderer.commandPool,
+        // Primary goes directly to the GPU and secondary goes to the GPU when called through primary
+        // Kind of like how main() is the entry point and then main can call other funcitons
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    };
+
+    // The associated destroy (deallocation) isn't required because Vulkan does it automatically
+    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &state->renderer.commandBuffer),
+                 "Failed to allocate command buffer")
+}
+
+void commandBufferRecord(State_t *state)
+{
+    // Skip this recording frame if the swapchain will be/is being recreated (avoids null pointers)
+    if (state->window.swapchain.recreate)
+        return;
+
+    // Because the command pool was created with VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, the command buffer
+    // doesn't need to be reset here manually. If the command buffer has begun, DO NOT begin it again.
+
+    VkCommandBufferBeginInfo commandBufferBeginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    };
+
+    VkRect2D renderArea = {
+        .extent = state->window.swapchain.imageExtent,
+    };
+
+    // Which color values to clear when using the clear operation defined in the attachments of the render pass.
+    VkClearValue clearValues[] = {
+        // Ex: clears image but leaves a background color
+        (VkClearValue){
+            // Black
+            .color = 0,
+        },
+    };
+
+    LOG_IF_ERROR(vkBeginCommandBuffer(state->renderer.commandBuffer, &commandBufferBeginInfo),
+                 "Failed to begin the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
+
+    // Avoid access violations
+    if (!state->renderer.pFramebuffers || state->window.swapchain.imageAcquiredIndex >= state->renderer.framebufferCount)
+    {
+        logger(LOG_WARN, "Skipped an access violation during frame buffer access during commandBufferRecord!");
+        return;
+    }
+
+    // ALL vkCmd functions (commands) MUST go between the begin and end command buffer functions (obviously)
+    VkRenderPassBeginInfo renderPassBeginInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = state->renderer.pRenderPass,
+        .framebuffer = state->renderer.pFramebuffers[state->window.swapchain.imageAcquiredIndex],
+        .renderArea = renderArea,
+        .clearValueCount = sizeof(clearValues) / sizeof(*clearValues),
+        .pClearValues = clearValues,
+    };
+
+    // If secondary command buffers are used, use VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
+    vkCmdBeginRenderPass(state->renderer.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Required because the viewport is dynamic (resizeable)
+    VkViewport viewport = {
+        .x = 0.0f,
+        .y = 0.0f,
+        .width = (float)state->window.swapchain.imageExtent.width,
+        .height = (float)state->window.swapchain.imageExtent.height,
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
+    };
+    vkCmdSetViewport(state->renderer.commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {
+        .offset = {0, 0},
+        .extent = state->window.swapchain.imageExtent,
+    };
+    vkCmdSetScissor(state->renderer.commandBuffer, 0, 1, &scissor);
+
+    // Access violation here when resizing the window
+
+    // Bind the render pipeline to graphics (instead of compute)
+    vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pGraphicsPipeline);
+
+    // DRAW ! ! ! ! !
+    // currently hardcoded the vertex data in the (also hardcoded) shaders
+    vkCmdDraw(state->renderer.commandBuffer, 3U, 1U, 0U, 0U);
+
+    // Must end the render pass if has begun (obviously)
+    vkCmdEndRenderPass(state->renderer.commandBuffer);
+
+    // All errors generated from vkCmd functions will populate here. The vkCmd functions themselves are all void.
+    LOG_IF_ERROR(vkEndCommandBuffer(state->renderer.commandBuffer),
+                 "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
+}
+
+void commandBufferSubmit(State_t *state)
+{
+    VkPipelineStageFlags stageFlags[] = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    };
+
+    VkSubmitInfo submitInfos[] = {
+        (VkSubmitInfo){
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            // Only one command buffer at this time (no array stored)
+            .commandBufferCount = 1U,
+            .pCommandBuffers = &state->renderer.commandBuffer,
+            .waitSemaphoreCount = 1U,
+            // Wait until the image is acquired
+            .pWaitSemaphores = &state->renderer.imageAcquiredSemaphore,
+            .signalSemaphoreCount = 1U,
+            // Signal when the render is finished
+            .pSignalSemaphores = &state->renderer.renderFinishedSemaphore,
+            .pWaitDstStageMask = stageFlags,
+        },
+    };
+
+    // Just one command submission right now
+    // Signals the fence for when finished rendering
+    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1U, submitInfos, state->renderer.inFlightFence),
+                 "Failed to submit queue to the command buffer.")
+}
+
+void syncObjectsCreate(State_t *state)
+{
+    // GPU operations are async so sync is required to aid in parallel execution
+    // Semaphore: (syncronization) action signal for GPU processes. Cannot continue until the relavent semaphore is complete
+    // Fence: same above but for CPU
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        // Binary is just signaled/not signaled. Timeline is more states than 2 (0/1) basically.
+    };
+
+    LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                   &state->renderer.imageAcquiredSemaphore),
+                 "Failed to create image acquired semaphore")
+
+    LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                   &state->renderer.renderFinishedSemaphore),
+                 "Failed to create render finished semaphore")
+
+    VkFenceCreateInfo fenceCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    };
+
+    LOG_IF_ERROR(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
+                               &state->renderer.inFlightFence),
+                 "Failed to create in-flight fence")
+}
+
+void syncObjectsDestroy(State_t *state)
+{
+    vkDestroyFence(state->context.device, state->renderer.inFlightFence, state->context.pAllocator);
+    vkDestroySemaphore(state->context.device, state->renderer.renderFinishedSemaphore, state->context.pAllocator);
+    vkDestroySemaphore(state->context.device, state->renderer.imageAcquiredSemaphore, state->context.pAllocator);
+}
+
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
     renderPassCreate(state);
     graphicsPipelineCreate(state);
     framebuffersCreate(state);
+    commandPoolCreate(state);
+    commandBufferAllocate(state);
+    syncObjectsCreate(state);
 }
 
 void rendererDestroy(State_t *state)
 {
+    // The GPU could be working on stuff for the renderer in parallel, meaning the renderer could be
+    // destroyed while the GPU is still working. We should wait for the GPU to finish its current tasks.
+    LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
+                 "Failed to wait for the Vulkan queue to be idle.")
+    syncObjectsDestroy(state);
+    commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
     renderPassDestroy(state);
