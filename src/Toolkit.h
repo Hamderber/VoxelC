@@ -2,6 +2,7 @@
 
 #include "Headers.h"
 #include "Utils.h"
+#include "Shaders.h"
 #include "Renderer.h"
 #include "Window.h"
 #include "Context.h"

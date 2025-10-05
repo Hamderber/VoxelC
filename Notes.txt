@@ -37,7 +37,7 @@ Engine:
 
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
-2. 
+2. Vertex buffer: https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 
 TODO:
 1. At some point in the future, check EVERY entry of LOG_IF_ERROR to ensure that if anything allocates memory but fails,
