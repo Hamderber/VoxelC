@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Headers.h"
+#include "LinearAlgebra.h"
 #include "Utils.h"
 #include "Shaders.h"
 #include "Renderer.h"

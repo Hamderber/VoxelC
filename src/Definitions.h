@@ -23,12 +23,14 @@
         }                                                                               \
     }
 
+// Logging
 typedef enum
 {
     LOG_INFO,
     LOG_WARN
 } LogLevel_t;
 
+// Engine
 typedef enum
 {
     SWAPCHAIN_BUFFERING_DEFAULT = 0,
@@ -64,6 +66,7 @@ typedef struct
     VkPhysicalDevice physicalDevice;
     VkDevice device;
     VkQueue queue;
+    // This is always null right now so that Vulkan uses its own allocator
     VkAllocationCallbacks *pAllocator;
     /// @brief UINT32_MAX means no family assigned (set to max during creation)
     uint32_t queueFamily;
@@ -118,3 +121,49 @@ typedef struct
     Context_t context;
     Renderer_t renderer;
 } State_t;
+
+typedef struct
+{
+    float x, y;
+} Vec2f_t;
+
+typedef struct
+{
+    float x, y, z;
+} Vec3f_t;
+
+// Rendering
+typedef struct
+{
+    Vec2f_t position;
+    Vec3f_t color;
+} ShaderVertex_t;
+
+// Directions
+static const Vec3f_t RIGHT = {1.0f, 0.0f, 0.0f};
+static const Vec3f_t LEFT = {-1.0f, 0.0f, 0.0f};
+static const Vec3f_t UP = {0.0f, 1.0f, 0.0f};
+static const Vec3f_t DOWN = {0.0f, -1.0f, 0.0f};
+static const Vec3f_t FORWARD = {0.0f, 0.0f, 1.0f};
+static const Vec3f_t BACK = {0.0f, 0.0f, -1.0f};
+
+// Colors
+static const Vec3f_t RED = {1.0f, 0.0f, 0.0f};
+static const Vec3f_t GREEN = {0.0f, 1.0f, 0.0f};
+static const Vec3f_t BLUE = {0.0f, 0.0f, 1.0f};
+static const Vec3f_t BLACK = {0.0f, 0.0f, 0.0f};
+static const Vec3f_t WHITE = {1.0f, 1.0f, 1.0f};
+static const Vec3f_t YELLOW = {1.0f, 1.0f, 0.0f};
+static const Vec3f_t CYAN = {0.0f, 1.0f, 1.0f};
+static const Vec3f_t MAGENTA = {1.0f, 0.0f, 1.0f};
+static const Vec3f_t GRAY = {0.5f, 0.5f, 0.5f};
+
+// Axes
+static const Vec3f_t X_AXIS = {1.0f, 0.0f, 0.0f};
+static const Vec3f_t Y_AXIS = {0.0f, 1.0f, 0.0f};
+static const Vec3f_t Z_AXIS = {0.0f, 0.0f, 1.0f};
+
+// Diagonals
+static const Vec3f_t ONE = {1.0f, 1.0f, 1.0f};
+static const Vec3f_t NEG_ONE = {-1.0f, -1.0f, -1.0f};
+static const Vec3f_t ZERO = {0.0f, 0.0f, 0.0f};

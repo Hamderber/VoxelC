@@ -8,6 +8,23 @@
    2. Don't forget to change to VK_CULL_MODE_FRONT_BIT in the future
 */
 
+const ShaderVertex_t SHADER_VERTS[] = {
+    {
+        .position = {0.0F, -0.5F},
+        .color = {0.0F, 0.0F, 0.0F},
+    },
+    {
+        .position = {0.5F, 0.5F},
+        .color = {0.0F, 1.0F, 0.0F},
+    },
+    {
+        .position = {-0.5F, 0.5F},
+        .color = {0.0F, 0.0F, 1.0F},
+    },
+};
+// Obviously temp implementation
+const uint32_t NUM_SHADER_VERTS = 3U;
+
 /// @brief The render pass is basically the blueprint for the graphics operation in the graphics pipeline
 /// @param state
 void renderPassCreate(State_t *state)
@@ -136,9 +153,50 @@ void graphicsPipelineCreate(State_t *state)
         .dynamicStateCount = sizeof(dynamicStates) / sizeof(*dynamicStates),
         .pDynamicStates = dynamicStates};
 
+    // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
+    // of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
+    VkVertexInputBindingDescription bindingDescriptions[] = {
+        {
+            .binding = 0U,
+            // Number of bytes from one entry to the next
+            .stride = NUM_SHADER_VERTS,
+            // Per-vertex because not concerned with instanced rendering right now
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+        },
+    };
+
+    // An attribute description struct describes how to extract a vertex attribute from a chunk of vertex data originating
+    // from a binding description. We have two attributes, position and color, so we need two attribute description structs.
+    VkVertexInputAttributeDescription attributeDescriptions[] = {
+        // Position
+        {
+            .binding = 0U,
+            // The location for the position in the vertex shader
+            .location = 0U,
+            // Type of data (format is data type so color is same format as pos)
+            // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            // Specifies the number of bytes since the start of the per-vertex data to read from.
+            // Position is first so 0
+            .offset = 0U,
+        },
+        // Color
+        {
+            .binding = 0U,
+            // The location for the color in the vertex shader
+            .location = 1U,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            // Position is first so sizeof(pos) type to get offset
+            .offset = sizeof(Vec2f_t),
+        },
+    };
+
     VkPipelineVertexInputStateCreateInfo vertexInputState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        // No need to change defaults right now
+        .vertexBindingDescriptionCount = sizeof(bindingDescriptions) / sizeof(*bindingDescriptions),
+        .pVertexBindingDescriptions = bindingDescriptions,
+        .vertexAttributeDescriptionCount = sizeof(attributeDescriptions) / sizeof(*bindingDescriptions),
+        .pVertexAttributeDescriptions = attributeDescriptions,
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {
@@ -216,15 +274,12 @@ void graphicsPipelineCreate(State_t *state)
         .blendConstants[3] = blendConstants[3],
     };
 
-    VkDescriptorSetLayout descriptorSetLayouts[] = {
-        (VkDescriptorSetLayout){
-            0}, // Default
-    };
-
     const VkPipelineLayoutCreateInfo layoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = sizeof(descriptorSetLayouts) / sizeof(*descriptorSetLayouts),
-        .pSetLayouts = descriptorSetLayouts};
+        // Default
+        .setLayoutCount = 0U,
+        .pSetLayouts = NULL,
+    };
 
     LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pPipelineLayout),
                  "Failed to create the pipeline layout.");
@@ -243,7 +298,7 @@ void graphicsPipelineCreate(State_t *state)
         .pMultisampleState = &multisamplingState,
         .pColorBlendState = &colorBlendState,
         .renderPass = state->renderer.pRenderPass,
-    };
+        .pViewportState = &viewportStateCreateInfo};
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfos[] = {
         graphicsPipelineCreateInfo,
@@ -330,6 +385,21 @@ void commandPoolCreate(State_t *state)
 void commandPoolDestroy(State_t *state)
 {
     vkDestroyCommandPool(state->context.device, state->renderer.commandPool, state->context.pAllocator);
+}
+
+void vertexBufferCreate(State_t *state)
+{
+    VkBufferCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        // Not sizeof Vert3f_t because shader vertex has color etc data too
+        .size = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS,
+    };
+    // https://vulkan-tutorial.com/Vertex_buffers/Vertex_buffer_creation
+    uhjk
+}
+
+void vertexBufferDestroy(State_t *state)
+{
 }
 
 void commandBufferAllocate(State_t *state)
@@ -500,6 +570,7 @@ void rendererCreate(State_t *state)
     graphicsPipelineCreate(state);
     framebuffersCreate(state);
     commandPoolCreate(state);
+    vertexBufferCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -511,6 +582,7 @@ void rendererDestroy(State_t *state)
     LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
                  "Failed to wait for the Vulkan queue to be idle.")
     syncObjectsDestroy(state);
+    vertexBufferDestroy(state);
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
