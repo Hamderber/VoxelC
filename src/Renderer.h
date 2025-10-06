@@ -11,7 +11,7 @@
 const ShaderVertex_t SHADER_VERTS[] = {
     {
         .position = {0.0F, -0.5F},
-        .color = {0.0F, 0.0F, 0.0F},
+        .color = {1.0F, 1.0F, 1.0F},
     },
     {
         .position = {0.5F, 0.5F},
@@ -159,7 +159,7 @@ void graphicsPipelineCreate(State_t *state)
         {
             .binding = 0U,
             // Number of bytes from one entry to the next
-            .stride = NUM_SHADER_VERTS,
+            .stride = sizeof(ShaderVertex_t),
             // Per-vertex because not concerned with instanced rendering right now
             .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
         },
@@ -175,7 +175,7 @@ void graphicsPipelineCreate(State_t *state)
             .location = 0U,
             // Type of data (format is data type so color is same format as pos)
             // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .format = VK_FORMAT_R32G32_SFLOAT,
             // Specifies the number of bytes since the start of the per-vertex data to read from.
             // Position is first so 0
             .offset = 0U,
@@ -195,7 +195,7 @@ void graphicsPipelineCreate(State_t *state)
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .vertexBindingDescriptionCount = sizeof(bindingDescriptions) / sizeof(*bindingDescriptions),
         .pVertexBindingDescriptions = bindingDescriptions,
-        .vertexAttributeDescriptionCount = sizeof(attributeDescriptions) / sizeof(*bindingDescriptions),
+        .vertexAttributeDescriptionCount = sizeof(attributeDescriptions) / sizeof(*attributeDescriptions),
         .pVertexAttributeDescriptions = attributeDescriptions,
     };
 
@@ -387,19 +387,84 @@ void commandPoolDestroy(State_t *state)
     vkDestroyCommandPool(state->context.device, state->renderer.commandPool, state->context.pAllocator);
 }
 
+void writeVertexMemory(State_t *state)
+{
+    // Not sizeof Vert3f_t because shader vertex has color etc data too
+    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
+
+    // Map the memory so the CPU can access it, write to it, then unmap it. There can obviously be concurrency issues with this, but
+    // using the VK_MEMORY_PROPERTY_HOST_COHERENT_BIT in the memory property flags resolves this (at the cost of minor performance)
+    void *data;
+    LOG_IF_ERROR(vkMapMemory(state->context.device, state->renderer.vertexBufferMemory, 0, bufferSize, 0, &data),
+                 "Failed to map memory.")
+    memcpy(data, SHADER_VERTS, (size_t)bufferSize);
+    vkUnmapMemory(state->context.device, state->renderer.vertexBufferMemory);
+}
+
 void vertexBufferCreate(State_t *state)
 {
+    // Not sizeof Vert3f_t because shader vertex has color etc data too
+    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
+
     VkBufferCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        // Not sizeof Vert3f_t because shader vertex has color etc data too
-        .size = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS,
+        .size = bufferSize,
+        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        // Don't need to share this buffer between queue families right now
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
-    // https://vulkan-tutorial.com/Vertex_buffers/Vertex_buffer_creation
-    uhjk
+
+    LOG_IF_ERROR(vkCreateBuffer(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.vertexBuffer),
+                 "Failed to create vertex buffer.")
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(state->context.device, state->renderer.vertexBuffer, &memoryRequirements);
+
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(state->context.physicalDevice, &memoryProperties);
+
+    VkMemoryPropertyFlags propertyFlags = {
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    };
+
+    uint32_t memoryType = UINT32_MAX;
+    uint32_t typeFilter = memoryRequirements.memoryTypeBits;
+
+    for (uint32_t i = 0U; i < memoryProperties.memoryTypeCount; i++)
+    {
+        // Check if the corresponding bits of the filter are 1
+        if ((typeFilter & (1 << i)) &&
+            (memoryProperties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags)
+        {
+            memoryType = i;
+            break;
+        }
+    }
+
+    LOG_IF_ERROR(memoryType == UINT32_MAX,
+                 "Failed to find suitable memory type!")
+
+    VkMemoryAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memoryRequirements.size,
+        .memoryTypeIndex = memoryType,
+    };
+
+    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, &state->renderer.vertexBufferMemory),
+                 "Failed to allocate vertex buffer memory.")
+
+    // No offset required because this buffer is specifically made for the verticies. If there was an offset, it would have to be
+    // divisible by memoryRequirements.alignment
+    LOG_IF_ERROR(vkBindBufferMemory(state->context.device, state->renderer.vertexBuffer, state->renderer.vertexBufferMemory, 0),
+                 "Failed to bind vertex buffer memory!")
+
+    writeVertexMemory(state);
 }
 
 void vertexBufferDestroy(State_t *state)
 {
+    vkDestroyBuffer(state->context.device, state->renderer.vertexBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, state->renderer.vertexBufferMemory, state->context.pAllocator);
 }
 
 void commandBufferAllocate(State_t *state)
@@ -489,9 +554,13 @@ void commandBufferRecord(State_t *state)
     // Bind the render pipeline to graphics (instead of compute)
     vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pGraphicsPipeline);
 
+    VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(state->renderer.commandBuffer, 0, 1, vertexBuffers, offsets);
+
     // DRAW ! ! ! ! !
     // currently hardcoded the vertex data in the (also hardcoded) shaders
-    vkCmdDraw(state->renderer.commandBuffer, 3U, 1U, 0U, 0U);
+    vkCmdDraw(state->renderer.commandBuffer, sizeof(SHADER_VERTS) / sizeof(*SHADER_VERTS), 1U, 0U, 0U);
 
     // Must end the render pass if has begun (obviously)
     vkCmdEndRenderPass(state->renderer.commandBuffer);

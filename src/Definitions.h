@@ -112,6 +112,8 @@ typedef struct
     VkSemaphore imageAcquiredSemaphore;
     VkSemaphore renderFinishedSemaphore;
     VkFence inFlightFence;
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
 } Renderer_t;
 
 typedef struct
