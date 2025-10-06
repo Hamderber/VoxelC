@@ -387,20 +387,6 @@ void commandPoolDestroy(State_t *state)
     vkDestroyCommandPool(state->context.device, state->renderer.commandPool, state->context.pAllocator);
 }
 
-void writeVertexMemory(State_t *state)
-{
-    // Not sizeof Vert3f_t because shader vertex has color etc data too
-    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
-
-    // Map the memory so the CPU can access it, write to it, then unmap it. There can obviously be concurrency issues with this, but
-    // using the VK_MEMORY_PROPERTY_HOST_COHERENT_BIT in the memory property flags resolves this (at the cost of minor performance)
-    void *data;
-    LOG_IF_ERROR(vkMapMemory(state->context.device, state->renderer.vertexBufferMemory, 0, bufferSize, 0, &data),
-                 "Failed to map memory.")
-    memcpy(data, SHADER_VERTS, (size_t)bufferSize);
-    vkUnmapMemory(state->context.device, state->renderer.vertexBufferMemory);
-}
-
 void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags propertyFlags,
                   VkBuffer *buffer, VkDeviceMemory *bufferMemory)
 {
@@ -416,7 +402,7 @@ void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageF
                  "Failed to create buffer!")
 
     VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(state->context.device, state->renderer.vertexBuffer, &memoryRequirements);
+    vkGetBufferMemoryRequirements(state->context.device, *buffer, &memoryRequirements);
 
     VkPhysicalDeviceMemoryProperties memoryProperties;
     vkGetPhysicalDeviceMemoryProperties(state->context.physicalDevice, &memoryProperties);
@@ -447,10 +433,61 @@ void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageF
     LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, bufferMemory),
                  "Failed to allocate buffer memory!")
 
-    // No offset required because this buffer is specifically made for the verticies. If there was an offset, it would have to be
-    // divisible by memoryRequirements.alignment
+    // No offset required. If there was an offset, it would have to be divisible by memoryRequirements.alignment
     LOG_IF_ERROR(vkBindBufferMemory(state->context.device, *buffer, *bufferMemory, 0),
                  "Failed to bind buffer memory!")
+}
+
+void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = state->renderer.commandPool,
+        .commandBufferCount = 1U,
+    };
+
+    VkCommandBuffer commandBuffer;
+    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &commandBuffer),
+                 "Failed to allocate buffer copy command buffer!")
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        // Only going to use the command buffer once and wait with returning from the function until the copy operation has
+        // finished executing
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    LOG_IF_ERROR(vkBeginCommandBuffer(commandBuffer, &beginInfo),
+                 "Failed to begin buffer copy command buffer!")
+
+    VkBufferCopy copyRegion = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = size,
+    };
+
+    // Only copying one region
+    vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1, &copyRegion);
+
+    LOG_IF_ERROR(vkEndCommandBuffer(commandBuffer),
+                 "Failed to copy buffer.")
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+    };
+
+    // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
+    // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
+    // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
+    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1, &submitInfo, VK_NULL_HANDLE),
+                 "Failed to submit buffer copy to queue.")
+    LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
+                 "Failed to wait for the queue to idle.")
+
+    vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
 }
 
 void vertexBufferCreate(State_t *state)
@@ -458,14 +495,32 @@ void vertexBufferCreate(State_t *state)
     // Not sizeof Vert3f_t because shader vertex has color etc data too
     uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
 
-    VkMemoryPropertyFlags propertyFlags = {
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    };
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 &stagingBuffer, &stagingBufferMemory);
 
-    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, propertyFlags,
+    // Map the memory so the CPU can access it, write to it, then unmap it. There can obviously be concurrency issues with this, but
+    // using the VK_MEMORY_PROPERTY_HOST_COHERENT_BIT in the memory property flags resolves this (at the cost of minor performance)
+    void *data;
+    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
+                 "Failed to map staging buffer memory.")
+    memcpy(data, SHADER_VERTS, (size_t)bufferSize);
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
+
+    // The vertex buffer uses device-local memory so it cannot be directly copied/written to. A staging buffer is used on the device
+    // for copying data to.
+    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  &state->renderer.vertexBuffer, &state->renderer.vertexBufferMemory);
 
-    writeVertexMemory(state);
+    // Copy the staging buffer into the vertex buffer
+    bufferCopy(state, stagingBuffer, state->renderer.vertexBuffer, bufferSize);
+
+    // Clean up the staging buffer after used
+    vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
 }
 
 void vertexBufferDestroy(State_t *state)
