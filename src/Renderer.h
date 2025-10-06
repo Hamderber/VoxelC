@@ -821,10 +821,44 @@ void descriptorSetLayoutDestroy(State_t *state)
 
 void uniformBuffersCreate(State_t *state)
 {
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject_t);
+    state->renderer.pUniformBuffers = malloc(sizeof(VkBuffer) * state->config.maxFramesInFlight);
+    state->renderer.pUniformBufferMemories = malloc(sizeof(VkDeviceMemory) * state->config.maxFramesInFlight);
+    state->renderer.pUniformBuffersMapped = malloc(sizeof(void *) * state->config.maxFramesInFlight);
+
+    for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
+    {
+        bufferCreate(state, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     &state->renderer.pUniformBuffers[i], &state->renderer.pUniformBufferMemories[i]);
+
+        LOG_IF_ERROR(vkMapMemory(state->context.device, state->renderer.pUniformBufferMemories[i], 0, bufferSize, 0,
+                                 &state->renderer.pUniformBuffersMapped[i]),
+                     "Failed to map memory for uniform buffer!")
+    }
 }
 
 void uniformBuffersDestroy(State_t *state)
 {
+    for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
+    {
+        vkDestroyBuffer(state->context.device, state->renderer.pUniformBuffers[i], state->context.pAllocator);
+        vkFreeMemory(state->context.device, state->renderer.pUniformBufferMemories[i], state->context.pAllocator);
+        state->renderer.pUniformBuffersMapped[i] = NULL;
+    }
+
+    free(state->renderer.pUniformBuffers);
+    state->renderer.pUniformBuffers = NULL;
+    free(state->renderer.pUniformBufferMemories);
+    state->renderer.pUniformBufferMemories = NULL;
+}
+
+void updateUniformBuffer(State_t *state)
+{
+    // get start time
+
+    // get current time
+    float time = 0.0F;
 }
 
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions

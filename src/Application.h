@@ -36,6 +36,7 @@ double renderLoop(State_t *state)
         state->window.swapchain.recreate = false;
     }
 
+    updateUniformBuffer(state);
     swapchainImageAcquireNext(state);
     commandBufferRecord(state);
     commandBufferSubmit(state);

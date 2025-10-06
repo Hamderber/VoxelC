@@ -120,8 +120,10 @@ typedef struct
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
     VkDescriptorSetLayout descriptorSetLayout;
-    VkBuffer uniformBuffer;
-    VkDeviceMemory uniformBufferMemory;
+    VkBuffer *pUniformBuffers;
+    VkDeviceMemory *pUniformBufferMemories;
+    // Array of pointers that Vulkan uses to access uniform buffers and their memory
+    void **pUniformBuffersMapped;
     uint32_t currentFrame;
 } Renderer_t;
 
