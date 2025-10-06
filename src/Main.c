@@ -20,6 +20,7 @@ int main(void)
         // If the window gets resized, the swapchain MUST be recreated
         .windowResizable = true,
         .windowFullscreen = false,
+        .maxFramesInFlight = 3,
         .vkAPIVersion = VK_API_VERSION_1_4,
         .swapchainComponentMapping = componentMapping,
         // default means that it will be auto-assigned during swapchain creation

@@ -116,13 +116,17 @@ VkPresentModeKHR surfacePresentModesSelect(const Context_t *context, const Windo
 void swapchainImageAcquireNext(State_t *state)
 {
     uint64_t imageTimeout = UINT64_MAX;
-    VkFence fence = NULL;
-    // Don't care about the a fence for displaying images right now
+
+    LOG_IF_ERROR(vkWaitForFences(state->context.device, 1U, &state->renderer.inFlightFences[state->renderer.currentFrame], VK_TRUE,
+                                 UINT64_MAX),
+                 "Failed to wait for fences.")
+
     // It is worth considering to handle certain errors here eventially because not all errors mean the swapchain
     // failed completely
     VkResult result = vkAcquireNextImageKHR(state->context.device, state->window.swapchain.handle, imageTimeout,
-                                            state->renderer.imageAcquiredSemaphore, fence, &state->window.swapchain.imageAcquiredIndex);
-    //  "Failed to aquire the next image from the swapchain. Index: %d", state->window.swapchain.imageAcquiredIndex)
+                                            state->renderer.imageAcquiredSemaphores[state->renderer.currentFrame],
+                                            VK_NULL_HANDLE, // Don't care about fence for this
+                                            &state->window.swapchain.imageAcquiredIndex);
 
     // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
     // MUST be recreated immediately and presentation will just be attempted on the next frame.
@@ -132,6 +136,7 @@ void swapchainImageAcquireNext(State_t *state)
         state->window.swapchain.recreate = true;
 
         // If this happens, does the CPU wait for a fence that will never compelte/reset?
+        return;
     }
     else
     {
@@ -148,7 +153,7 @@ void swapchainImagePresent(State_t *state)
         .swapchainCount = 1U,
         .pSwapchains = &state->window.swapchain.handle,
         .waitSemaphoreCount = 1U,
-        .pWaitSemaphores = &state->renderer.renderFinishedSemaphore,
+        .pWaitSemaphores = &state->renderer.renderFinishedSemaphores[state->renderer.currentFrame],
     };
 
     // Can't just catch this result with the error logger. Actually have to handle it.
@@ -169,13 +174,7 @@ void swapchainImagePresent(State_t *state)
                      "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.")
     }
 
-    // One fence at this time with an unlimited wait period
-    LOG_IF_ERROR(vkWaitForFences(state->context.device, 1U, &state->renderer.inFlightFence, VK_TRUE, UINT64_MAX),
-                 "Failed to wait for fences.")
-
-    // Must reset the fence after waiting for it for reuse
-    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFence),
-                 "Failed to reset fences")
+    state->renderer.currentFrame = (state->renderer.currentFrame + 1) % state->config.maxFramesInFlight;
 }
 
 void swapchainImagesGet(State_t *state)
