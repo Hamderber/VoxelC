@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <signal.h>
+#include <string.h>
+#include <math.h>
 #include <time.h>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>

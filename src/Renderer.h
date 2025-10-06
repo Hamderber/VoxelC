@@ -1,10 +1,29 @@
 #pragma once
 
+#include "Toolkit.h"
+
 /* TODO:
    1. Add an additional pipeline that uses the line rendering mode to draw connections between verticies (for showing voxel hitboxes and chunks)
       or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?
    2. Don't forget to change to VK_CULL_MODE_FRONT_BIT in the future
 */
+
+const ShaderVertex_t SHADER_VERTS[] = {
+    {
+        .position = {0.0F, -0.5F},
+        .color = {1.0F, 1.0F, 1.0F},
+    },
+    {
+        .position = {0.5F, 0.5F},
+        .color = {0.0F, 1.0F, 0.0F},
+    },
+    {
+        .position = {-0.5F, 0.5F},
+        .color = {0.0F, 0.0F, 1.0F},
+    },
+};
+// Obviously temp implementation
+const uint32_t NUM_SHADER_VERTS = 3U;
 
 /// @brief The render pass is basically the blueprint for the graphics operation in the graphics pipeline
 /// @param state
@@ -16,7 +35,8 @@ void renderPassCreate(State_t *state)
             // number would be the same as the output location
             .attachment = 0U,
             // Render target for color output
-            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        },
     };
 
     state->renderer.renderpassAttachmentCount = sizeof(colorAttachmentReferences) / sizeof(*colorAttachmentReferences);
@@ -79,151 +99,16 @@ void renderPassDestroy(State_t *state)
 
 void graphicsPipelineCreate(State_t *state)
 {
-    // This is literally just a hardcoded copy-paste of the files generated from shaders.bat
-    // This way is nice for not having to ship the shaders as separate files with the exe. But this is also
-    // a huge pain in the ass for debugging shaders because I have to recompile and re-copy/paste every time.
-    const uint32_t vertexShaderCode[] = {0x07230203, 0x00010000, 0x000d000b, 0x00000036,
-                                         0x00000000, 0x00020011, 0x00000001, 0x0006000b,
-                                         0x00000001, 0x4c534c47, 0x6474732e, 0x3035342e,
-                                         0x00000000, 0x0003000e, 0x00000000, 0x00000001,
-                                         0x0008000f, 0x00000000, 0x00000004, 0x6e69616d,
-                                         0x00000000, 0x00000022, 0x00000026, 0x00000031,
-                                         0x00030003, 0x00000002, 0x000001cc, 0x000a0004,
-                                         0x475f4c47, 0x4c474f4f, 0x70635f45, 0x74735f70,
-                                         0x5f656c79, 0x656e696c, 0x7269645f, 0x69746365,
-                                         0x00006576, 0x00080004, 0x475f4c47, 0x4c474f4f,
-                                         0x6e695f45, 0x64756c63, 0x69645f65, 0x74636572,
-                                         0x00657669, 0x00040005, 0x00000004, 0x6e69616d,
-                                         0x00000000, 0x00050005, 0x0000000c, 0x69736f70,
-                                         0x6e6f6974, 0x00000073, 0x00040005, 0x00000017,
-                                         0x6f6c6f63, 0x00007372, 0x00060005, 0x00000020,
-                                         0x505f6c67, 0x65567265, 0x78657472, 0x00000000,
-                                         0x00060006, 0x00000020, 0x00000000, 0x505f6c67,
-                                         0x7469736f, 0x006e6f69, 0x00070006, 0x00000020,
-                                         0x00000001, 0x505f6c67, 0x746e696f, 0x657a6953,
-                                         0x00000000, 0x00070006, 0x00000020, 0x00000002,
-                                         0x435f6c67, 0x4470696c, 0x61747369, 0x0065636e,
-                                         0x00070006, 0x00000020, 0x00000003, 0x435f6c67,
-                                         0x446c6c75, 0x61747369, 0x0065636e, 0x00030005,
-                                         0x00000022, 0x00000000, 0x00060005, 0x00000026,
-                                         0x565f6c67, 0x65747265, 0x646e4978, 0x00007865,
-                                         0x00050005, 0x00000031, 0x67617266, 0x6f6c6f43,
-                                         0x00000072, 0x00030047, 0x00000020, 0x00000002,
-                                         0x00050048, 0x00000020, 0x00000000, 0x0000000b,
-                                         0x00000000, 0x00050048, 0x00000020, 0x00000001,
-                                         0x0000000b, 0x00000001, 0x00050048, 0x00000020,
-                                         0x00000002, 0x0000000b, 0x00000003, 0x00050048,
-                                         0x00000020, 0x00000003, 0x0000000b, 0x00000004,
-                                         0x00040047, 0x00000026, 0x0000000b, 0x0000002a,
-                                         0x00040047, 0x00000031, 0x0000001e, 0x00000000,
-                                         0x00020013, 0x00000002, 0x00030021, 0x00000003,
-                                         0x00000002, 0x00030016, 0x00000006, 0x00000020,
-                                         0x00040017, 0x00000007, 0x00000006, 0x00000002,
-                                         0x00040015, 0x00000008, 0x00000020, 0x00000000,
-                                         0x0004002b, 0x00000008, 0x00000009, 0x00000003,
-                                         0x0004001c, 0x0000000a, 0x00000007, 0x00000009,
-                                         0x00040020, 0x0000000b, 0x00000006, 0x0000000a,
-                                         0x0004003b, 0x0000000b, 0x0000000c, 0x00000006,
-                                         0x0004002b, 0x00000006, 0x0000000d, 0x00000000,
-                                         0x0004002b, 0x00000006, 0x0000000e, 0xbf000000,
-                                         0x0005002c, 0x00000007, 0x0000000f, 0x0000000d,
-                                         0x0000000e, 0x0004002b, 0x00000006, 0x00000010,
-                                         0x3f000000, 0x0005002c, 0x00000007, 0x00000011,
-                                         0x00000010, 0x00000010, 0x0005002c, 0x00000007,
-                                         0x00000012, 0x0000000e, 0x00000010, 0x0006002c,
-                                         0x0000000a, 0x00000013, 0x0000000f, 0x00000011,
-                                         0x00000012, 0x00040017, 0x00000014, 0x00000006,
-                                         0x00000003, 0x0004001c, 0x00000015, 0x00000014,
-                                         0x00000009, 0x00040020, 0x00000016, 0x00000006,
-                                         0x00000015, 0x0004003b, 0x00000016, 0x00000017,
-                                         0x00000006, 0x0004002b, 0x00000006, 0x00000018,
-                                         0x3f800000, 0x0006002c, 0x00000014, 0x00000019,
-                                         0x00000018, 0x0000000d, 0x0000000d, 0x0006002c,
-                                         0x00000014, 0x0000001a, 0x0000000d, 0x00000018,
-                                         0x0000000d, 0x0006002c, 0x00000014, 0x0000001b,
-                                         0x0000000d, 0x0000000d, 0x00000018, 0x0006002c,
-                                         0x00000015, 0x0000001c, 0x00000019, 0x0000001a,
-                                         0x0000001b, 0x00040017, 0x0000001d, 0x00000006,
-                                         0x00000004, 0x0004002b, 0x00000008, 0x0000001e,
-                                         0x00000001, 0x0004001c, 0x0000001f, 0x00000006,
-                                         0x0000001e, 0x0006001e, 0x00000020, 0x0000001d,
-                                         0x00000006, 0x0000001f, 0x0000001f, 0x00040020,
-                                         0x00000021, 0x00000003, 0x00000020, 0x0004003b,
-                                         0x00000021, 0x00000022, 0x00000003, 0x00040015,
-                                         0x00000023, 0x00000020, 0x00000001, 0x0004002b,
-                                         0x00000023, 0x00000024, 0x00000000, 0x00040020,
-                                         0x00000025, 0x00000001, 0x00000023, 0x0004003b,
-                                         0x00000025, 0x00000026, 0x00000001, 0x00040020,
-                                         0x00000028, 0x00000006, 0x00000007, 0x00040020,
-                                         0x0000002e, 0x00000003, 0x0000001d, 0x00040020,
-                                         0x00000030, 0x00000003, 0x00000014, 0x0004003b,
-                                         0x00000030, 0x00000031, 0x00000003, 0x00040020,
-                                         0x00000033, 0x00000006, 0x00000014, 0x00050036,
-                                         0x00000002, 0x00000004, 0x00000000, 0x00000003,
-                                         0x000200f8, 0x00000005, 0x0003003e, 0x0000000c,
-                                         0x00000013, 0x0003003e, 0x00000017, 0x0000001c,
-                                         0x0004003d, 0x00000023, 0x00000027, 0x00000026,
-                                         0x00050041, 0x00000028, 0x00000029, 0x0000000c,
-                                         0x00000027, 0x0004003d, 0x00000007, 0x0000002a,
-                                         0x00000029, 0x00050051, 0x00000006, 0x0000002b,
-                                         0x0000002a, 0x00000000, 0x00050051, 0x00000006,
-                                         0x0000002c, 0x0000002a, 0x00000001, 0x00070050,
-                                         0x0000001d, 0x0000002d, 0x0000002b, 0x0000002c,
-                                         0x0000000d, 0x00000018, 0x00050041, 0x0000002e,
-                                         0x0000002f, 0x00000022, 0x00000024, 0x0003003e,
-                                         0x0000002f, 0x0000002d, 0x0004003d, 0x00000023,
-                                         0x00000032, 0x00000026, 0x00050041, 0x00000033,
-                                         0x00000034, 0x00000017, 0x00000032, 0x0004003d,
-                                         0x00000014, 0x00000035, 0x00000034, 0x0003003e,
-                                         0x00000031, 0x00000035, 0x000100fd, 0x00010038};
-
-    const uint32_t fragmentShaderCode[] = {0x07230203, 0x00010000, 0x000d000b, 0x00000013,
-                                           0x00000000, 0x00020011, 0x00000001, 0x0006000b,
-                                           0x00000001, 0x4c534c47, 0x6474732e, 0x3035342e,
-                                           0x00000000, 0x0003000e, 0x00000000, 0x00000001,
-                                           0x0007000f, 0x00000004, 0x00000004, 0x6e69616d,
-                                           0x00000000, 0x00000009, 0x0000000c, 0x00030010,
-                                           0x00000004, 0x00000007, 0x00030003, 0x00000002,
-                                           0x000001cc, 0x000a0004, 0x475f4c47, 0x4c474f4f,
-                                           0x70635f45, 0x74735f70, 0x5f656c79, 0x656e696c,
-                                           0x7269645f, 0x69746365, 0x00006576, 0x00080004,
-                                           0x475f4c47, 0x4c474f4f, 0x6e695f45, 0x64756c63,
-                                           0x69645f65, 0x74636572, 0x00657669, 0x00040005,
-                                           0x00000004, 0x6e69616d, 0x00000000, 0x00050005,
-                                           0x00000009, 0x4374756f, 0x726f6c6f, 0x00000000,
-                                           0x00050005, 0x0000000c, 0x67617266, 0x6f6c6f43,
-                                           0x00000072, 0x00040047, 0x00000009, 0x0000001e,
-                                           0x00000000, 0x00040047, 0x0000000c, 0x0000001e,
-                                           0x00000000, 0x00020013, 0x00000002, 0x00030021,
-                                           0x00000003, 0x00000002, 0x00030016, 0x00000006,
-                                           0x00000020, 0x00040017, 0x00000007, 0x00000006,
-                                           0x00000004, 0x00040020, 0x00000008, 0x00000003,
-                                           0x00000007, 0x0004003b, 0x00000008, 0x00000009,
-                                           0x00000003, 0x00040017, 0x0000000a, 0x00000006,
-                                           0x00000003, 0x00040020, 0x0000000b, 0x00000001,
-                                           0x0000000a, 0x0004003b, 0x0000000b, 0x0000000c,
-                                           0x00000001, 0x0004002b, 0x00000006, 0x0000000e,
-                                           0x3f800000, 0x00050036, 0x00000002, 0x00000004,
-                                           0x00000000, 0x00000003, 0x000200f8, 0x00000005,
-                                           0x0004003d, 0x0000000a, 0x0000000d, 0x0000000c,
-                                           0x00050051, 0x00000006, 0x0000000f, 0x0000000d,
-                                           0x00000000, 0x00050051, 0x00000006, 0x00000010,
-                                           0x0000000d, 0x00000001, 0x00050051, 0x00000006,
-                                           0x00000011, 0x0000000d, 0x00000002, 0x00070050,
-                                           0x00000007, 0x00000012, 0x0000000f, 0x00000010,
-                                           0x00000011, 0x0000000e, 0x0003003e, 0x00000009,
-                                           0x00000012, 0x000100fd, 0x00010038};
-
     const char *shaderEntryFunctionName = "main";
 
-    logger(LOG_INFO, "Creating shaders...");
+    logger(LOG_INFO, "Loading shaders...");
 
     VkShaderModuleCreateInfo vertexShaderModuleCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         // Need to pass how big the code actuallly is...
-        .codeSize = sizeof(vertexShaderCode),
+        .codeSize = shaderVertCodeSize,
         // ... For it to correctly allocate storage for it here.
-        .pCode = vertexShaderCode,
+        .pCode = shaderVertCode,
     };
     VkShaderModule vertexShaderModule;
     LOG_IF_ERROR(vkCreateShaderModule(state->context.device, &vertexShaderModuleCreateInfo, state->context.pAllocator, &vertexShaderModule),
@@ -231,8 +116,8 @@ void graphicsPipelineCreate(State_t *state)
 
     VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        .codeSize = sizeof(fragmentShaderCode),
-        .pCode = fragmentShaderCode,
+        .codeSize = shaderFragCodeSize,
+        .pCode = shaderFragCode,
     };
     VkShaderModule fragmentShaderModule;
     LOG_IF_ERROR(vkCreateShaderModule(state->context.device, &fragmentShaderModuleCreateInfo, state->context.pAllocator, &fragmentShaderModule),
@@ -268,9 +153,50 @@ void graphicsPipelineCreate(State_t *state)
         .dynamicStateCount = sizeof(dynamicStates) / sizeof(*dynamicStates),
         .pDynamicStates = dynamicStates};
 
+    // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
+    // of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
+    VkVertexInputBindingDescription bindingDescriptions[] = {
+        {
+            .binding = 0U,
+            // Number of bytes from one entry to the next
+            .stride = sizeof(ShaderVertex_t),
+            // Per-vertex because not concerned with instanced rendering right now
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+        },
+    };
+
+    // An attribute description struct describes how to extract a vertex attribute from a chunk of vertex data originating
+    // from a binding description. We have two attributes, position and color, so we need two attribute description structs.
+    VkVertexInputAttributeDescription attributeDescriptions[] = {
+        // Position
+        {
+            .binding = 0U,
+            // The location for the position in the vertex shader
+            .location = 0U,
+            // Type of data (format is data type so color is same format as pos)
+            // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            // Specifies the number of bytes since the start of the per-vertex data to read from.
+            // Position is first so 0
+            .offset = 0U,
+        },
+        // Color
+        {
+            .binding = 0U,
+            // The location for the color in the vertex shader
+            .location = 1U,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            // Position is first so sizeof(pos) type to get offset
+            .offset = sizeof(Vec2f_t),
+        },
+    };
+
     VkPipelineVertexInputStateCreateInfo vertexInputState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        // No need to change defaults right now
+        .vertexBindingDescriptionCount = sizeof(bindingDescriptions) / sizeof(*bindingDescriptions),
+        .pVertexBindingDescriptions = bindingDescriptions,
+        .vertexAttributeDescriptionCount = sizeof(attributeDescriptions) / sizeof(*attributeDescriptions),
+        .pVertexAttributeDescriptions = attributeDescriptions,
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {
@@ -348,15 +274,12 @@ void graphicsPipelineCreate(State_t *state)
         .blendConstants[3] = blendConstants[3],
     };
 
-    VkDescriptorSetLayout descriptorSetLayouts[] = {
-        (VkDescriptorSetLayout){
-            0}, // Default
-    };
-
     const VkPipelineLayoutCreateInfo layoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = sizeof(descriptorSetLayouts) / sizeof(*descriptorSetLayouts),
-        .pSetLayouts = descriptorSetLayouts};
+        // Default
+        .setLayoutCount = 0U,
+        .pSetLayouts = NULL,
+    };
 
     LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pPipelineLayout),
                  "Failed to create the pipeline layout.");
@@ -375,7 +298,7 @@ void graphicsPipelineCreate(State_t *state)
         .pMultisampleState = &multisamplingState,
         .pColorBlendState = &colorBlendState,
         .renderPass = state->renderer.pRenderPass,
-    };
+        .pViewportState = &viewportStateCreateInfo};
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfos[] = {
         graphicsPipelineCreateInfo,
@@ -462,6 +385,93 @@ void commandPoolCreate(State_t *state)
 void commandPoolDestroy(State_t *state)
 {
     vkDestroyCommandPool(state->context.device, state->renderer.commandPool, state->context.pAllocator);
+}
+
+void writeVertexMemory(State_t *state)
+{
+    // Not sizeof Vert3f_t because shader vertex has color etc data too
+    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
+
+    // Map the memory so the CPU can access it, write to it, then unmap it. There can obviously be concurrency issues with this, but
+    // using the VK_MEMORY_PROPERTY_HOST_COHERENT_BIT in the memory property flags resolves this (at the cost of minor performance)
+    void *data;
+    LOG_IF_ERROR(vkMapMemory(state->context.device, state->renderer.vertexBufferMemory, 0, bufferSize, 0, &data),
+                 "Failed to map memory.")
+    memcpy(data, SHADER_VERTS, (size_t)bufferSize);
+    vkUnmapMemory(state->context.device, state->renderer.vertexBufferMemory);
+}
+
+void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags propertyFlags,
+                  VkBuffer *buffer, VkDeviceMemory *deviceMemory)
+{
+    VkBufferCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .size = bufferSize,
+        .usage = usageFlags,
+        // Don't need to share this buffer between queue families right now
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    };
+
+    LOG_IF_ERROR(vkCreateBuffer(state->context.device, &createInfo, state->context.pAllocator, buffer),
+                 "Failed to create buffer!")
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(state->context.device, state->renderer.vertexBuffer, &memoryRequirements);
+
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(state->context.physicalDevice, &memoryProperties);
+
+    uint32_t memoryType = UINT32_MAX;
+    uint32_t typeFilter = memoryRequirements.memoryTypeBits;
+
+    for (uint32_t i = 0U; i < memoryProperties.memoryTypeCount; i++)
+    {
+        // Check if the corresponding bits of the filter are 1
+        if ((typeFilter & (1 << i)) &&
+            (memoryProperties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags)
+        {
+            memoryType = i;
+            break;
+        }
+    }
+
+    LOG_IF_ERROR(memoryType == UINT32_MAX,
+                 "Failed to find suitable memory type for buffer!")
+
+    VkMemoryAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memoryRequirements.size,
+        .memoryTypeIndex = memoryType,
+    };
+
+    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, deviceMemory),
+                 "Failed to allocate buffer memory!")
+}
+
+void vertexBufferCreate(State_t *state)
+{
+    // Not sizeof Vert3f_t because shader vertex has color etc data too
+    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
+
+    VkMemoryPropertyFlags propertyFlags = {
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    };
+
+    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, propertyFlags,
+                 &state->renderer.vertexBuffer, &state->renderer.vertexBufferMemory);
+
+    // No offset required because this buffer is specifically made for the verticies. If there was an offset, it would have to be
+    // divisible by memoryRequirements.alignment
+    LOG_IF_ERROR(vkBindBufferMemory(state->context.device, state->renderer.vertexBuffer, state->renderer.vertexBufferMemory, 0),
+                 "Failed to bind vertex buffer memory!")
+
+    writeVertexMemory(state);
+}
+
+void vertexBufferDestroy(State_t *state)
+{
+    vkDestroyBuffer(state->context.device, state->renderer.vertexBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, state->renderer.vertexBufferMemory, state->context.pAllocator);
 }
 
 void commandBufferAllocate(State_t *state)
@@ -551,9 +561,13 @@ void commandBufferRecord(State_t *state)
     // Bind the render pipeline to graphics (instead of compute)
     vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pGraphicsPipeline);
 
+    VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(state->renderer.commandBuffer, 0, 1, vertexBuffers, offsets);
+
     // DRAW ! ! ! ! !
     // currently hardcoded the vertex data in the (also hardcoded) shaders
-    vkCmdDraw(state->renderer.commandBuffer, 3U, 1U, 0U, 0U);
+    vkCmdDraw(state->renderer.commandBuffer, sizeof(SHADER_VERTS) / sizeof(*SHADER_VERTS), 1U, 0U, 0U);
 
     // Must end the render pass if has begun (obviously)
     vkCmdEndRenderPass(state->renderer.commandBuffer);
@@ -632,6 +646,7 @@ void rendererCreate(State_t *state)
     graphicsPipelineCreate(state);
     framebuffersCreate(state);
     commandPoolCreate(state);
+    vertexBufferCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -643,6 +658,7 @@ void rendererDestroy(State_t *state)
     LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
                  "Failed to wait for the Vulkan queue to be idle.")
     syncObjectsDestroy(state);
+    vertexBufferDestroy(state);
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
