@@ -33,11 +33,12 @@ Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
    there will be no y coordinate. Thus, this will happen on a purely 2d plane. These chunk coordinates
    are signed 32-bit integers.
-2. 
+2. DO NOT USE #pragma pack AT ALL (will break alignment for linear algebra used to copy into shaders)
 
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
 2. Vertex buffer: https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
+3. Rendering matricies: https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/
 
 TODO:
 1. At some point in the future, check EVERY entry of LOG_IF_ERROR to ensure that if anything allocates memory but fails,

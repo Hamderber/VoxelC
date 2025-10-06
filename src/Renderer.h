@@ -285,9 +285,8 @@ void graphicsPipelineCreate(State_t *state)
 
     const VkPipelineLayoutCreateInfo layoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        // Default
-        .setLayoutCount = 0U,
-        .pSetLayouts = NULL,
+        .setLayoutCount = 1,
+        .pSetLayouts = &state->renderer.descriptorSetLayout,
     };
 
     LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pPipelineLayout),
@@ -737,15 +736,54 @@ void syncObjectsDestroy(State_t *state)
     vkDestroySemaphore(state->context.device, state->renderer.imageAcquiredSemaphore, state->context.pAllocator);
 }
 
+void descriptorSetLayoutCreate(State_t *state)
+{
+    VkDescriptorSetLayoutBinding layoutBinding = {
+        // Location for the ubo in the shader
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        // Specifices that these descriptors are for the vertex shader to reference
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        // Image sampling not implemented at this time
+        .pImmutableSamplers = VK_NULL_HANDLE,
+    };
+
+    VkDescriptorSetLayoutCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &layoutBinding,
+    };
+
+    LOG_IF_ERROR(vkCreateDescriptorSetLayout(state->context.device, &createInfo, state->context.pAllocator,
+                                             &state->renderer.descriptorSetLayout),
+                 "Failed to create descriptor set layout!")
+}
+
+void descriptorSetLayoutDestroy(State_t *state)
+{
+    vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
+}
+
+void uniformBuffersCreate(State_t *state)
+{
+}
+
+void uniformBuffersDestroy(State_t *state)
+{
+}
+
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
     renderPassCreate(state);
+    descriptorSetLayoutCreate(state);
     graphicsPipelineCreate(state);
     framebuffersCreate(state);
     commandPoolCreate(state);
     vertexBufferCreate(state);
     indexBufferCreate(state);
+    uniformBuffersCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -759,8 +797,10 @@ void rendererDestroy(State_t *state)
     syncObjectsDestroy(state);
     vertexBufferDestroy(state);
     indexBufferDestroy(state);
+    uniformBuffersDestroy(state);
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
+    descriptorSetLayoutDestroy(state);
     renderPassDestroy(state);
 }

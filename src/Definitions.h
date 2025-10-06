@@ -117,6 +117,9 @@ typedef struct
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkBuffer uniformBuffer;
+    VkDeviceMemory uniformBufferMemory;
 } Renderer_t;
 
 typedef struct
@@ -136,6 +139,11 @@ typedef struct
 {
     float x, y, z;
 } Vec3f_t;
+
+typedef struct
+{
+    float x, y, z, w;
+} Vec4f_t;
 
 // Rendering
 typedef struct
@@ -172,3 +180,29 @@ static const Vec3f_t Z_AXIS = {0.0f, 0.0f, 1.0f};
 static const Vec3f_t ONE = {1.0f, 1.0f, 1.0f};
 static const Vec3f_t NEG_ONE = {-1.0f, -1.0f, -1.0f};
 static const Vec3f_t ZERO = {0.0f, 0.0f, 0.0f};
+
+// Matricies
+// https://www.c-jump.com/bcc/common/Talk3/Math/GLM/GLM.html
+// 4x4 Matrix column-major (array index is for each column)
+// Struct members are the same as the shader codes'
+typedef struct
+{
+    Vec4f_t m[4];
+} Mat4c_t;
+
+// 4x4 Matrix row-major (array index is for each row)
+// Struct members are the same as the shader codes'
+typedef struct
+{
+    Vec4f_t m[4];
+} Mat4r_t;
+
+// Rendering
+// https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/
+// Struct members are the same as the shader codes'
+typedef struct
+{
+    Mat4c_t model;
+    Mat4c_t view;
+    Mat4c_t projection;
+} UniformBufferObject_t;
