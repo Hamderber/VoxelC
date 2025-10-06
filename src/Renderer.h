@@ -10,20 +10,29 @@
 
 const ShaderVertex_t SHADER_VERTS[] = {
     {
-        .position = {0.0F, -0.5F},
-        .color = {1.0F, 1.0F, 1.0F},
+        .position = {-0.5F, -0.5F},
+        .color = {1.0F, 0.0F, 0.0F},
     },
     {
-        .position = {0.5F, 0.5F},
+        .position = {0.5F, -0.5F},
         .color = {0.0F, 1.0F, 0.0F},
     },
     {
-        .position = {-0.5F, 0.5F},
+        .position = {0.5F, 0.5F},
         .color = {0.0F, 0.0F, 1.0F},
     },
+    {
+        .position = {-0.5F, 0.5F},
+        .color = {1.0F, 1.0F, 1.0F},
+    },
 };
+
+// uint16_t for now because we're using less than 65535 unique vertices
+// VK_INDEX_TYPE_UINT16 must be changed if this is changed to 32
+const uint16_t SHADER_INDICIES[] = {0, 1, 2, 2, 3, 0};
 // Obviously temp implementation
-const uint32_t NUM_SHADER_VERTS = 3U;
+const uint32_t NUM_SHADER_VERTS = 4U;
+const uint32_t NUM_SHADER_INDICIES = 6U;
 
 /// @brief The render pass is basically the blueprint for the graphics operation in the graphics pipeline
 /// @param state
@@ -235,7 +244,7 @@ void graphicsPipelineCreate(State_t *state)
         // 0, 1, and 2 at the top, bottom left, and then bottom right. This lets the renderer know which way a triangle is facing. If the
         // renderer is passed a triangle with verticies going clockwise when the front face is assigned as counter-clockwise then that
         // means the triangle is backwards/facing away from the camera reference and can be culled/etc.
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        .frontFace = state->config.vertexWindingDirection,
         // Tells the render pipeline what faces should be culled (hidden). Back but means that back (covered/blocked) bits won't be rendered.
         // This is literally the backface culling that makes Minecraft playable
 
@@ -387,7 +396,7 @@ void commandPoolDestroy(State_t *state)
     vkDestroyCommandPool(state->context.device, state->renderer.commandPool, state->context.pAllocator);
 }
 
-void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags propertyFlags,
+void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags propertyFlags,
                   VkBuffer *buffer, VkDeviceMemory *bufferMemory)
 {
     VkBufferCreateInfo createInfo = {
@@ -490,10 +499,43 @@ void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffe
     vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
 }
 
+// Similar implementation to vertexBufferCreate
+void indexBufferCreate(State_t *state)
+{
+    VkDeviceSize bufferSize = sizeof(SHADER_INDICIES[0]) * NUM_SHADER_INDICIES;
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 &stagingBuffer, &stagingBufferMemory);
+
+    void *data;
+    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
+                 "Failed to map staging buffer memory.")
+    memcpy(data, SHADER_INDICIES, (size_t)bufferSize);
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
+
+    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                 &state->renderer.indexBuffer, &state->renderer.indexBufferMemory);
+
+    bufferCopy(state, stagingBuffer, state->renderer.indexBuffer, bufferSize);
+
+    vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
+}
+
+void indexBufferDestroy(State_t *state)
+{
+    vkDestroyBuffer(state->context.device, state->renderer.indexBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, state->renderer.indexBufferMemory, state->context.pAllocator);
+}
+
 void vertexBufferCreate(State_t *state)
 {
     // Not sizeof Vert3f_t because shader vertex has color etc data too
-    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
+    VkDeviceSize bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -619,10 +661,11 @@ void commandBufferRecord(State_t *state)
     VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(state->renderer.commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(state->renderer.commandBuffer, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     // DRAW ! ! ! ! !
-    // currently hardcoded the vertex data in the (also hardcoded) shaders
-    vkCmdDraw(state->renderer.commandBuffer, sizeof(SHADER_VERTS) / sizeof(*SHADER_VERTS), 1U, 0U, 0U);
+    // Not using instanced rendering so just 1 instance with nothing for the offset
+    vkCmdDrawIndexed(state->renderer.commandBuffer, NUM_SHADER_INDICIES, 1, 0, 0, 0);
 
     // Must end the render pass if has begun (obviously)
     vkCmdEndRenderPass(state->renderer.commandBuffer);
@@ -702,6 +745,7 @@ void rendererCreate(State_t *state)
     framebuffersCreate(state);
     commandPoolCreate(state);
     vertexBufferCreate(state);
+    indexBufferCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -714,6 +758,7 @@ void rendererDestroy(State_t *state)
                  "Failed to wait for the Vulkan queue to be idle.")
     syncObjectsDestroy(state);
     vertexBufferDestroy(state);
+    indexBufferDestroy(state);
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
