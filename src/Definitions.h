@@ -58,6 +58,7 @@ typedef struct
     int windowHeight;
     bool windowResizable;
     bool windowFullscreen;
+    VkFrontFace vertexWindingDirection;
 } Config_t;
 
 typedef struct
@@ -114,6 +115,8 @@ typedef struct
     VkFence inFlightFence;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
 } Renderer_t;
 
 typedef struct

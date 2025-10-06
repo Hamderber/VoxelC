@@ -46,3 +46,9 @@ TODO:
    which may be as low as 4096 even on high end hardware. The right way to allocate memory for a large number of objects at
    the same time is to create a custom allocator that splits up a single allocation among many different objects by using the
    offset parameters that we've seen in many functions. See conclusion of https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
+3. Driver developers recommend that you also store multiple buffers, like the vertex and index buffer, into a single VkBuffer
+   and use offsets in commands like vkCmdBindVertexBuffers. The advantage is that your data is more cache friendly in that case,
+   because it's closer together. It is even possible to reuse the same chunk of memory for multiple resources if they are not used
+   during the same render operations, provided that their data is refreshed, of course. This is known as aliasing and some Vulkan
+   functions have explicit flags to specify that you want to do this. See https://vulkan-tutorial.com/en/Vertex_buffers/Index_buffer
+   conclusion.

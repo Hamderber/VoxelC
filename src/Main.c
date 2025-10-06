@@ -23,7 +23,9 @@ int main(void)
         .vkAPIVersion = VK_API_VERSION_1_4,
         .swapchainComponentMapping = componentMapping,
         // default means that it will be auto-assigned during swapchain creation
-        .swapchainBuffering = SWAPCHAIN_BUFFERING_DEFAULT};
+        .swapchainBuffering = SWAPCHAIN_BUFFERING_DEFAULT,
+        .vertexWindingDirection = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+    };
 
     State_t state = {
         .config = config};
