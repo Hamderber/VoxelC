@@ -402,7 +402,7 @@ void writeVertexMemory(State_t *state)
 }
 
 void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags propertyFlags,
-                  VkBuffer *buffer, VkDeviceMemory *deviceMemory)
+                  VkBuffer *buffer, VkDeviceMemory *bufferMemory)
 {
     VkBufferCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -444,8 +444,13 @@ void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageF
         .memoryTypeIndex = memoryType,
     };
 
-    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, deviceMemory),
+    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, bufferMemory),
                  "Failed to allocate buffer memory!")
+
+    // No offset required because this buffer is specifically made for the verticies. If there was an offset, it would have to be
+    // divisible by memoryRequirements.alignment
+    LOG_IF_ERROR(vkBindBufferMemory(state->context.device, *buffer, *bufferMemory, 0),
+                 "Failed to bind buffer memory!")
 }
 
 void vertexBufferCreate(State_t *state)
@@ -459,11 +464,6 @@ void vertexBufferCreate(State_t *state)
 
     bufferCreate(state, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, propertyFlags,
                  &state->renderer.vertexBuffer, &state->renderer.vertexBufferMemory);
-
-    // No offset required because this buffer is specifically made for the verticies. If there was an offset, it would have to be
-    // divisible by memoryRequirements.alignment
-    LOG_IF_ERROR(vkBindBufferMemory(state->context.device, state->renderer.vertexBuffer, state->renderer.vertexBufferMemory, 0),
-                 "Failed to bind vertex buffer memory!")
 
     writeVertexMemory(state);
 }
