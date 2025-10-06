@@ -680,30 +680,84 @@ void commandBufferSubmit(State_t *state)
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     };
 
-    VkSubmitInfo submitInfos[] = {
-        (VkSubmitInfo){
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            // Only one command buffer at this time (no array stored)
-            .commandBufferCount = 1U,
-            .pCommandBuffers = &state->renderer.commandBuffer,
-            .waitSemaphoreCount = 1U,
-            // Wait until the image is acquired
-            .pWaitSemaphores = &state->renderer.imageAcquiredSemaphore,
-            .signalSemaphoreCount = 1U,
-            // Signal when the render is finished
-            .pSignalSemaphores = &state->renderer.renderFinishedSemaphore,
-            .pWaitDstStageMask = stageFlags,
-        },
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        // Only one command buffer at this time (no array stored)
+        .commandBufferCount = 1U,
+        .pCommandBuffers = &state->renderer.commandBuffer,
+        .waitSemaphoreCount = 1U,
+        // Wait until the image is acquired
+        .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[state->renderer.currentFrame],
+        .signalSemaphoreCount = 1U,
+        // Signal when the render is finished
+        .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[state->renderer.currentFrame],
+        .pWaitDstStageMask = stageFlags,
     };
+
+    // Must reset the fence after waiting for it for reuse
+    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[state->renderer.currentFrame]),
+                 "Failed to reset fences")
 
     // Just one command submission right now
     // Signals the fence for when finished rendering
-    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1U, submitInfos, state->renderer.inFlightFence),
+    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1U, &submitInfo, state->renderer.inFlightFences[state->renderer.currentFrame]),
                  "Failed to submit queue to the command buffer.")
+}
+
+void syncObjectsDestroy(State_t *state)
+{
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        if (state->renderer.inFlightFences != NULL)
+        {
+            vkDestroyFence(state->context.device, state->renderer.inFlightFences[i], state->context.pAllocator);
+            state->renderer.inFlightFences[i] = VK_NULL_HANDLE;
+        }
+    }
+
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        if (state->renderer.renderFinishedSemaphores != NULL)
+        {
+            vkDestroySemaphore(state->context.device, state->renderer.renderFinishedSemaphores[i], state->context.pAllocator);
+            state->renderer.renderFinishedSemaphores[i] = VK_NULL_HANDLE;
+        }
+    }
+
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        if (state->renderer.imageAcquiredSemaphores != NULL)
+        {
+            vkDestroySemaphore(state->context.device, state->renderer.imageAcquiredSemaphores[i], state->context.pAllocator);
+            state->renderer.imageAcquiredSemaphores[i] = VK_NULL_HANDLE;
+        }
+    }
+
+    free(state->renderer.inFlightFences);
+    state->renderer.inFlightFences = NULL;
+    free(state->renderer.imageAcquiredSemaphores);
+    state->renderer.imageAcquiredSemaphores = NULL;
+    free(state->renderer.renderFinishedSemaphores);
+    state->renderer.renderFinishedSemaphores = NULL;
 }
 
 void syncObjectsCreate(State_t *state)
 {
+    // Destroy the original sync objects if they existed first
+    syncObjectsDestroy(state);
+
+    state->renderer.imageAcquiredSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.imageAcquiredSemaphores == NULL,
+                 "Failed to allcoate memory for image acquired semaphors!")
+
+    state->renderer.renderFinishedSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.renderFinishedSemaphores == NULL,
+                 "Failed to allcoate memory for render finished semaphors!")
+
+    state->renderer.inFlightFences = malloc(sizeof(VkFence) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.inFlightFences == NULL,
+                 "Failed to allcoate memory for in-flight fences!")
+
     // GPU operations are async so sync is required to aid in parallel execution
     // Semaphore: (syncronization) action signal for GPU processes. Cannot continue until the relavent semaphore is complete
     // Fence: same above but for CPU
@@ -712,28 +766,28 @@ void syncObjectsCreate(State_t *state)
         // Binary is just signaled/not signaled. Timeline is more states than 2 (0/1) basically.
     };
 
-    LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
-                                   &state->renderer.imageAcquiredSemaphore),
-                 "Failed to create image acquired semaphore")
-
-    LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
-                                   &state->renderer.renderFinishedSemaphore),
-                 "Failed to create render finished semaphore")
-
+    // Must start with the fences signaled so something actually renders initially
     VkFenceCreateInfo fenceCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
 
-    LOG_IF_ERROR(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
-                               &state->renderer.inFlightFence),
-                 "Failed to create in-flight fence")
-}
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                       &state->renderer.imageAcquiredSemaphores[i]),
+                     "Failed to create image acquired semaphore")
 
-void syncObjectsDestroy(State_t *state)
-{
-    vkDestroyFence(state->context.device, state->renderer.inFlightFence, state->context.pAllocator);
-    vkDestroySemaphore(state->context.device, state->renderer.renderFinishedSemaphore, state->context.pAllocator);
-    vkDestroySemaphore(state->context.device, state->renderer.imageAcquiredSemaphore, state->context.pAllocator);
+        LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                       &state->renderer.renderFinishedSemaphores[i]),
+                     "Failed to create render finished semaphore")
+
+        LOG_IF_ERROR(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
+                                   &state->renderer.inFlightFences[i]),
+                     "Failed to create in-flight fence")
+    }
+
+    state->renderer.currentFrame = 0;
 }
 
 void descriptorSetLayoutCreate(State_t *state)

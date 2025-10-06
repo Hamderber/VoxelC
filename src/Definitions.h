@@ -59,6 +59,8 @@ typedef struct
     bool windowResizable;
     bool windowFullscreen;
     VkFrontFace vertexWindingDirection;
+    // Do not allow this value to be changed at runtime. Will cause memory issues with the amount of semaphors and fences.
+    uint32_t maxFramesInFlight;
 } Config_t;
 
 typedef struct
@@ -110,9 +112,9 @@ typedef struct
     VkFramebuffer *pFramebuffers;
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
-    VkSemaphore imageAcquiredSemaphore;
-    VkSemaphore renderFinishedSemaphore;
-    VkFence inFlightFence;
+    VkSemaphore *imageAcquiredSemaphores;
+    VkSemaphore *renderFinishedSemaphores;
+    VkFence *inFlightFences;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
@@ -120,6 +122,7 @@ typedef struct
     VkDescriptorSetLayout descriptorSetLayout;
     VkBuffer uniformBuffer;
     VkDeviceMemory uniformBufferMemory;
+    uint32_t currentFrame;
 } Renderer_t;
 
 typedef struct

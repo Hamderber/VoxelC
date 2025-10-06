@@ -50,7 +50,7 @@ void loop(State_t *state)
     {
         double frameTime = renderLoop(state);
         double frameFrequency = 1 / frameTime;
-        // logger(LOG_INFO, "FPS: %lf", frameFrequency);
+        // logger(LOG_INFO, "FPS: %lf Frame: %d", frameFrequency, state->renderer.currentFrame);
     }
 }
 
