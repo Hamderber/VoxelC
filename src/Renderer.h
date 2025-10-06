@@ -401,31 +401,25 @@ void writeVertexMemory(State_t *state)
     vkUnmapMemory(state->context.device, state->renderer.vertexBufferMemory);
 }
 
-void vertexBufferCreate(State_t *state)
+void bufferCreate(State_t *state, uint32_t bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags propertyFlags,
+                  VkBuffer *buffer, VkDeviceMemory *deviceMemory)
 {
-    // Not sizeof Vert3f_t because shader vertex has color etc data too
-    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
-
     VkBufferCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = bufferSize,
-        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        .usage = usageFlags,
         // Don't need to share this buffer between queue families right now
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
 
-    LOG_IF_ERROR(vkCreateBuffer(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.vertexBuffer),
-                 "Failed to create vertex buffer.")
+    LOG_IF_ERROR(vkCreateBuffer(state->context.device, &createInfo, state->context.pAllocator, buffer),
+                 "Failed to create buffer!")
 
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(state->context.device, state->renderer.vertexBuffer, &memoryRequirements);
 
     VkPhysicalDeviceMemoryProperties memoryProperties;
     vkGetPhysicalDeviceMemoryProperties(state->context.physicalDevice, &memoryProperties);
-
-    VkMemoryPropertyFlags propertyFlags = {
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    };
 
     uint32_t memoryType = UINT32_MAX;
     uint32_t typeFilter = memoryRequirements.memoryTypeBits;
@@ -442,7 +436,7 @@ void vertexBufferCreate(State_t *state)
     }
 
     LOG_IF_ERROR(memoryType == UINT32_MAX,
-                 "Failed to find suitable memory type!")
+                 "Failed to find suitable memory type for buffer!")
 
     VkMemoryAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -450,8 +444,21 @@ void vertexBufferCreate(State_t *state)
         .memoryTypeIndex = memoryType,
     };
 
-    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, &state->renderer.vertexBufferMemory),
-                 "Failed to allocate vertex buffer memory.")
+    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, deviceMemory),
+                 "Failed to allocate buffer memory!")
+}
+
+void vertexBufferCreate(State_t *state)
+{
+    // Not sizeof Vert3f_t because shader vertex has color etc data too
+    uint32_t bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
+
+    VkMemoryPropertyFlags propertyFlags = {
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    };
+
+    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, propertyFlags,
+                 &state->renderer.vertexBuffer, &state->renderer.vertexBufferMemory);
 
     // No offset required because this buffer is specifically made for the verticies. If there was an offset, it would have to be
     // divisible by memoryRequirements.alignment
