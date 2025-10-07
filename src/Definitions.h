@@ -1,34 +1,8 @@
 #pragma once
 
 #define PROGRAM_NAME "VoxelC"
-
-/// @brief If error is anything but zero, log that (in red). Include originating filepath,
-/// function name, line number, and the passed error. Optional additional variable args.
-/// Throw a signal abort to notify the debugger as well. Both vulkan and glfw "error code"
-/// 0 means "success" / "not an error" which is convenient. Must be sure to explicitly cast
-/// the ERROR to an int errorCode for proper handling. Because this is a macro, the preprocessor
-/// would just copy-paste the actual function call itself into the if statement AND the fprintf
-/// otherwise. So if a funciton errors, it would actually be called TWICE if just ERROR was used
-/// in the if and the fprintf. It must be "macroErrorCode" instead of "errorCode" because functions that
-/// the preprocessor will paste this into may already define an "errorCode" variable, which would
-/// be overshadowed by this one.
-#define LOG_IF_ERROR(ERROR, FORMAT, ...)                                                \
-    {                                                                                   \
-        int macroErrorCode = ERROR;                                                     \
-        if (macroErrorCode)                                                             \
-        {                                                                               \
-            fprintf(stderr, "\n\033[31m%s -> %s -> %i -> Error(%i):\033[0m\n\t" FORMAT, \
-                    __FILE__, __func__, __LINE__, macroErrorCode, ##__VA_ARGS__);       \
-            raise(SIGABRT);                                                             \
-        }                                                                               \
-    }
-
-// Logging
-typedef enum
-{
-    LOG_INFO,
-    LOG_WARN
-} LogLevel_t;
+#define PI_D 3.1415926535897931
+#define PI_F 3.1415927F
 
 // Engine
 typedef enum
@@ -58,8 +32,25 @@ typedef struct
     int windowHeight;
     bool windowResizable;
     bool windowFullscreen;
+    VkCullModeFlagBits cullModeMask;
     VkFrontFace vertexWindingDirection;
+    // Do not allow this value to be changed at runtime. Will cause memory issues with the amount of semaphors and fences.
+    uint32_t maxFramesInFlight;
+    double fixedTimeStep; // ex: 1.0 / 50.0
+    uint32_t maxPhysicsFrameDelay;
 } Config_t;
+
+typedef struct
+{
+    // Time since last frame
+    double frameTimeDelta;
+    // Actual last time (not delta)
+    double frameTimeLast;
+    double frameTimeTotal;
+    double framesPerSecond;
+    // Fixed-step physics
+    double fixedTimeAccumulated;
+} Time_t;
 
 typedef struct
 {
@@ -102,21 +93,29 @@ typedef struct
 
 typedef struct
 {
-    VkPipeline pGraphicsPipeline;
-    VkPipelineLayout pPipelineLayout;
+    VkPipeline graphicsPipeline;
+    VkPipelineLayout pipelineLayout;
     uint32_t renderpassAttachmentCount;
     VkRenderPass pRenderPass;
     uint32_t framebufferCount;
     VkFramebuffer *pFramebuffers;
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
-    VkSemaphore imageAcquiredSemaphore;
-    VkSemaphore renderFinishedSemaphore;
-    VkFence inFlightFence;
+    VkSemaphore *imageAcquiredSemaphores;
+    VkSemaphore *renderFinishedSemaphores;
+    VkFence *inFlightFences;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkBuffer *pUniformBuffers;
+    VkDeviceMemory *pUniformBufferMemories;
+    // Array of pointers that Vulkan uses to access uniform buffers and their memory
+    void **pUniformBuffersMapped;
+    uint32_t currentFrame;
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSet *pDescriptorSets;
 } Renderer_t;
 
 typedef struct
@@ -125,6 +124,7 @@ typedef struct
     Window_t window;
     Context_t context;
     Renderer_t renderer;
+    Time_t time;
 } State_t;
 
 typedef struct
@@ -136,6 +136,17 @@ typedef struct
 {
     float x, y, z;
 } Vec3f_t;
+
+// A w of 0 means rotation and 1 means position
+typedef struct
+{
+    float x, y, z, w;
+} Vec4f_t;
+
+typedef struct
+{
+    float qx, qy, qz, qw;
+} Quaternion_t;
 
 // Rendering
 typedef struct
@@ -169,6 +180,42 @@ static const Vec3f_t Y_AXIS = {0.0f, 1.0f, 0.0f};
 static const Vec3f_t Z_AXIS = {0.0f, 0.0f, 1.0f};
 
 // Diagonals
-static const Vec3f_t ONE = {1.0f, 1.0f, 1.0f};
-static const Vec3f_t NEG_ONE = {-1.0f, -1.0f, -1.0f};
-static const Vec3f_t ZERO = {0.0f, 0.0f, 0.0f};
+static const Vec3f_t VEC3_ONE = {1.0f, 1.0f, 1.0f};
+static const Vec3f_t VEC3_NEG_ONE = {-1.0f, -1.0f, -1.0f};
+static const Vec3f_t VEC3_ZERO = {0.0f, 0.0f, 0.0f};
+
+// Quaternions
+static const Quaternion_t QUAT_IDENTITY = {0.0F, 0.0F, 0.0F, 1.0F};
+
+// Matricies
+// https://www.c-jump.com/bcc/common/Talk3/Math/GLM/GLM.html
+// 4x4 Matrix column-major (array index is for each column)
+// Struct members are the same as the shader codes'
+typedef struct
+{
+    Vec4f_t m[4];
+} Mat4c_t;
+
+// COLUMN MAJOR!!!!
+static const Mat4c_t MAT4_IDENTITY = {
+    .m = {
+        {1.0F, 0.0F, 0.0F, 0.0F},
+        {0.0F, 1.0F, 0.0F, 0.0F},
+        {0.0F, 0.0F, 1.0F, 0.0F},
+        {0.0F, 0.0F, 0.0F, 1.0F},
+    },
+};
+
+// Rendering
+// https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/
+// Struct members are the same as the shader codes'
+typedef struct
+{
+    // It is critical to make sure that the sizing is
+    // alligned for use with vulkan and shaders. 16 per row.
+    // So for values less than 16 do Ex: alignas(16) float foo;
+    // Just have everything start with alignas for safety
+    alignas(16) Mat4c_t model;
+    alignas(16) Mat4c_t view;
+    alignas(16) Mat4c_t projection;
+} UniformBufferObject_t;

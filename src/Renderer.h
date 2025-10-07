@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Toolkit.h"
-
 /* TODO:
    1. Add an additional pipeline that uses the line rendering mode to draw connections between verticies (for showing voxel hitboxes and chunks)
       or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?
@@ -247,10 +245,7 @@ void graphicsPipelineCreate(State_t *state)
         .frontFace = state->config.vertexWindingDirection,
         // Tells the render pipeline what faces should be culled (hidden). Back but means that back (covered/blocked) bits won't be rendered.
         // This is literally the backface culling that makes Minecraft playable
-
-        // .cullMode = VK_CULL_MODE_BACK_BIT, enable this when performance is needed and meshing and stuff is known to work. (backface culling)
-
-        .cullMode = VK_CULL_MODE_NONE, // Both purely for debugging to make sure meshing and whatnot works.
+        .cullMode = state->config.cullModeMask,
         // Fill is opaque normally rendered object and line is wireframe
         .polygonMode = VK_POLYGON_MODE_FILL,
     };
@@ -285,18 +280,17 @@ void graphicsPipelineCreate(State_t *state)
 
     const VkPipelineLayoutCreateInfo layoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        // Default
-        .setLayoutCount = 0U,
-        .pSetLayouts = NULL,
+        .setLayoutCount = 1,
+        .pSetLayouts = &state->renderer.descriptorSetLayout,
     };
 
-    LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pPipelineLayout),
+    LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pipelineLayout),
                  "Failed to create the pipeline layout.");
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         // layout, pVertexInputState, and pInputAssemblyState all rely on the vertex layout
-        .layout = state->renderer.pPipelineLayout,
+        .layout = state->renderer.pipelineLayout,
         .pVertexInputState = &vertexInputState,
         .pInputAssemblyState = &inputAssemblyState,
         // Get the length of the array by dividing the size of the shaderStages array by the size of the type of the first index of the array
@@ -314,7 +308,7 @@ void graphicsPipelineCreate(State_t *state)
     };
     // Don't care about pipeline cache right now and only need to create 1 pipeline
     LOG_IF_ERROR(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
-                                           &state->renderer.pGraphicsPipeline),
+                                           &state->renderer.graphicsPipeline),
                  "Failed to create the graphics pipeline.")
 
     // Once the render pipeline has been created, the shader information is stored within it. Thus, the shader modules can
@@ -326,8 +320,8 @@ void graphicsPipelineCreate(State_t *state)
 
 void graphicsPipelineDestroy(State_t *state)
 {
-    vkDestroyPipeline(state->context.device, state->renderer.pGraphicsPipeline, state->context.pAllocator);
-    vkDestroyPipelineLayout(state->context.device, state->renderer.pPipelineLayout, state->context.pAllocator);
+    vkDestroyPipeline(state->context.device, state->renderer.graphicsPipeline, state->context.pAllocator);
+    vkDestroyPipelineLayout(state->context.device, state->renderer.pipelineLayout, state->context.pAllocator);
 }
 
 void framebuffersCreate(State_t *state)
@@ -653,15 +647,17 @@ void commandBufferRecord(State_t *state)
     };
     vkCmdSetScissor(state->renderer.commandBuffer, 0, 1, &scissor);
 
-    // Access violation here when resizing the window
-
     // Bind the render pipeline to graphics (instead of compute)
-    vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pGraphicsPipeline);
+    vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipeline);
 
     VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(state->renderer.commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(state->renderer.commandBuffer, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+    // No offset and 1 descriptor set bound for this frame
+    vkCmdBindDescriptorSets(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayout,
+                            0, 1, &state->renderer.pDescriptorSets[state->renderer.currentFrame], 0, VK_NULL_HANDLE);
 
     // DRAW ! ! ! ! !
     // Not using instanced rendering so just 1 instance with nothing for the offset
@@ -681,30 +677,84 @@ void commandBufferSubmit(State_t *state)
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     };
 
-    VkSubmitInfo submitInfos[] = {
-        (VkSubmitInfo){
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            // Only one command buffer at this time (no array stored)
-            .commandBufferCount = 1U,
-            .pCommandBuffers = &state->renderer.commandBuffer,
-            .waitSemaphoreCount = 1U,
-            // Wait until the image is acquired
-            .pWaitSemaphores = &state->renderer.imageAcquiredSemaphore,
-            .signalSemaphoreCount = 1U,
-            // Signal when the render is finished
-            .pSignalSemaphores = &state->renderer.renderFinishedSemaphore,
-            .pWaitDstStageMask = stageFlags,
-        },
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        // Only one command buffer at this time (no array stored)
+        .commandBufferCount = 1U,
+        .pCommandBuffers = &state->renderer.commandBuffer,
+        .waitSemaphoreCount = 1U,
+        // Wait until the image is acquired
+        .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[state->renderer.currentFrame],
+        .signalSemaphoreCount = 1U,
+        // Signal when the render is finished
+        .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[state->renderer.currentFrame],
+        .pWaitDstStageMask = stageFlags,
     };
+
+    // Must reset the fence after waiting for it for reuse
+    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[state->renderer.currentFrame]),
+                 "Failed to reset fences")
 
     // Just one command submission right now
     // Signals the fence for when finished rendering
-    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1U, submitInfos, state->renderer.inFlightFence),
+    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1U, &submitInfo, state->renderer.inFlightFences[state->renderer.currentFrame]),
                  "Failed to submit queue to the command buffer.")
+}
+
+void syncObjectsDestroy(State_t *state)
+{
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        if (state->renderer.inFlightFences != NULL)
+        {
+            vkDestroyFence(state->context.device, state->renderer.inFlightFences[i], state->context.pAllocator);
+            state->renderer.inFlightFences[i] = VK_NULL_HANDLE;
+        }
+    }
+
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        if (state->renderer.renderFinishedSemaphores != NULL)
+        {
+            vkDestroySemaphore(state->context.device, state->renderer.renderFinishedSemaphores[i], state->context.pAllocator);
+            state->renderer.renderFinishedSemaphores[i] = VK_NULL_HANDLE;
+        }
+    }
+
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        if (state->renderer.imageAcquiredSemaphores != NULL)
+        {
+            vkDestroySemaphore(state->context.device, state->renderer.imageAcquiredSemaphores[i], state->context.pAllocator);
+            state->renderer.imageAcquiredSemaphores[i] = VK_NULL_HANDLE;
+        }
+    }
+
+    free(state->renderer.inFlightFences);
+    state->renderer.inFlightFences = NULL;
+    free(state->renderer.imageAcquiredSemaphores);
+    state->renderer.imageAcquiredSemaphores = NULL;
+    free(state->renderer.renderFinishedSemaphores);
+    state->renderer.renderFinishedSemaphores = NULL;
 }
 
 void syncObjectsCreate(State_t *state)
 {
+    // Destroy the original sync objects if they existed first
+    syncObjectsDestroy(state);
+
+    state->renderer.imageAcquiredSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.imageAcquiredSemaphores == NULL,
+                 "Failed to allcoate memory for image acquired semaphors!")
+
+    state->renderer.renderFinishedSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.renderFinishedSemaphores == NULL,
+                 "Failed to allcoate memory for render finished semaphors!")
+
+    state->renderer.inFlightFences = malloc(sizeof(VkFence) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.inFlightFences == NULL,
+                 "Failed to allcoate memory for in-flight fences!")
+
     // GPU operations are async so sync is required to aid in parallel execution
     // Semaphore: (syncronization) action signal for GPU processes. Cannot continue until the relavent semaphore is complete
     // Fence: same above but for CPU
@@ -713,39 +763,205 @@ void syncObjectsCreate(State_t *state)
         // Binary is just signaled/not signaled. Timeline is more states than 2 (0/1) basically.
     };
 
-    LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
-                                   &state->renderer.imageAcquiredSemaphore),
-                 "Failed to create image acquired semaphore")
-
-    LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
-                                   &state->renderer.renderFinishedSemaphore),
-                 "Failed to create render finished semaphore")
-
+    // Must start with the fences signaled so something actually renders initially
     VkFenceCreateInfo fenceCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
 
-    LOG_IF_ERROR(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
-                               &state->renderer.inFlightFence),
-                 "Failed to create in-flight fence")
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                       &state->renderer.imageAcquiredSemaphores[i]),
+                     "Failed to create image acquired semaphore")
+
+        LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                       &state->renderer.renderFinishedSemaphores[i]),
+                     "Failed to create render finished semaphore")
+
+        LOG_IF_ERROR(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
+                                   &state->renderer.inFlightFences[i]),
+                     "Failed to create in-flight fence")
+    }
+
+    state->renderer.currentFrame = 0;
 }
 
-void syncObjectsDestroy(State_t *state)
+void descriptorSetLayoutCreate(State_t *state)
 {
-    vkDestroyFence(state->context.device, state->renderer.inFlightFence, state->context.pAllocator);
-    vkDestroySemaphore(state->context.device, state->renderer.renderFinishedSemaphore, state->context.pAllocator);
-    vkDestroySemaphore(state->context.device, state->renderer.imageAcquiredSemaphore, state->context.pAllocator);
+    VkDescriptorSetLayoutBinding layoutBinding = {
+        // Location for the ubo in the shader
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        // Specifices that these descriptors are for the vertex shader to reference
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        // Image sampling not implemented at this time
+        .pImmutableSamplers = VK_NULL_HANDLE,
+    };
+
+    VkDescriptorSetLayoutCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &layoutBinding,
+    };
+
+    LOG_IF_ERROR(vkCreateDescriptorSetLayout(state->context.device, &createInfo, state->context.pAllocator,
+                                             &state->renderer.descriptorSetLayout),
+                 "Failed to create descriptor set layout!")
+}
+
+void descriptorSetLayoutDestroy(State_t *state)
+{
+    vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
+}
+
+void uniformBuffersCreate(State_t *state)
+{
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject_t);
+    state->renderer.pUniformBuffers = malloc(sizeof(VkBuffer) * state->config.maxFramesInFlight);
+    state->renderer.pUniformBufferMemories = malloc(sizeof(VkDeviceMemory) * state->config.maxFramesInFlight);
+    state->renderer.pUniformBuffersMapped = malloc(sizeof(void *) * state->config.maxFramesInFlight);
+
+    for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
+    {
+        bufferCreate(state, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     &state->renderer.pUniformBuffers[i], &state->renderer.pUniformBufferMemories[i]);
+
+        LOG_IF_ERROR(vkMapMemory(state->context.device, state->renderer.pUniformBufferMemories[i], 0, bufferSize, 0,
+                                 &state->renderer.pUniformBuffersMapped[i]),
+                     "Failed to map memory for uniform buffer!")
+    }
+}
+
+void uniformBuffersDestroy(State_t *state)
+{
+    for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
+    {
+        vkDestroyBuffer(state->context.device, state->renderer.pUniformBuffers[i], state->context.pAllocator);
+        vkFreeMemory(state->context.device, state->renderer.pUniformBufferMemories[i], state->context.pAllocator);
+        state->renderer.pUniformBuffersMapped[i] = NULL;
+    }
+
+    free(state->renderer.pUniformBuffers);
+    state->renderer.pUniformBuffers = NULL;
+    free(state->renderer.pUniformBufferMemories);
+    state->renderer.pUniformBufferMemories = NULL;
+}
+
+void updateUniformBuffer(State_t *state)
+{
+    // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
+    // instead of having stutter with frames.
+
+    UniformBufferObject_t ubo = {
+        .model = la_matrixRotate(MAT4_IDENTITY, la_deg2radf(90.0F) * (float)state->time.frameTimeTotal, FORWARD),
+        .view = la_lookAt((Vec3f_t){2.0F, 2.0F, 2.0F}, VEC3_ONE, FORWARD),
+        .projection = la_perspective(la_deg2radf(45.0F),
+                                     state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
+                                     0.1F, 10.0F),
+    };
+
+    memcpy(state->renderer.pUniformBuffersMapped[state->renderer.currentFrame], &ubo, sizeof(ubo));
+}
+
+void descriptorPoolCreate(State_t *state)
+{
+    VkDescriptorPoolSize poolSize = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = state->config.maxFramesInFlight,
+    };
+
+    VkDescriptorPoolCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        // Only one pool size for now
+        .poolSizeCount = 1,
+        .pPoolSizes = &poolSize,
+        .maxSets = state->config.maxFramesInFlight,
+    };
+
+    LOG_IF_ERROR(vkCreateDescriptorPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.descriptorPool),
+                 "Failed to create descriptor pool!")
+}
+
+void descriptorPoolDestroy(State_t *state)
+{
+    vkDestroyDescriptorPool(state->context.device, state->renderer.descriptorPool, state->context.pAllocator);
+}
+
+void descriptorSetsCreate(State_t *state)
+{
+    VkDescriptorSetLayout *layouts = malloc(sizeof(VkDescriptorSetLayout) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(layouts == NULL,
+                 "Failed to allocate memory for descriptor set layouts!")
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        layouts[i] = state->renderer.descriptorSetLayout;
+    }
+
+    VkDescriptorSetAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = state->renderer.descriptorPool,
+        .descriptorSetCount = state->config.maxFramesInFlight,
+        .pSetLayouts = layouts,
+    };
+
+    state->renderer.pDescriptorSets = malloc(sizeof(VkDescriptorSet) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.pDescriptorSets == NULL,
+                 "Failed to allocate memory for descriptor sets!")
+
+    LOG_IF_ERROR(vkAllocateDescriptorSets(state->context.device, &allocateInfo, state->renderer.pDescriptorSets),
+                 "Failed to allocate descriptor sets!")
+
+    free(layouts);
+
+    // Populate descriptors
+
+    for (uint32_t i = 0; i < state->config.maxFramesInFlight; i++)
+    {
+        VkDescriptorBufferInfo bufferInfo = {
+            .buffer = state->renderer.pUniformBuffers[i],
+            .offset = 0,
+            .range = sizeof(UniformBufferObject_t),
+        };
+
+        VkWriteDescriptorSet descriptorWrite = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = state->renderer.pDescriptorSets[i],
+            // location in the vertex shader
+            .dstBinding = 0,
+            // the descriptors can be arrays but thats not implemented at this time so 0 is the first "index"
+            .dstArrayElement = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .pBufferInfo = &bufferInfo,
+        };
+
+        // Dont copy so 0 copies and destination null
+        vkUpdateDescriptorSets(state->context.device, 1, &descriptorWrite, 0, VK_NULL_HANDLE);
+    }
+}
+
+void descriptorSetsDestroy(State_t *state)
+{
+    // The descriptor set itself is freed by Vulkan when the descriptor pool is freed
+    vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
 }
 
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
     renderPassCreate(state);
+    descriptorSetLayoutCreate(state);
     graphicsPipelineCreate(state);
     framebuffersCreate(state);
     commandPoolCreate(state);
     vertexBufferCreate(state);
     indexBufferCreate(state);
+    uniformBuffersCreate(state);
+    descriptorPoolCreate(state);
+    descriptorSetsCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -757,10 +973,14 @@ void rendererDestroy(State_t *state)
     LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
                  "Failed to wait for the Vulkan queue to be idle.")
     syncObjectsDestroy(state);
-    vertexBufferDestroy(state);
+    descriptorSetsDestroy(state);
+    descriptorPoolDestroy(state);
+    uniformBuffersDestroy(state);
     indexBufferDestroy(state);
+    vertexBufferDestroy(state);
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
+    descriptorSetLayoutDestroy(state);
     renderPassDestroy(state);
 }
