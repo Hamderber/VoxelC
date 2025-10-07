@@ -12,12 +12,12 @@ void init(State_t *state)
     contextCreate(state);
     windowCreate(state);
     rendererCreate(state);
+
+    timeInit(state);
 }
 
-double renderLoop(State_t *state)
+void renderLoop(State_t *state)
 {
-    double frameStartTime = glfwGetTime();
-
     // Handle the window events, including actually closing the window with the X
     windowPollEvents(state);
 
@@ -42,16 +42,16 @@ double renderLoop(State_t *state)
     commandBufferSubmit(state);
     swapchainImagePresent(state);
 
-    return glfwGetTime() - frameStartTime;
+    timeUpdate(state);
 }
 
 void loop(State_t *state)
 {
     while (!windowShouldClose(state))
     {
-        double frameTime = renderLoop(state);
-        double frameFrequency = 1 / frameTime;
-        // logger(LOG_INFO, "FPS: %lf Frame: %d", frameFrequency, state->renderer.currentFrame);
+        physicsLoop(state);
+        renderLoop(state);
+        // logger(LOG_INFO, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
     }
 }
 

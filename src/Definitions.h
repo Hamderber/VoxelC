@@ -27,7 +27,8 @@
 typedef enum
 {
     LOG_INFO,
-    LOG_WARN
+    LOG_WARN,
+    LOG_PHYSICS,
 } LogLevel_t;
 
 // Engine
@@ -61,7 +62,21 @@ typedef struct
     VkFrontFace vertexWindingDirection;
     // Do not allow this value to be changed at runtime. Will cause memory issues with the amount of semaphors and fences.
     uint32_t maxFramesInFlight;
+    double fixedTimeStep; // ex: 1.0 / 50.0
+    uint32_t maxPhysicsFrameDelay;
 } Config_t;
+
+typedef struct
+{
+    // Time since last frame
+    double frameTimeDelta;
+    // Actual last time (not delta)
+    double frameTimeLast;
+    double frameTimeTotal;
+    double framesPerSecond;
+    // Fixed-step physics
+    double fixedTimeAccumulated;
+} Time_t;
 
 typedef struct
 {
@@ -133,6 +148,7 @@ typedef struct
     Window_t window;
     Context_t context;
     Renderer_t renderer;
+    Time_t time;
 } State_t;
 
 typedef struct

@@ -18,7 +18,9 @@ uint32_t clamp_uint32_t(uint32_t num, uint32_t min, uint32_t max)
 
 static const char *LogLevelStrs[] = {
     "Info",
-    "Warn"};
+    "Warn",
+    "Phys",
+};
 
 /// @brief Logs the passed formatted str to the console with the given level.
 /// @param level
