@@ -11,4 +11,5 @@
 #include <time.h>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include "Logs.h"
 #include "Definitions.h"

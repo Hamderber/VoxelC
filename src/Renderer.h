@@ -853,10 +853,19 @@ void uniformBuffersDestroy(State_t *state)
 
 void updateUniformBuffer(State_t *state)
 {
-    // get start time
+    // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
+    // instead of having stutter with frames.
+    double time = state->time.frameTimeTotal;
 
-    // get current time
-    float time = 0.0F;
+    UniformBufferObject_t ubo = {
+        .model = la_matrixRotate(MAT4_IDENTITY, la_rad2degf(90.0F), FORWARD),
+        .view = la_lookAt((Vec3f_t){2.0F, 2.0F, 2.0F}, VEC3_ONE, FORWARD),
+        .projection = la_perspective(la_deg2radf(45.0F),
+                                     state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
+                                     0.1F, 10.0F),
+    };
+
+    memcpy(state->renderer.pUniformBuffersMapped[state->renderer.currentFrame], &ubo, sizeof(ubo));
 }
 
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
