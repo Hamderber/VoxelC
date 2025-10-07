@@ -2,7 +2,7 @@
 
 void physicsUpdate(State_t *state)
 {
-    logger(LOG_PHYSICS, "Physics loop. Fixed delta time = %lf", state->time.fixedTimeAccumulated);
+    // logger(LOG_PHYSICS, "Physics loop. Fixed delta time = %lf", state->time.fixedTimeAccumulated);
 }
 
 void physicsLoop(State_t *state)
@@ -11,7 +11,8 @@ void physicsLoop(State_t *state)
 
     if (numPhysicsFrames > state->config.maxPhysicsFrameDelay)
     {
-        logger(LOG_PHYSICS, "Physics is running %d frames behind! Skipping %d frames.",
+        // This is on the main thread, which means that it gets locked while the actual window resizing is taking place
+        logger(LOG_PHYSICS, "Physics is running %.lf frames behind! Skipping %.lf frames. If the window was just resized, this is expected behaviour.",
                numPhysicsFrames, numPhysicsFrames - state->config.maxPhysicsFrameDelay);
 
         state->time.fixedTimeAccumulated = state->config.fixedTimeStep * state->config.maxPhysicsFrameDelay;

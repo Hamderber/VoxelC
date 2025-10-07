@@ -9,6 +9,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <stdalign.h>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include "Logs.h"

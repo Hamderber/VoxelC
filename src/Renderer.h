@@ -245,10 +245,7 @@ void graphicsPipelineCreate(State_t *state)
         .frontFace = state->config.vertexWindingDirection,
         // Tells the render pipeline what faces should be culled (hidden). Back but means that back (covered/blocked) bits won't be rendered.
         // This is literally the backface culling that makes Minecraft playable
-
-        // .cullMode = VK_CULL_MODE_BACK_BIT, enable this when performance is needed and meshing and stuff is known to work. (backface culling)
-
-        .cullMode = VK_CULL_MODE_NONE, // Both purely for debugging to make sure meshing and whatnot works.
+        .cullMode = state->config.cullModeMask,
         // Fill is opaque normally rendered object and line is wireframe
         .polygonMode = VK_POLYGON_MODE_FILL,
     };
@@ -287,13 +284,13 @@ void graphicsPipelineCreate(State_t *state)
         .pSetLayouts = &state->renderer.descriptorSetLayout,
     };
 
-    LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pPipelineLayout),
+    LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pipelineLayout),
                  "Failed to create the pipeline layout.");
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         // layout, pVertexInputState, and pInputAssemblyState all rely on the vertex layout
-        .layout = state->renderer.pPipelineLayout,
+        .layout = state->renderer.pipelineLayout,
         .pVertexInputState = &vertexInputState,
         .pInputAssemblyState = &inputAssemblyState,
         // Get the length of the array by dividing the size of the shaderStages array by the size of the type of the first index of the array
@@ -311,7 +308,7 @@ void graphicsPipelineCreate(State_t *state)
     };
     // Don't care about pipeline cache right now and only need to create 1 pipeline
     LOG_IF_ERROR(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
-                                           &state->renderer.pGraphicsPipeline),
+                                           &state->renderer.graphicsPipeline),
                  "Failed to create the graphics pipeline.")
 
     // Once the render pipeline has been created, the shader information is stored within it. Thus, the shader modules can
@@ -323,8 +320,8 @@ void graphicsPipelineCreate(State_t *state)
 
 void graphicsPipelineDestroy(State_t *state)
 {
-    vkDestroyPipeline(state->context.device, state->renderer.pGraphicsPipeline, state->context.pAllocator);
-    vkDestroyPipelineLayout(state->context.device, state->renderer.pPipelineLayout, state->context.pAllocator);
+    vkDestroyPipeline(state->context.device, state->renderer.graphicsPipeline, state->context.pAllocator);
+    vkDestroyPipelineLayout(state->context.device, state->renderer.pipelineLayout, state->context.pAllocator);
 }
 
 void framebuffersCreate(State_t *state)
@@ -650,15 +647,17 @@ void commandBufferRecord(State_t *state)
     };
     vkCmdSetScissor(state->renderer.commandBuffer, 0, 1, &scissor);
 
-    // Access violation here when resizing the window
-
     // Bind the render pipeline to graphics (instead of compute)
-    vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pGraphicsPipeline);
+    vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipeline);
 
     VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(state->renderer.commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(state->renderer.commandBuffer, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+    // No offset and 1 descriptor set bound for this frame
+    vkCmdBindDescriptorSets(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayout,
+                            0, 1, &state->renderer.pDescriptorSets[state->renderer.currentFrame], 0, VK_NULL_HANDLE);
 
     // DRAW ! ! ! ! !
     // Not using instanced rendering so just 1 instance with nothing for the offset
@@ -855,10 +854,9 @@ void updateUniformBuffer(State_t *state)
 {
     // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
     // instead of having stutter with frames.
-    double time = state->time.frameTimeTotal;
 
     UniformBufferObject_t ubo = {
-        .model = la_matrixRotate(MAT4_IDENTITY, la_rad2degf(90.0F), FORWARD),
+        .model = la_matrixRotate(MAT4_IDENTITY, la_deg2radf(90.0F) * (float)state->time.frameTimeTotal, FORWARD),
         .view = la_lookAt((Vec3f_t){2.0F, 2.0F, 2.0F}, VEC3_ONE, FORWARD),
         .projection = la_perspective(la_deg2radf(45.0F),
                                      state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
@@ -866,6 +864,89 @@ void updateUniformBuffer(State_t *state)
     };
 
     memcpy(state->renderer.pUniformBuffersMapped[state->renderer.currentFrame], &ubo, sizeof(ubo));
+}
+
+void descriptorPoolCreate(State_t *state)
+{
+    VkDescriptorPoolSize poolSize = {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = state->config.maxFramesInFlight,
+    };
+
+    VkDescriptorPoolCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        // Only one pool size for now
+        .poolSizeCount = 1,
+        .pPoolSizes = &poolSize,
+        .maxSets = state->config.maxFramesInFlight,
+    };
+
+    LOG_IF_ERROR(vkCreateDescriptorPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.descriptorPool),
+                 "Failed to create descriptor pool!")
+}
+
+void descriptorPoolDestroy(State_t *state)
+{
+    vkDestroyDescriptorPool(state->context.device, state->renderer.descriptorPool, state->context.pAllocator);
+}
+
+void descriptorSetsCreate(State_t *state)
+{
+    VkDescriptorSetLayout *layouts = malloc(sizeof(VkDescriptorSetLayout) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(layouts == NULL,
+                 "Failed to allocate memory for descriptor set layouts!")
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    {
+        layouts[i] = state->renderer.descriptorSetLayout;
+    }
+
+    VkDescriptorSetAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = state->renderer.descriptorPool,
+        .descriptorSetCount = state->config.maxFramesInFlight,
+        .pSetLayouts = layouts,
+    };
+
+    state->renderer.pDescriptorSets = malloc(sizeof(VkDescriptorSet) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.pDescriptorSets == NULL,
+                 "Failed to allocate memory for descriptor sets!")
+
+    LOG_IF_ERROR(vkAllocateDescriptorSets(state->context.device, &allocateInfo, state->renderer.pDescriptorSets),
+                 "Failed to allocate descriptor sets!")
+
+    free(layouts);
+
+    // Populate descriptors
+
+    for (uint32_t i = 0; i < state->config.maxFramesInFlight; i++)
+    {
+        VkDescriptorBufferInfo bufferInfo = {
+            .buffer = state->renderer.pUniformBuffers[i],
+            .offset = 0,
+            .range = sizeof(UniformBufferObject_t),
+        };
+
+        VkWriteDescriptorSet descriptorWrite = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = state->renderer.pDescriptorSets[i],
+            // location in the vertex shader
+            .dstBinding = 0,
+            // the descriptors can be arrays but thats not implemented at this time so 0 is the first "index"
+            .dstArrayElement = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .pBufferInfo = &bufferInfo,
+        };
+
+        // Dont copy so 0 copies and destination null
+        vkUpdateDescriptorSets(state->context.device, 1, &descriptorWrite, 0, VK_NULL_HANDLE);
+    }
+}
+
+void descriptorSetsDestroy(State_t *state)
+{
+    // The descriptor set itself is freed by Vulkan when the descriptor pool is freed
+    vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
 }
 
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
@@ -879,6 +960,8 @@ void rendererCreate(State_t *state)
     vertexBufferCreate(state);
     indexBufferCreate(state);
     uniformBuffersCreate(state);
+    descriptorPoolCreate(state);
+    descriptorSetsCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -890,9 +973,11 @@ void rendererDestroy(State_t *state)
     LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
                  "Failed to wait for the Vulkan queue to be idle.")
     syncObjectsDestroy(state);
-    vertexBufferDestroy(state);
-    indexBufferDestroy(state);
+    descriptorSetsDestroy(state);
+    descriptorPoolDestroy(state);
     uniformBuffersDestroy(state);
+    indexBufferDestroy(state);
+    vertexBufferDestroy(state);
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);

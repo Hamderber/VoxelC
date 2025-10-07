@@ -32,6 +32,7 @@ typedef struct
     int windowHeight;
     bool windowResizable;
     bool windowFullscreen;
+    VkCullModeFlagBits cullModeMask;
     VkFrontFace vertexWindingDirection;
     // Do not allow this value to be changed at runtime. Will cause memory issues with the amount of semaphors and fences.
     uint32_t maxFramesInFlight;
@@ -92,8 +93,8 @@ typedef struct
 
 typedef struct
 {
-    VkPipeline pGraphicsPipeline;
-    VkPipelineLayout pPipelineLayout;
+    VkPipeline graphicsPipeline;
+    VkPipelineLayout pipelineLayout;
     uint32_t renderpassAttachmentCount;
     VkRenderPass pRenderPass;
     uint32_t framebufferCount;
@@ -113,6 +114,8 @@ typedef struct
     // Array of pointers that Vulkan uses to access uniform buffers and their memory
     void **pUniformBuffersMapped;
     uint32_t currentFrame;
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSet *pDescriptorSets;
 } Renderer_t;
 
 typedef struct
@@ -208,7 +211,11 @@ static const Mat4c_t MAT4_IDENTITY = {
 // Struct members are the same as the shader codes'
 typedef struct
 {
-    Mat4c_t model;
-    Mat4c_t view;
-    Mat4c_t projection;
+    // It is critical to make sure that the sizing is
+    // alligned for use with vulkan and shaders. 16 per row.
+    // So for values less than 16 do Ex: alignas(16) float foo;
+    // Just have everything start with alignas for safety
+    alignas(16) Mat4c_t model;
+    alignas(16) Mat4c_t view;
+    alignas(16) Mat4c_t projection;
 } UniformBufferObject_t;
