@@ -55,3 +55,4 @@ TODO:
    conclusion.
 4. Add more command buffers (secondary?) to support multiple frames in flight without having to fully reset the command buffer each
    frame.
+5. When entering/changing worlds make sure to set glfw time back to zero

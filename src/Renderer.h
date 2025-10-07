@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Toolkit.h"
-
 /* TODO:
    1. Add an additional pipeline that uses the line rendering mode to draw connections between verticies (for showing voxel hitboxes and chunks)
       or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?

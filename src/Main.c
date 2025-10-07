@@ -26,6 +26,10 @@ int main(void)
         // default means that it will be auto-assigned during swapchain creation
         .swapchainBuffering = SWAPCHAIN_BUFFERING_DEFAULT,
         .vertexWindingDirection = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        // Same duration as Unity's fixedUpdate()
+        .fixedTimeStep = 1.0 / 50.0,
+        // Skip if more than x frames accumulated
+        .maxPhysicsFrameDelay = 10,
     };
 
     State_t state = {
