@@ -151,7 +151,7 @@ void queueGet(State_t *state)
     // The device driver could (likely) cause underperformance because it has optimized itself to support
     // actually using those queues (workforce distribution)
     // 0 because we want the first (only) queue
-    vkGetDeviceQueue(state->context.device, state->context.queueFamily, 0, &state->context.queue);
+    vkGetDeviceQueue(state->context.device, state->context.queueFamily, 0, &state->context.graphicsQueue);
 }
 
 void contextCreate(State_t *state)

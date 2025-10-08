@@ -1,6 +1,8 @@
 #pragma once
 
 #define PROGRAM_NAME "VoxelC"
+// exe is in ./bin so you have to first go up a directory
+#define RESOURCE_TEXTURE_PATH "../res/textures/"
 #define PI_D 3.1415926535897931
 #define PI_F 3.1415927F
 
@@ -57,7 +59,7 @@ typedef struct
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
-    VkQueue queue;
+    VkQueue graphicsQueue;
     // This is always null right now so that Vulkan uses its own allocator
     VkAllocationCallbacks *pAllocator;
     /// @brief UINT32_MAX means no family assigned (set to max during creation)
@@ -116,6 +118,9 @@ typedef struct
     uint32_t currentFrame;
     VkDescriptorPool descriptorPool;
     VkDescriptorSet *pDescriptorSets;
+    // Change these to arrays once more than one texture is loaded
+    VkImage textureImage;
+    VkDeviceMemory textureImageMemory;
 } Renderer_t;
 
 typedef struct

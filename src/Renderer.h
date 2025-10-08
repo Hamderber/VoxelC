@@ -407,25 +407,7 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(state->context.device, *buffer, &memoryRequirements);
 
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(state->context.physicalDevice, &memoryProperties);
-
-    uint32_t memoryType = UINT32_MAX;
-    uint32_t typeFilter = memoryRequirements.memoryTypeBits;
-
-    for (uint32_t i = 0U; i < memoryProperties.memoryTypeCount; i++)
-    {
-        // Check if the corresponding bits of the filter are 1
-        if ((typeFilter & (1 << i)) &&
-            (memoryProperties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags)
-        {
-            memoryType = i;
-            break;
-        }
-    }
-
-    LOG_IF_ERROR(memoryType == UINT32_MAX,
-                 "Failed to find suitable memory type for buffer!")
+    uint32_t memoryType = memoryTypeGet(state, memoryRequirements.memoryTypeBits, propertyFlags);
 
     VkMemoryAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -441,6 +423,52 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
                  "Failed to bind buffer memory!")
 }
 
+VkCommandBuffer commandBufferSingleTimeBegin(State_t *state)
+{
+    VkCommandBufferAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = state->renderer.commandPool,
+        .commandBufferCount = 1,
+    };
+
+    VkCommandBuffer commandBuffer;
+    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &commandBuffer),
+                 "Failed to allocate command buffer!")
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+
+    LOG_IF_ERROR(vkBeginCommandBuffer(commandBuffer, &beginInfo),
+                 "Failed to begin command buffer!")
+
+    return commandBuffer;
+}
+
+void commandBufferSingleTimeEnd(State_t *state, VkCommandBuffer commandBuffer)
+{
+    LOG_IF_ERROR(vkEndCommandBuffer(commandBuffer),
+                 "Failed to end command buffer!")
+
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+    };
+
+    // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
+    // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
+    // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
+    LOG_IF_ERROR(vkQueueSubmit(state->context.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE),
+                 "Failed to submit graphicsQueue!")
+    LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
+                 "Failed to wait for graphics queue to idle!")
+
+    vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
+}
+
 void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)
 {
     VkCommandBufferAllocateInfo allocateInfo = {
@@ -450,19 +478,7 @@ void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffe
         .commandBufferCount = 1U,
     };
 
-    VkCommandBuffer commandBuffer;
-    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &commandBuffer),
-                 "Failed to allocate buffer copy command buffer!")
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        // Only going to use the command buffer once and wait with returning from the function until the copy operation has
-        // finished executing
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    LOG_IF_ERROR(vkBeginCommandBuffer(commandBuffer, &beginInfo),
-                 "Failed to begin buffer copy command buffer!")
+    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
 
     VkBufferCopy copyRegion = {
         .srcOffset = 0,
@@ -476,21 +492,7 @@ void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffe
     LOG_IF_ERROR(vkEndCommandBuffer(commandBuffer),
                  "Failed to copy buffer.")
 
-    VkSubmitInfo submitInfo = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-    };
-
-    // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
-    // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
-    // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
-    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1, &submitInfo, VK_NULL_HANDLE),
-                 "Failed to submit buffer copy to queue.")
-    LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
-                 "Failed to wait for the queue to idle.")
-
-    vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
+    commandBufferSingleTimeEnd(state, commandBuffer);
 }
 
 // Similar implementation to vertexBufferCreate
@@ -563,6 +565,195 @@ void vertexBufferDestroy(State_t *state)
 {
     vkDestroyBuffer(state->context.device, state->renderer.vertexBuffer, state->context.pAllocator);
     vkFreeMemory(state->context.device, state->renderer.vertexBufferMemory, state->context.pAllocator);
+}
+
+void bufferCopyToImage(State_t *state, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+{
+    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+
+    VkBufferImageCopy region = {
+        // Byte offset
+        .bufferOffset = 0,
+        // Length and height of how buffer is laid out in memory
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .imageSubresource.mipLevel = 0,
+        .imageSubresource.baseArrayLayer = 0,
+        .imageSubresource.layerCount = 1,
+        .imageOffset = {0, 0, 0},
+        .imageExtent = {
+            .width = width,
+            .height = height,
+            .depth = 1,
+        },
+    };
+
+    // Assuming that the image has already been transitioned to a copy-optimal layout
+    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    commandBufferSingleTimeEnd(state, commandBuffer);
+}
+
+void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+{
+    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+
+    VkImageMemoryBarrier barrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        // Can use VK_IMAGE_LAYOUT_UNDEFINED if don't care about existing contents of the image
+        .oldLayout = oldLayout,
+        .newLayout = newLayout,
+        // Used if transferring queue family ownership
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        // Specifies the image that is affected and the specific part of the image. Currently just a non array/mipped image
+        .image = image,
+        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.baseMipLevel = 0,
+        .subresourceRange.levelCount = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount = 1,
+        .srcAccessMask = 0, // TODO
+        .dstAccessMask = 0, // TODO
+    };
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+    {
+        LOG_IF_ERROR(true,
+                     "Unsupported layout transition!")
+    }
+
+    vkCmdPipelineBarrier(commandBuffer,
+                         // Which pipeline stage the operations occur that should happen before the barrier
+                         sourceStage,
+                         // What pipeline stage in which operations will wait on the barrier
+                         destinationStage,
+                         0,
+                         0, VK_NULL_HANDLE,
+                         0, VK_NULL_HANDLE,
+                         1, &barrier);
+
+    commandBufferSingleTimeEnd(state, commandBuffer);
+}
+
+void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+                 VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *imageMemory)
+{
+    VkImageCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        // What type of coordinate system the texels will be accessed by
+        .imageType = VK_IMAGE_TYPE_2D,
+        .extent.width = width,
+        .extent.height = height,
+        .extent.depth = 1,
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        // These formats must match or the copy will fail
+        .format = format,
+        // Must use the same format for the texels as the pixels in the buffer or the copy will fail
+        .tiling = tiling,
+        // Not usable by the GPU and the very first transition will discard the texels. New copy so safe to discard.
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        // Will be used to copy (transfer) but also accessed by the shader (sampled)
+        .usage = usage,
+        // Only used by 1 queue family
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        // Look into https://vulkan-tutorial.com/Texture_mapping/Images discussion on sparse images (voxel usage)
+        .flags = 0,
+    };
+
+    LOG_IF_ERROR(vkCreateImage(state->context.device, &createInfo, state->context.pAllocator, image),
+                 "Failed to create image!")
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(state->context.device, *image, &memoryRequirements);
+
+    VkMemoryAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memoryRequirements.size,
+        .memoryTypeIndex = memoryTypeGet(state, memoryRequirements.memoryTypeBits, properties),
+    };
+
+    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, imageMemory),
+                 "Failed to allocate memory for texture images!")
+
+    vkBindImageMemory(state->context.device, *image, *imageMemory, 0);
+}
+
+void textureImageCreate(State_t *state)
+{
+    int width, height, channels;
+    const char *imagePath = RESOURCE_TEXTURE_PATH "bricks.png";
+    // Force the image to load with an alpha channel
+    stbi_uc *pixels = stbi_load(imagePath, &width, &height, &channels, STBI_rgb_alpha);
+    // 4 bytes per pixel (RGBA)
+    VkDeviceSize imageSize = width * height * 4;
+
+    LOG_IF_ERROR(pixels == NULL,
+                 "Failed to load texture %s!", imagePath)
+
+    logger(LOG_INFO, "Loaded texture %s", imagePath);
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    bufferCreate(state, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 &stagingBuffer, &stagingBufferMemory);
+
+    // Map and copy the data into the staging buffer
+    void *data;
+    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, imageSize, 0, &data),
+                 "Failed to map texture staging buffer memory.")
+    memcpy(data, pixels, (size_t)imageSize);
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
+    // free the image array that was loaded
+    stbi_image_free(pixels);
+
+    imageCreate(state, width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                &state->renderer.textureImage, &state->renderer.textureImageMemory);
+
+    // Transition the image for copy
+    // Undefined because don't care about original contents of the image before the copy operation
+    imageLayoutTransition(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    bufferCopyToImage(state, stagingBuffer, state->renderer.textureImage, (uint32_t)width, (uint32_t)height);
+
+    // Transition the image for sampling
+    imageLayoutTransition(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
+}
+
+void textureImageDestroy(State_t *state)
+{
+    vkDestroyImage(state->context.device, state->renderer.textureImage, state->context.pAllocator);
+    vkFreeMemory(state->context.device, state->renderer.textureImageMemory, state->context.pAllocator);
 }
 
 void commandBufferAllocate(State_t *state)
@@ -697,8 +888,8 @@ void commandBufferSubmit(State_t *state)
 
     // Just one command submission right now
     // Signals the fence for when finished rendering
-    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1U, &submitInfo, state->renderer.inFlightFences[state->renderer.currentFrame]),
-                 "Failed to submit queue to the command buffer.")
+    LOG_IF_ERROR(vkQueueSubmit(state->context.graphicsQueue, 1U, &submitInfo, state->renderer.inFlightFences[state->renderer.currentFrame]),
+                 "Failed to submit graphicsQueue to the command buffer.")
 }
 
 void syncObjectsDestroy(State_t *state)
@@ -962,6 +1153,7 @@ void rendererCreate(State_t *state)
     uniformBuffersCreate(state);
     descriptorPoolCreate(state);
     descriptorSetsCreate(state);
+    textureImageCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -970,9 +1162,10 @@ void rendererDestroy(State_t *state)
 {
     // The GPU could be working on stuff for the renderer in parallel, meaning the renderer could be
     // destroyed while the GPU is still working. We should wait for the GPU to finish its current tasks.
-    LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
-                 "Failed to wait for the Vulkan queue to be idle.")
+    LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
+                 "Failed to wait for the Vulkan graphicsQueue to be idle.")
     syncObjectsDestroy(state);
+    textureImageDestroy(state);
     descriptorSetsDestroy(state);
     descriptorPoolDestroy(state);
     uniformBuffersDestroy(state);

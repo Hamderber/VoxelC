@@ -1,3 +1,6 @@
 {
-    "C_Cpp.errorSquiggles": "enabledIfIncludesResolve"
+    "C_Cpp.errorSquiggles": "enabledIfIncludesResolve",
+    "files.associations": {
+        "stb_image.h": "c"
+    }
 }

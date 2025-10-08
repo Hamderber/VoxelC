@@ -157,7 +157,7 @@ void swapchainImagePresent(State_t *state)
     };
 
     // Can't just catch this result with the error logger. Actually have to handle it.
-    VkResult result = vkQueuePresentKHR(state->context.queue, &presentInfo);
+    VkResult result = vkQueuePresentKHR(state->context.graphicsQueue, &presentInfo);
 
     // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
     // MUST be recreated immediately and presentation will just be attempted on the next frame.

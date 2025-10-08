@@ -28,6 +28,8 @@ Conventions:
    typedef struct { ... GLFWwindow *pWindow, ... } exampleStruct;
 16. Whenever vkCreateSomething is called ensure that there is a vkDestroySomething of the same reference called
     during cleanup to prevent memory leaks.
+17. CMake is configured to ALWAYS output to ./bin regardless of release type. This allows for having the same
+    file access structure regardless of target.
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
@@ -39,6 +41,7 @@ References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
 2. Vertex buffer: https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 3. Rendering matricies: https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/
+4. https://github.com/nothings/stb
 
 TODO:
 1. At some point in the future, check EVERY entry of LOG_IF_ERROR to ensure that if anything allocates memory but fails,
@@ -57,3 +60,6 @@ TODO:
    frame.
 5. When entering/changing worlds make sure to set glfw time back to zero
 6. Consider changing the linear algebra to use pointers. Is this faster?
+7. Consider adding a folder abstraction to contain everything in .voxelc kind of like .minecraft with just the exe in the root folder
+8. Look into the 3d texture mapping discussion about linear tiling and 3d textures for voxel data
+9. Create a setup command buffer like mentioned near the end of https://vulkan-tutorial.com/Texture_mapping/Images

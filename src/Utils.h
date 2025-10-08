@@ -54,3 +54,27 @@ void glfwFramebufferSizeCallback(GLFWwindow *window, int frameBufferWidth, int f
     state->window.frameBufferWidth = frameBufferWidth;
     state->window.frameBufferHeight = frameBufferHeight;
 }
+
+uint32_t memoryTypeGet(State_t *state, uint32_t memoryRequirements, VkMemoryPropertyFlags propertyFlags)
+{
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(state->context.physicalDevice, &memoryProperties);
+
+    uint32_t memoryType = UINT32_MAX;
+
+    for (uint32_t i = 0U; i < memoryProperties.memoryTypeCount; i++)
+    {
+        // Check if the corresponding bits of the filter are 1
+        if ((memoryRequirements & (1 << i)) &&
+            (memoryProperties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags)
+        {
+            memoryType = i;
+            break;
+        }
+    }
+
+    LOG_IF_ERROR(memoryType == UINT32_MAX,
+                 "Failed to find suitable memory type!")
+
+    return memoryType;
+}
