@@ -1,21 +1,77 @@
 #pragma once
 
+static const char *validationLayers[] = {
+    "VK_LAYER_KHRONOS_validation",
+};
+static const uint32_t validationLayerCount = 1;
+
+static VkBool32 checkValidationLayerSupport(void)
+{
+    uint32_t layerCount = 0;
+    LOG_IF_ERROR(vkEnumerateInstanceLayerProperties(&layerCount, NULL),
+                 "Failed to get instance layer properties!")
+    VkLayerProperties *availableLayers = malloc(sizeof(VkLayerProperties) * layerCount);
+    LOG_IF_ERROR(vkEnumerateInstanceLayerProperties(&layerCount, availableLayers),
+                 "Failed to enumerate instance layer properties!")
+
+    VkBool32 layerFound = VK_FALSE;
+    for (uint32_t i = 0; i < validationLayerCount; ++i)
+    {
+        for (uint32_t j = 0; j < layerCount; ++j)
+        {
+            // Check if the string in the current validation layer is the same as the one in the available layer
+            if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0)
+            {
+                layerFound = VK_TRUE;
+                break;
+            }
+        }
+    }
+
+    free(availableLayers);
+    return layerFound;
+}
+
 void instanceCreate(State_t *state)
 {
     uint32_t requiredExtensionsCount;
     const char **requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredExtensionsCount);
 
+    // Add debug utils extension if validation is requested
+    char *extensions[16];
+    memcpy(extensions, requiredExtensions, sizeof(char *) * requiredExtensionsCount);
+    uint32_t extensionCount = requiredExtensionsCount;
+
+    if (state->config.vulkanValidation)
+    {
+        extensions[extensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+        if (!checkValidationLayerSupport())
+        {
+            logger(LOG_WARN, "Validation layers requested, but not available.");
+            state->config.vulkanValidation = false;
+        }
+    }
+
     const VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = state->config.vkAPIVersion,
         .pApplicationName = state->config.pApplicationName,
-        .pEngineName = state->config.pEngineName};
+        .pEngineName = state->config.pEngineName,
+    };
 
-    const VkInstanceCreateInfo createInfo = {
+    VkInstanceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &applicationInfo,
-        .enabledExtensionCount = requiredExtensionsCount,
-        .ppEnabledExtensionNames = requiredExtensions};
+        .enabledExtensionCount = extensionCount,
+        .ppEnabledExtensionNames = extensions,
+    };
+
+    if (state->config.vulkanValidation)
+    {
+        createInfo.enabledLayerCount = validationLayerCount;
+        createInfo.ppEnabledLayerNames = validationLayers;
+        logger(LOG_INFO, "Vulkan enabled with validation layers.");
+    }
 
     LOG_IF_ERROR(vkCreateInstance(&createInfo, state->context.pAllocator, &state->context.instance),
                  "Couldn't create Vulkan instance.")

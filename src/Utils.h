@@ -30,7 +30,7 @@ void exitCallback(void)
     glfwTerminate();
 }
 
-void errorHandlingSetup()
+void errorHandlingSetup(void)
 {
     // Set function that is called when a glfw error is caught
     glfwSetErrorCallback(glfwErrorCallback);
@@ -77,4 +77,9 @@ uint32_t memoryTypeGet(State_t *state, uint32_t memoryRequirements, VkMemoryProp
                  "Failed to find suitable memory type!")
 
     return memoryType;
+}
+
+bool stateDebugMode(State_t *state)
+{
+    return state->config.vulkanValidation;
 }

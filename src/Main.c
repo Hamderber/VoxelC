@@ -34,6 +34,7 @@ int main(void)
         .fixedTimeStep = 1.0 / 50.0,
         // Skip if more than x frames accumulated
         .maxPhysicsFrameDelay = 10,
+        .vulkanValidation = true,
     };
 
     State_t state = {

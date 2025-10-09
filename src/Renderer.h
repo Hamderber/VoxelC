@@ -75,13 +75,18 @@ void renderPassCreate(State_t *state)
         },
     };
 
-    VkSubpassDependency dependencies = {
-        .srcSubpass = VK_SUBPASS_EXTERNAL,
-        // Destination is the first subpass
-        .dstSubpass = 0U,
-        // No mask needed at this time
-        .srcAccessMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstStageMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    VkSubpassDependency dependencies[] = {
+        (VkSubpassDependency){
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            // Destination is the first subpass
+            .dstSubpass = 0U,
+            // Wait in the pipeline for the previous external operations to finish before color attachment output
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            // No mask needed at this time
+            .srcAccessMask = 0,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        },
     };
 
     VkRenderPassCreateInfo createInfo = {
@@ -90,7 +95,8 @@ void renderPassCreate(State_t *state)
         .pSubpasses = subpassDescriptions,
         .attachmentCount = sizeof(attachmentDescriptions) / sizeof(*attachmentDescriptions),
         .pAttachments = attachmentDescriptions,
-        .pDependencies = &dependencies,
+        .dependencyCount = sizeof(dependencies) / sizeof(*dependencies),
+        .pDependencies = dependencies,
     };
 
     LOG_IF_ERROR(vkCreateRenderPass(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.pRenderPass),
@@ -263,19 +269,14 @@ void graphicsPipelineCreate(State_t *state)
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
         }};
 
-    // Default blend constants applied to all the color blend attachments. When default, this declaration isn't necessary
-    // but this is good to include for legibility. The struct doesn't accept the array directly and requires index replacement.
-    float blendConstants[4] = {0.0F, 0.0F, 0.0F, 0.0F};
-
     // This configuration will need to be changed if alpha (transparency) is to be supported in the future.
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .attachmentCount = sizeof(colorBlendAttachmentStates) / sizeof(*colorBlendAttachmentStates),
         .pAttachments = colorBlendAttachmentStates,
-        .blendConstants[0] = blendConstants[0],
-        .blendConstants[1] = blendConstants[1],
-        .blendConstants[2] = blendConstants[2],
-        .blendConstants[3] = blendConstants[3],
+        // Default blend constants applied to all the color blend attachments. When default, this declaration isn't necessary
+        // but this is good to include for legibility. The struct doesn't accept the array directly and requires index replacement.
+        .blendConstants = {0, 0, 0, 0},
     };
 
     const VkPipelineLayoutCreateInfo layoutCreateInfo = {
@@ -489,9 +490,6 @@ void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffe
     // Only copying one region
     vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1, &copyRegion);
 
-    LOG_IF_ERROR(vkEndCommandBuffer(commandBuffer),
-                 "Failed to copy buffer.")
-
     commandBufferSingleTimeEnd(state, commandBuffer);
 }
 
@@ -510,7 +508,6 @@ void indexBufferCreate(State_t *state)
     LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
                  "Failed to map staging buffer memory.")
     memcpy(data, SHADER_INDICIES, (size_t)bufferSize);
-    vkUnmapMemory(state->context.device, stagingBufferMemory);
 
     bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -519,6 +516,8 @@ void indexBufferCreate(State_t *state)
     bufferCopy(state, stagingBuffer, state->renderer.indexBuffer, bufferSize);
 
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
     vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
 }
 
@@ -545,7 +544,6 @@ void vertexBufferCreate(State_t *state)
     LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
                  "Failed to map staging buffer memory.")
     memcpy(data, SHADER_VERTS, (size_t)bufferSize);
-    vkUnmapMemory(state->context.device, stagingBufferMemory);
 
     // The vertex buffer uses device-local memory so it cannot be directly copied/written to. A staging buffer is used on the device
     // for copying data to.
@@ -558,6 +556,7 @@ void vertexBufferCreate(State_t *state)
 
     // Clean up the staging buffer after used
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
     vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
 }
 
@@ -758,18 +757,28 @@ void textureImageDestroy(State_t *state)
 
 void commandBufferAllocate(State_t *state)
 {
+    // free previous commmand buffers if present
+    if (state->renderer.pCommandBuffers != NULL)
+    {
+        vkFreeCommandBuffers(state->context.device, state->renderer.commandPool,
+                             state->config.maxFramesInFlight, state->renderer.pCommandBuffers);
+        free(state->renderer.pCommandBuffers);
+        state->renderer.pCommandBuffers = NULL;
+    }
+
+    state->renderer.pCommandBuffers = malloc(sizeof(VkCommandBuffer) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.pCommandBuffers == NULL,
+                 "Failed to allocate memory for command buffers")
+
     VkCommandBufferAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandBufferCount = 1U,
         .commandPool = state->renderer.commandPool,
-        // Primary goes directly to the GPU and secondary goes to the GPU when called through primary
-        // Kind of like how main() is the entry point and then main can call other funcitons
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = state->config.maxFramesInFlight,
     };
 
-    // The associated destroy (deallocation) isn't required because Vulkan does it automatically
-    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &state->renderer.commandBuffer),
-                 "Failed to allocate command buffer")
+    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, state->renderer.pCommandBuffers),
+                 "Failed to allocate command buffers")
 }
 
 void commandBufferRecord(State_t *state)
@@ -777,13 +786,6 @@ void commandBufferRecord(State_t *state)
     // Skip this recording frame if the swapchain will be/is being recreated (avoids null pointers)
     if (state->window.swapchain.recreate)
         return;
-
-    // Because the command pool was created with VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, the command buffer
-    // doesn't need to be reset here manually. If the command buffer has begun, DO NOT begin it again.
-
-    VkCommandBufferBeginInfo commandBufferBeginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    };
 
     VkRect2D renderArea = {
         .extent = state->window.swapchain.imageExtent,
@@ -794,12 +796,9 @@ void commandBufferRecord(State_t *state)
         // Ex: clears image but leaves a background color
         (VkClearValue){
             // Black
-            .color = 0,
+            .color.float32 = {0.0F, 0.0F, 0.0F, 0.0F},
         },
     };
-
-    LOG_IF_ERROR(vkBeginCommandBuffer(state->renderer.commandBuffer, &commandBufferBeginInfo),
-                 "Failed to begin the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
 
     // Avoid access violations
     if (!state->renderer.pFramebuffers || state->window.swapchain.imageAcquiredIndex >= state->renderer.framebufferCount)
@@ -807,6 +806,25 @@ void commandBufferRecord(State_t *state)
         logger(LOG_WARN, "Skipped an access violation during frame buffer access during commandBufferRecord!");
         return;
     }
+
+    uint32_t frameIndex = state->renderer.currentFrame;
+    VkCommandBuffer cmd = state->renderer.pCommandBuffers[frameIndex];
+
+    VkCommandBufferBeginInfo commandBufferBeginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = 0,
+    };
+
+    VkResult r = vkResetCommandBuffer(cmd, 0);
+    if (r != VK_SUCCESS)
+    {
+        // Don't just do LOG_IF_ERROR because we want to early exit here
+        logger(LOG_ERROR, "vkResetCommandBuffer failed (%d) for frame %u", r, frameIndex);
+        return;
+    }
+
+    LOG_IF_ERROR(vkBeginCommandBuffer(cmd, &commandBufferBeginInfo),
+                 "Failed to begin command buffer (frame %u)", frameIndex);
 
     // ALL vkCmd functions (commands) MUST go between the begin and end command buffer functions (obviously)
     VkRenderPassBeginInfo renderPassBeginInfo = {
@@ -819,7 +837,7 @@ void commandBufferRecord(State_t *state)
     };
 
     // If secondary command buffers are used, use VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
-    vkCmdBeginRenderPass(state->renderer.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Required because the viewport is dynamic (resizeable)
     VkViewport viewport = {
@@ -830,66 +848,63 @@ void commandBufferRecord(State_t *state)
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
-    vkCmdSetViewport(state->renderer.commandBuffer, 0, 1, &viewport);
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
 
     VkRect2D scissor = {
         .offset = {0, 0},
         .extent = state->window.swapchain.imageExtent,
     };
-    vkCmdSetScissor(state->renderer.commandBuffer, 0, 1, &scissor);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     // Bind the render pipeline to graphics (instead of compute)
-    vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipeline);
 
     VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(state->renderer.commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(state->renderer.commandBuffer, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(cmd, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     // No offset and 1 descriptor set bound for this frame
-    vkCmdBindDescriptorSets(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayout,
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayout,
                             0, 1, &state->renderer.pDescriptorSets[state->renderer.currentFrame], 0, VK_NULL_HANDLE);
 
     // DRAW ! ! ! ! !
     // Not using instanced rendering so just 1 instance with nothing for the offset
-    vkCmdDrawIndexed(state->renderer.commandBuffer, NUM_SHADER_INDICIES, 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, NUM_SHADER_INDICIES, 1, 0, 0, 0);
 
     // Must end the render pass if has begun (obviously)
-    vkCmdEndRenderPass(state->renderer.commandBuffer);
+    vkCmdEndRenderPass(cmd);
 
     // All errors generated from vkCmd functions will populate here. The vkCmd functions themselves are all void.
-    LOG_IF_ERROR(vkEndCommandBuffer(state->renderer.commandBuffer),
+    LOG_IF_ERROR(vkEndCommandBuffer(cmd),
                  "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
 }
 
 void commandBufferSubmit(State_t *state)
 {
-    VkPipelineStageFlags stageFlags[] = {
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    };
+    uint32_t frame = state->renderer.currentFrame;
+    VkCommandBuffer cmd = state->renderer.pCommandBuffers[frame];
 
+    VkPipelineStageFlags stageFlags[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        // Only one command buffer at this time (no array stored)
-        .commandBufferCount = 1U,
-        .pCommandBuffers = &state->renderer.commandBuffer,
         .waitSemaphoreCount = 1U,
-        // Wait until the image is acquired
-        .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[state->renderer.currentFrame],
-        .signalSemaphoreCount = 1U,
-        // Signal when the render is finished
-        .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[state->renderer.currentFrame],
+        .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[frame],
         .pWaitDstStageMask = stageFlags,
+        .commandBufferCount = 1U,
+        .pCommandBuffers = &cmd,
+        .signalSemaphoreCount = 1U,
+        .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[frame],
     };
 
-    // Must reset the fence after waiting for it for reuse
-    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[state->renderer.currentFrame]),
-                 "Failed to reset fences")
+    // Reset the fence *right before* submit (this is the only reset for this frame)
+    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[frame]),
+                 "Failed to reset in-flight fence before submit (frame %u)", frame);
 
-    // Just one command submission right now
-    // Signals the fence for when finished rendering
-    LOG_IF_ERROR(vkQueueSubmit(state->context.graphicsQueue, 1U, &submitInfo, state->renderer.inFlightFences[state->renderer.currentFrame]),
-                 "Failed to submit graphicsQueue to the command buffer.")
+    VkResult r = vkQueueSubmit(state->context.graphicsQueue, 1U, &submitInfo, state->renderer.inFlightFences[frame]);
+
+    LOG_IF_ERROR(r,
+                 "Failed to submit graphicsQueue to the command buffer.");
 }
 
 void syncObjectsDestroy(State_t *state)
@@ -1002,11 +1017,6 @@ void descriptorSetLayoutCreate(State_t *state)
                  "Failed to create descriptor set layout!")
 }
 
-void descriptorSetLayoutDestroy(State_t *state)
-{
-    vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
-}
-
 void uniformBuffersCreate(State_t *state)
 {
     VkDeviceSize bufferSize = sizeof(UniformBufferObject_t);
@@ -1031,6 +1041,7 @@ void uniformBuffersDestroy(State_t *state)
     for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
     {
         vkDestroyBuffer(state->context.device, state->renderer.pUniformBuffers[i], state->context.pAllocator);
+        vkUnmapMemory(state->context.device, state->renderer.pUniformBufferMemories[i]);
         vkFreeMemory(state->context.device, state->renderer.pUniformBufferMemories[i], state->context.pAllocator);
         state->renderer.pUniformBuffersMapped[i] = NULL;
     }
@@ -1174,6 +1185,5 @@ void rendererDestroy(State_t *state)
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
-    descriptorSetLayoutDestroy(state);
     renderPassDestroy(state);
 }

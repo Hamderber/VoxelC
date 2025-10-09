@@ -40,6 +40,7 @@ typedef struct
     uint32_t maxFramesInFlight;
     double fixedTimeStep; // ex: 1.0 / 50.0
     uint32_t maxPhysicsFrameDelay;
+    bool vulkanValidation;
 } Config_t;
 
 typedef struct
@@ -102,10 +103,11 @@ typedef struct
     uint32_t framebufferCount;
     VkFramebuffer *pFramebuffers;
     VkCommandPool commandPool;
-    VkCommandBuffer commandBuffer;
+    VkCommandBuffer *pCommandBuffers;
     VkSemaphore *imageAcquiredSemaphores;
     VkSemaphore *renderFinishedSemaphores;
     VkFence *inFlightFences;
+    VkFence *imagesInFlight;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;

@@ -30,6 +30,7 @@ Conventions:
     during cleanup to prevent memory leaks.
 17. CMake is configured to ALWAYS output to ./bin regardless of release type. This allows for having the same
     file access structure regardless of target.
+18. There shall be no functions with () they must have at the very least (void). Ex: foo(void) NOT foo()
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
@@ -63,3 +64,5 @@ TODO:
 7. Consider adding a folder abstraction to contain everything in .voxelc kind of like .minecraft with just the exe in the root folder
 8. Look into the 3d texture mapping discussion about linear tiling and 3d textures for voxel data
 9. Create a setup command buffer like mentioned near the end of https://vulkan-tutorial.com/Texture_mapping/Images
+10. Add a define to include using validation layers for Vulkan
+11. Change to have a command buffer per frame in flight
