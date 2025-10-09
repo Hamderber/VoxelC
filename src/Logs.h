@@ -26,12 +26,16 @@ typedef enum
 {
     LOG_INFO,
     LOG_WARN,
+    LOG_ERROR,
+    LOG_DEBUG,
     LOG_PHYSICS,
 } LogLevel_t;
 
 static const char *LogLevelStrs[] = {
     "Info",
     "Warn",
+    "Eror",
+    "Dbug",
     "Phys",
 };
 
@@ -62,7 +66,7 @@ void logger(LogLevel_t level, const char *format, ...) // log() is built-in don'
     printf("\n");
 }
 
-void logVulkanInfo()
+void logVulkanInfo(void)
 {
     uint32_t instanceAPIVersion;
     LOG_IF_ERROR(vkEnumerateInstanceVersion(&instanceAPIVersion),
@@ -77,9 +81,10 @@ void logVulkanInfo()
     logger(LOG_INFO, "GLWF %s", glfwGetVersionString());
 }
 
-void logCapabilitiesInfo(const VkSurfaceCapabilitiesKHR capabilities)
+void logCapabilitiesInfo(VkPhysicalDeviceFeatures physicalDeviceFeatures, const VkSurfaceCapabilitiesKHR capabilities)
 {
     logger(LOG_INFO, "The physical device has the following features:");
     logger(LOG_INFO, "\t\tImage count range: [%d-%d]", capabilities.minImageCount, capabilities.maxImageCount);
     logger(LOG_INFO, "\t\tMax Image Array Layers: %d", capabilities.maxImageArrayLayers);
+    logger(LOG_INFO, "\t\tAnisotropic Filtering: %s", physicalDeviceFeatures.samplerAnisotropy ? "Enabled" : "Disabled");
 }

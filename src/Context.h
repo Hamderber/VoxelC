@@ -1,24 +1,116 @@
 #pragma once
 
+static const char *validationLayers[] = {
+    "VK_LAYER_KHRONOS_validation",
+};
+static const uint32_t validationLayerCount = 1;
+
+static VkBool32 checkValidationLayerSupport(void)
+{
+    uint32_t layerCount = 0;
+    LOG_IF_ERROR(vkEnumerateInstanceLayerProperties(&layerCount, NULL),
+                 "Failed to get instance layer properties!")
+    VkLayerProperties *availableLayers = malloc(sizeof(VkLayerProperties) * layerCount);
+    LOG_IF_ERROR(vkEnumerateInstanceLayerProperties(&layerCount, availableLayers),
+                 "Failed to enumerate instance layer properties!")
+
+    VkBool32 layerFound = VK_FALSE;
+    for (uint32_t i = 0; i < validationLayerCount; ++i)
+    {
+        for (uint32_t j = 0; j < layerCount; ++j)
+        {
+            // Check if the string in the current validation layer is the same as the one in the available layer
+            if (strcmp(validationLayers[i], availableLayers[j].layerName) == 0)
+            {
+                layerFound = VK_TRUE;
+                break;
+            }
+        }
+    }
+
+    free(availableLayers);
+    return layerFound;
+}
+
 void instanceCreate(State_t *state)
 {
     uint32_t requiredExtensionsCount;
     const char **requiredExtensions = glfwGetRequiredInstanceExtensions(&requiredExtensionsCount);
 
+    // Add debug utils extension if validation is requested
+    char *extensions[16];
+    memcpy(extensions, requiredExtensions, sizeof(char *) * requiredExtensionsCount);
+    uint32_t extensionCount = requiredExtensionsCount;
+
+    if (state->config.vulkanValidation)
+    {
+        extensions[extensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+        if (!checkValidationLayerSupport())
+        {
+            logger(LOG_WARN, "Validation layers requested, but not available.");
+            state->config.vulkanValidation = false;
+        }
+    }
+
     const VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = state->config.vkAPIVersion,
         .pApplicationName = state->config.pApplicationName,
-        .pEngineName = state->config.pEngineName};
+        .pEngineName = state->config.pEngineName,
+    };
 
-    const VkInstanceCreateInfo createInfo = {
+    VkInstanceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &applicationInfo,
-        .enabledExtensionCount = requiredExtensionsCount,
-        .ppEnabledExtensionNames = requiredExtensions};
+        .enabledExtensionCount = extensionCount,
+        .ppEnabledExtensionNames = extensions,
+    };
+
+    if (state->config.vulkanValidation)
+    {
+        createInfo.enabledLayerCount = validationLayerCount;
+        createInfo.ppEnabledLayerNames = validationLayers;
+        logger(LOG_INFO, "Vulkan enabled with validation layers.");
+    }
 
     LOG_IF_ERROR(vkCreateInstance(&createInfo, state->context.pAllocator, &state->context.instance),
                  "Couldn't create Vulkan instance.")
+}
+
+void anisotropicFilteringOptionsGet(State_t *state)
+{
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(state->context.physicalDevice, &properties);
+
+    float afMax = properties.limits.maxSamplerAnisotropy;
+    logger(LOG_INFO, "The selected physical device supports up to %.fx anisotropic filtering.", afMax);
+
+    if (afMax <= 1.0f)
+    {
+        logger(LOG_WARN, "Anisotropic filtering not supported (maxSamplerAnisotropy <= 1.0).");
+        state->renderer.anisotropicFilteringOptionsCount = 0;
+        state->renderer.anisotropicFilteringOptions = NULL;
+        return;
+    }
+
+    // 1x, 2x, 4x, 8x, 16x max supported (powers of 2)
+    int size = (int)floorf(log2f(afMax)) + 1;
+    state->renderer.anisotropicFilteringOptionsCount = size;
+    state->renderer.anisotropicFilteringOptions = malloc(sizeof(AnisotropicFilteringOptions_t) * size);
+
+    LOG_IF_ERROR(state->renderer.anisotropicFilteringOptions == NULL,
+                 "Failed to allocate anisotropic filtering options!")
+
+    // Fill the table (1x, 2x, 4x, 8x, 16x)
+    for (int i = 0; i < size; i++)
+    {
+        // Binary shift increments in powers of 2
+        float level = (float)(1 << i);
+        if (level > afMax)
+            level = afMax;
+
+        state->renderer.anisotropicFilteringOptions[i] = level;
+    }
 }
 
 void physicalDeviceSelect(State_t *state)
@@ -125,6 +217,19 @@ void queueFamilySelect(State_t *state)
 
 void deviceCreate(State_t *state)
 {
+    // Query what features the selected GPU supports
+    vkGetPhysicalDeviceFeatures(state->context.physicalDevice, &state->context.physicalDeviceFeatures);
+
+    // Enable anisotropy if supported
+    if (state->context.physicalDeviceFeatures.samplerAnisotropy)
+    {
+        state->context.physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
+    }
+    else
+    {
+        logger(LOG_WARN, "Device does not support anisotropic filtering (feature will be disabled).");
+    }
+
     const VkDeviceQueueCreateInfo queueCreateInfos = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = state->context.queueFamily,
@@ -136,7 +241,9 @@ void deviceCreate(State_t *state)
         .pQueueCreateInfos = &queueCreateInfos,
         .queueCreateInfoCount = 1,
         .enabledExtensionCount = 1,
-        .ppEnabledExtensionNames = &(const char *){VK_KHR_SWAPCHAIN_EXTENSION_NAME}};
+        .ppEnabledExtensionNames = &(const char *){VK_KHR_SWAPCHAIN_EXTENSION_NAME},
+        .pEnabledFeatures = &state->context.physicalDeviceFeatures,
+    };
 
     LOG_IF_ERROR(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.pAllocator, &state->context.device),
                  "Unable to create the Vulkan device.")
@@ -151,13 +258,14 @@ void queueGet(State_t *state)
     // The device driver could (likely) cause underperformance because it has optimized itself to support
     // actually using those queues (workforce distribution)
     // 0 because we want the first (only) queue
-    vkGetDeviceQueue(state->context.device, state->context.queueFamily, 0, &state->context.queue);
+    vkGetDeviceQueue(state->context.device, state->context.queueFamily, 0, &state->context.graphicsQueue);
 }
 
 void contextCreate(State_t *state)
 {
     instanceCreate(state);
     physicalDeviceSelect(state);
+    anisotropicFilteringOptionsGet(state);
     queueFamilySelect(state);
     deviceCreate(state);
     queueGet(state);
@@ -167,4 +275,5 @@ void contextDestroy(State_t *state)
 {
     vkDestroyDevice(state->context.device, state->context.pAllocator);
     vkDestroyInstance(state->context.instance, state->context.pAllocator);
+    free(state->renderer.anisotropicFilteringOptions);
 }

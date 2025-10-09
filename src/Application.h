@@ -29,6 +29,7 @@ void renderLoop(State_t *state)
     {
         // Make sure the GPU is idle. This could be a queue wait plus fence if more wait accuracy is needed
         vkDeviceWaitIdle(state->context.device);
+        windowWaitForValidFramebuffer(state);
         framebuffersDestroy(state);
         swapchainCreate(state);
         framebuffersCreate(state);

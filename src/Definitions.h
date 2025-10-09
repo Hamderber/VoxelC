@@ -1,6 +1,8 @@
 #pragma once
 
 #define PROGRAM_NAME "VoxelC"
+// exe is in ./bin so you have to first go up a directory
+#define RESOURCE_TEXTURE_PATH "../res/textures/"
 #define PI_D 3.1415926535897931
 #define PI_F 3.1415927F
 
@@ -20,6 +22,15 @@ typedef enum
     SHADER_STAGE_FRAGMENT = 1,
 } ShaderStage_t;
 
+typedef enum
+{
+    AF_1 = 1,
+    AF_2 = 2,
+    AF_4 = 4,
+    AF_8 = 8,
+    AF_16 = 16,
+} AnisotropicFilteringOptions_t;
+
 typedef struct
 {
     const char *pApplicationName;
@@ -38,6 +49,7 @@ typedef struct
     uint32_t maxFramesInFlight;
     double fixedTimeStep; // ex: 1.0 / 50.0
     uint32_t maxPhysicsFrameDelay;
+    bool vulkanValidation;
 } Config_t;
 
 typedef struct
@@ -57,7 +69,8 @@ typedef struct
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
-    VkQueue queue;
+    VkPhysicalDeviceFeatures physicalDeviceFeatures;
+    VkQueue graphicsQueue;
     // This is always null right now so that Vulkan uses its own allocator
     VkAllocationCallbacks *pAllocator;
     /// @brief UINT32_MAX means no family assigned (set to max during creation)
@@ -100,10 +113,11 @@ typedef struct
     uint32_t framebufferCount;
     VkFramebuffer *pFramebuffers;
     VkCommandPool commandPool;
-    VkCommandBuffer commandBuffer;
+    VkCommandBuffer *pCommandBuffers;
     VkSemaphore *imageAcquiredSemaphores;
     VkSemaphore *renderFinishedSemaphores;
     VkFence *inFlightFences;
+    VkFence *imagesInFlight;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
@@ -116,6 +130,13 @@ typedef struct
     uint32_t currentFrame;
     VkDescriptorPool descriptorPool;
     VkDescriptorSet *pDescriptorSets;
+    // Change these to arrays once more than one texture is loaded
+    VkImage textureImage;
+    VkDeviceMemory textureImageMemory;
+    VkImageView textureImageView;
+    uint32_t anisotropicFilteringOptionsCount;
+    AnisotropicFilteringOptions_t *anisotropicFilteringOptions;
+    VkSampler textureSampler;
 } Renderer_t;
 
 typedef struct
@@ -147,13 +168,6 @@ typedef struct
 {
     float qx, qy, qz, qw;
 } Quaternion_t;
-
-// Rendering
-typedef struct
-{
-    Vec2f_t position;
-    Vec3f_t color;
-} ShaderVertex_t;
 
 // Directions
 static const Vec3f_t RIGHT = {1.0f, 0.0f, 0.0f};

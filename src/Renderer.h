@@ -6,23 +6,75 @@
    2. Don't forget to change to VK_CULL_MODE_FRONT_BIT in the future
 */
 
+// Rendering
+typedef struct
+{
+    Vec2f_t pos;
+    Vec3f_t color;
+    Vec2f_t texCoord;
+} ShaderVertex_t;
+
+static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1U;
+// A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
+// of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
+static inline const VkVertexInputBindingDescription *shaderVertexGetBindingDescription(void)
+{
+    static const VkVertexInputBindingDescription descriptions[1] = {
+        {
+            .binding = 0,
+            .stride = sizeof(ShaderVertex_t),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+
+        },
+    };
+
+    return descriptions;
+}
+
+static const uint32_t NUM_SHADER_VERTEX_ATTRIBUTES = 3U;
+// An attribute description struct describes how to extract a vertex attribute from a chunk of vertex data originating
+// from a binding description. We have two attributes, position and color, so we need two attribute description structs.
+static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttributeDescriptions(void)
+{
+    static const VkVertexInputAttributeDescription descriptions[3] = {
+        // Position
+        {
+            .binding = 0U,
+            // The location for the position in the vertex shader
+            .location = 0U,
+            // Type of data (format is data type so color is same format as pos)
+            // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            // Specifies the number of bytes since the start of the per-vertex data to read from.
+            // Position is first so 0
+            .offset = 0U,
+        },
+        // Color
+        {
+            .binding = 0U,
+            // The location for the color in the vertex shader
+            .location = 1U,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            // Position is first so sizeof(pos) type to get offset
+            .offset = sizeof(Vec2f_t),
+        },
+        {
+            .binding = 0U,
+            .location = 2U,
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            .offset = offsetof(ShaderVertex_t, texCoord),
+        },
+    };
+
+    return descriptions;
+}
+
 const ShaderVertex_t SHADER_VERTS[] = {
-    {
-        .position = {-0.5F, -0.5F},
-        .color = {1.0F, 0.0F, 0.0F},
-    },
-    {
-        .position = {0.5F, -0.5F},
-        .color = {0.0F, 1.0F, 0.0F},
-    },
-    {
-        .position = {0.5F, 0.5F},
-        .color = {0.0F, 0.0F, 1.0F},
-    },
-    {
-        .position = {-0.5F, 0.5F},
-        .color = {1.0F, 1.0F, 1.0F},
-    },
+    // Color, pos, texCoord
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 };
 
 // uint16_t for now because we're using less than 65535 unique vertices
@@ -75,13 +127,18 @@ void renderPassCreate(State_t *state)
         },
     };
 
-    VkSubpassDependency dependencies = {
-        .srcSubpass = VK_SUBPASS_EXTERNAL,
-        // Destination is the first subpass
-        .dstSubpass = 0U,
-        // No mask needed at this time
-        .srcAccessMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstStageMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    VkSubpassDependency dependencies[] = {
+        (VkSubpassDependency){
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            // Destination is the first subpass
+            .dstSubpass = 0U,
+            // Wait in the pipeline for the previous external operations to finish before color attachment output
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            // No mask needed at this time
+            .srcAccessMask = 0,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        },
     };
 
     VkRenderPassCreateInfo createInfo = {
@@ -90,7 +147,8 @@ void renderPassCreate(State_t *state)
         .pSubpasses = subpassDescriptions,
         .attachmentCount = sizeof(attachmentDescriptions) / sizeof(*attachmentDescriptions),
         .pAttachments = attachmentDescriptions,
-        .pDependencies = &dependencies,
+        .dependencyCount = sizeof(dependencies) / sizeof(*dependencies),
+        .pDependencies = dependencies,
     };
 
     LOG_IF_ERROR(vkCreateRenderPass(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.pRenderPass),
@@ -160,50 +218,12 @@ void graphicsPipelineCreate(State_t *state)
         .dynamicStateCount = sizeof(dynamicStates) / sizeof(*dynamicStates),
         .pDynamicStates = dynamicStates};
 
-    // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
-    // of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
-    VkVertexInputBindingDescription bindingDescriptions[] = {
-        {
-            .binding = 0U,
-            // Number of bytes from one entry to the next
-            .stride = sizeof(ShaderVertex_t),
-            // Per-vertex because not concerned with instanced rendering right now
-            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-        },
-    };
-
-    // An attribute description struct describes how to extract a vertex attribute from a chunk of vertex data originating
-    // from a binding description. We have two attributes, position and color, so we need two attribute description structs.
-    VkVertexInputAttributeDescription attributeDescriptions[] = {
-        // Position
-        {
-            .binding = 0U,
-            // The location for the position in the vertex shader
-            .location = 0U,
-            // Type of data (format is data type so color is same format as pos)
-            // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
-            .format = VK_FORMAT_R32G32_SFLOAT,
-            // Specifies the number of bytes since the start of the per-vertex data to read from.
-            // Position is first so 0
-            .offset = 0U,
-        },
-        // Color
-        {
-            .binding = 0U,
-            // The location for the color in the vertex shader
-            .location = 1U,
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
-            // Position is first so sizeof(pos) type to get offset
-            .offset = sizeof(Vec2f_t),
-        },
-    };
-
     VkPipelineVertexInputStateCreateInfo vertexInputState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = sizeof(bindingDescriptions) / sizeof(*bindingDescriptions),
-        .pVertexBindingDescriptions = bindingDescriptions,
-        .vertexAttributeDescriptionCount = sizeof(attributeDescriptions) / sizeof(*attributeDescriptions),
-        .pVertexAttributeDescriptions = attributeDescriptions,
+        .vertexBindingDescriptionCount = NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS,
+        .pVertexBindingDescriptions = shaderVertexGetBindingDescription(),
+        .vertexAttributeDescriptionCount = NUM_SHADER_VERTEX_ATTRIBUTES,
+        .pVertexAttributeDescriptions = shaderVertexGetInputAttributeDescriptions(),
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {
@@ -263,19 +283,14 @@ void graphicsPipelineCreate(State_t *state)
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
         }};
 
-    // Default blend constants applied to all the color blend attachments. When default, this declaration isn't necessary
-    // but this is good to include for legibility. The struct doesn't accept the array directly and requires index replacement.
-    float blendConstants[4] = {0.0F, 0.0F, 0.0F, 0.0F};
-
     // This configuration will need to be changed if alpha (transparency) is to be supported in the future.
     VkPipelineColorBlendStateCreateInfo colorBlendState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .attachmentCount = sizeof(colorBlendAttachmentStates) / sizeof(*colorBlendAttachmentStates),
         .pAttachments = colorBlendAttachmentStates,
-        .blendConstants[0] = blendConstants[0],
-        .blendConstants[1] = blendConstants[1],
-        .blendConstants[2] = blendConstants[2],
-        .blendConstants[3] = blendConstants[3],
+        // Default blend constants applied to all the color blend attachments. When default, this declaration isn't necessary
+        // but this is good to include for legibility. The struct doesn't accept the array directly and requires index replacement.
+        .blendConstants = {0, 0, 0, 0},
     };
 
     const VkPipelineLayoutCreateInfo layoutCreateInfo = {
@@ -407,25 +422,7 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(state->context.device, *buffer, &memoryRequirements);
 
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(state->context.physicalDevice, &memoryProperties);
-
-    uint32_t memoryType = UINT32_MAX;
-    uint32_t typeFilter = memoryRequirements.memoryTypeBits;
-
-    for (uint32_t i = 0U; i < memoryProperties.memoryTypeCount; i++)
-    {
-        // Check if the corresponding bits of the filter are 1
-        if ((typeFilter & (1 << i)) &&
-            (memoryProperties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags)
-        {
-            memoryType = i;
-            break;
-        }
-    }
-
-    LOG_IF_ERROR(memoryType == UINT32_MAX,
-                 "Failed to find suitable memory type for buffer!")
+    uint32_t memoryType = memoryTypeGet(state, memoryRequirements.memoryTypeBits, propertyFlags);
 
     VkMemoryAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -441,40 +438,34 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
                  "Failed to bind buffer memory!")
 }
 
-void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)
+VkCommandBuffer commandBufferSingleTimeBegin(State_t *state)
 {
     VkCommandBufferAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandPool = state->renderer.commandPool,
-        .commandBufferCount = 1U,
+        .commandBufferCount = 1,
     };
 
     VkCommandBuffer commandBuffer;
     LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &commandBuffer),
-                 "Failed to allocate buffer copy command buffer!")
+                 "Failed to allocate command buffer!")
 
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        // Only going to use the command buffer once and wait with returning from the function until the copy operation has
-        // finished executing
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
 
     LOG_IF_ERROR(vkBeginCommandBuffer(commandBuffer, &beginInfo),
-                 "Failed to begin buffer copy command buffer!")
+                 "Failed to begin command buffer!")
 
-    VkBufferCopy copyRegion = {
-        .srcOffset = 0,
-        .dstOffset = 0,
-        .size = size,
-    };
+    return commandBuffer;
+}
 
-    // Only copying one region
-    vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1, &copyRegion);
-
+void commandBufferSingleTimeEnd(State_t *state, VkCommandBuffer commandBuffer)
+{
     LOG_IF_ERROR(vkEndCommandBuffer(commandBuffer),
-                 "Failed to copy buffer.")
+                 "Failed to end command buffer!")
 
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -485,12 +476,35 @@ void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffe
     // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
     // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
     // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
-    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1, &submitInfo, VK_NULL_HANDLE),
-                 "Failed to submit buffer copy to queue.")
-    LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
-                 "Failed to wait for the queue to idle.")
+    LOG_IF_ERROR(vkQueueSubmit(state->context.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE),
+                 "Failed to submit graphicsQueue!")
+    LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
+                 "Failed to wait for graphics queue to idle!")
 
     vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
+}
+
+void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = state->renderer.commandPool,
+        .commandBufferCount = 1U,
+    };
+
+    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+
+    VkBufferCopy copyRegion = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = size,
+    };
+
+    // Only copying one region
+    vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1, &copyRegion);
+
+    commandBufferSingleTimeEnd(state, commandBuffer);
 }
 
 // Similar implementation to vertexBufferCreate
@@ -508,7 +522,6 @@ void indexBufferCreate(State_t *state)
     LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
                  "Failed to map staging buffer memory.")
     memcpy(data, SHADER_INDICIES, (size_t)bufferSize);
-    vkUnmapMemory(state->context.device, stagingBufferMemory);
 
     bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -517,6 +530,8 @@ void indexBufferCreate(State_t *state)
     bufferCopy(state, stagingBuffer, state->renderer.indexBuffer, bufferSize);
 
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
     vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
 }
 
@@ -543,7 +558,6 @@ void vertexBufferCreate(State_t *state)
     LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
                  "Failed to map staging buffer memory.")
     memcpy(data, SHADER_VERTS, (size_t)bufferSize);
-    vkUnmapMemory(state->context.device, stagingBufferMemory);
 
     // The vertex buffer uses device-local memory so it cannot be directly copied/written to. A staging buffer is used on the device
     // for copying data to.
@@ -556,6 +570,7 @@ void vertexBufferCreate(State_t *state)
 
     // Clean up the staging buffer after used
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
     vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
 }
 
@@ -565,20 +580,219 @@ void vertexBufferDestroy(State_t *state)
     vkFreeMemory(state->context.device, state->renderer.vertexBufferMemory, state->context.pAllocator);
 }
 
-void commandBufferAllocate(State_t *state)
+void bufferCopyToImage(State_t *state, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
-    VkCommandBufferAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandBufferCount = 1U,
-        .commandPool = state->renderer.commandPool,
-        // Primary goes directly to the GPU and secondary goes to the GPU when called through primary
-        // Kind of like how main() is the entry point and then main can call other funcitons
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+
+    VkBufferImageCopy region = {
+        // Byte offset
+        .bufferOffset = 0,
+        // Length and height of how buffer is laid out in memory
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .imageSubresource.mipLevel = 0,
+        .imageSubresource.baseArrayLayer = 0,
+        .imageSubresource.layerCount = 1,
+        .imageOffset = {0, 0, 0},
+        .imageExtent = {
+            .width = width,
+            .height = height,
+            .depth = 1,
+        },
     };
 
-    // The associated destroy (deallocation) isn't required because Vulkan does it automatically
-    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &state->renderer.commandBuffer),
-                 "Failed to allocate command buffer")
+    // Assuming that the image has already been transitioned to a copy-optimal layout
+    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    commandBufferSingleTimeEnd(state, commandBuffer);
+}
+
+void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+{
+    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+
+    VkImageMemoryBarrier barrier = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        // Can use VK_IMAGE_LAYOUT_UNDEFINED if don't care about existing contents of the image
+        .oldLayout = oldLayout,
+        .newLayout = newLayout,
+        // Used if transferring queue family ownership
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        // Specifies the image that is affected and the specific part of the image. Currently just a non array/mipped image
+        .image = image,
+        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.baseMipLevel = 0,
+        .subresourceRange.levelCount = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount = 1,
+        .srcAccessMask = 0, // TODO
+        .dstAccessMask = 0, // TODO
+    };
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+    {
+        LOG_IF_ERROR(true,
+                     "Unsupported layout transition!")
+    }
+
+    vkCmdPipelineBarrier(commandBuffer,
+                         // Which pipeline stage the operations occur that should happen before the barrier
+                         sourceStage,
+                         // What pipeline stage in which operations will wait on the barrier
+                         destinationStage,
+                         0,
+                         0, VK_NULL_HANDLE,
+                         0, VK_NULL_HANDLE,
+                         1, &barrier);
+
+    commandBufferSingleTimeEnd(state, commandBuffer);
+}
+
+void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+                 VkMemoryPropertyFlags properties, VkImage *image, VkDeviceMemory *imageMemory)
+{
+    VkImageCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        // What type of coordinate system the texels will be accessed by
+        .imageType = VK_IMAGE_TYPE_2D,
+        .extent.width = width,
+        .extent.height = height,
+        .extent.depth = 1,
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        // These formats must match or the copy will fail
+        .format = format,
+        // Must use the same format for the texels as the pixels in the buffer or the copy will fail
+        .tiling = tiling,
+        // Not usable by the GPU and the very first transition will discard the texels. New copy so safe to discard.
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        // Will be used to copy (transfer) but also accessed by the shader (sampled)
+        .usage = usage,
+        // Only used by 1 queue family
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        // Look into https://vulkan-tutorial.com/Texture_mapping/Images discussion on sparse images (voxel usage)
+        .flags = 0,
+    };
+
+    LOG_IF_ERROR(vkCreateImage(state->context.device, &createInfo, state->context.pAllocator, image),
+                 "Failed to create image!")
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(state->context.device, *image, &memoryRequirements);
+
+    VkMemoryAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memoryRequirements.size,
+        .memoryTypeIndex = memoryTypeGet(state, memoryRequirements.memoryTypeBits, properties),
+    };
+
+    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, imageMemory),
+                 "Failed to allocate memory for texture images!")
+
+    vkBindImageMemory(state->context.device, *image, *imageMemory, 0);
+}
+
+void textureImageCreate(State_t *state)
+{
+    int width, height, channels;
+    const char *imagePath = RESOURCE_TEXTURE_PATH "bricks.png";
+    // Force the image to load with an alpha channel
+    stbi_uc *pixels = stbi_load(imagePath, &width, &height, &channels, STBI_rgb_alpha);
+    // 4 bytes per pixel (RGBA)
+    VkDeviceSize imageSize = width * height * 4;
+
+    LOG_IF_ERROR(pixels == NULL,
+                 "Failed to load texture %s!", imagePath)
+
+    logger(LOG_INFO, "Loaded texture %s", imagePath);
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    bufferCreate(state, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 &stagingBuffer, &stagingBufferMemory);
+
+    // Map and copy the data into the staging buffer
+    void *data;
+    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, imageSize, 0, &data),
+                 "Failed to map texture staging buffer memory.")
+    memcpy(data, pixels, (size_t)imageSize);
+    vkUnmapMemory(state->context.device, stagingBufferMemory);
+    // free the image array that was loaded
+    stbi_image_free(pixels);
+
+    imageCreate(state, width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                &state->renderer.textureImage, &state->renderer.textureImageMemory);
+
+    // Transition the image for copy
+    // Undefined because don't care about original contents of the image before the copy operation
+    imageLayoutTransition(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    bufferCopyToImage(state, stagingBuffer, state->renderer.textureImage, (uint32_t)width, (uint32_t)height);
+
+    // Transition the image for sampling
+    imageLayoutTransition(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
+}
+
+void textureImageDestroy(State_t *state)
+{
+    vkDestroyImage(state->context.device, state->renderer.textureImage, state->context.pAllocator);
+    vkFreeMemory(state->context.device, state->renderer.textureImageMemory, state->context.pAllocator);
+}
+
+void commandBufferAllocate(State_t *state)
+{
+    // free previous commmand buffers if present
+    if (state->renderer.pCommandBuffers != NULL)
+    {
+        vkFreeCommandBuffers(state->context.device, state->renderer.commandPool,
+                             state->config.maxFramesInFlight, state->renderer.pCommandBuffers);
+        free(state->renderer.pCommandBuffers);
+        state->renderer.pCommandBuffers = NULL;
+    }
+
+    state->renderer.pCommandBuffers = malloc(sizeof(VkCommandBuffer) * state->config.maxFramesInFlight);
+    LOG_IF_ERROR(state->renderer.pCommandBuffers == NULL,
+                 "Failed to allocate memory for command buffers")
+
+    VkCommandBufferAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = state->renderer.commandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = state->config.maxFramesInFlight,
+    };
+
+    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, state->renderer.pCommandBuffers),
+                 "Failed to allocate command buffers")
 }
 
 void commandBufferRecord(State_t *state)
@@ -586,13 +800,6 @@ void commandBufferRecord(State_t *state)
     // Skip this recording frame if the swapchain will be/is being recreated (avoids null pointers)
     if (state->window.swapchain.recreate)
         return;
-
-    // Because the command pool was created with VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, the command buffer
-    // doesn't need to be reset here manually. If the command buffer has begun, DO NOT begin it again.
-
-    VkCommandBufferBeginInfo commandBufferBeginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    };
 
     VkRect2D renderArea = {
         .extent = state->window.swapchain.imageExtent,
@@ -603,12 +810,9 @@ void commandBufferRecord(State_t *state)
         // Ex: clears image but leaves a background color
         (VkClearValue){
             // Black
-            .color = 0,
+            .color.float32 = {0.0F, 0.0F, 0.0F, 0.0F},
         },
     };
-
-    LOG_IF_ERROR(vkBeginCommandBuffer(state->renderer.commandBuffer, &commandBufferBeginInfo),
-                 "Failed to begin the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
 
     // Avoid access violations
     if (!state->renderer.pFramebuffers || state->window.swapchain.imageAcquiredIndex >= state->renderer.framebufferCount)
@@ -616,6 +820,25 @@ void commandBufferRecord(State_t *state)
         logger(LOG_WARN, "Skipped an access violation during frame buffer access during commandBufferRecord!");
         return;
     }
+
+    uint32_t frameIndex = state->renderer.currentFrame;
+    VkCommandBuffer cmd = state->renderer.pCommandBuffers[frameIndex];
+
+    VkCommandBufferBeginInfo commandBufferBeginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = 0,
+    };
+
+    VkResult r = vkResetCommandBuffer(cmd, 0);
+    if (r != VK_SUCCESS)
+    {
+        // Don't just do LOG_IF_ERROR because we want to early exit here
+        logger(LOG_ERROR, "vkResetCommandBuffer failed (%d) for frame %u", r, frameIndex);
+        return;
+    }
+
+    LOG_IF_ERROR(vkBeginCommandBuffer(cmd, &commandBufferBeginInfo),
+                 "Failed to begin command buffer (frame %u)", frameIndex);
 
     // ALL vkCmd functions (commands) MUST go between the begin and end command buffer functions (obviously)
     VkRenderPassBeginInfo renderPassBeginInfo = {
@@ -628,7 +851,7 @@ void commandBufferRecord(State_t *state)
     };
 
     // If secondary command buffers are used, use VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
-    vkCmdBeginRenderPass(state->renderer.commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Required because the viewport is dynamic (resizeable)
     VkViewport viewport = {
@@ -639,66 +862,63 @@ void commandBufferRecord(State_t *state)
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
-    vkCmdSetViewport(state->renderer.commandBuffer, 0, 1, &viewport);
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
 
     VkRect2D scissor = {
         .offset = {0, 0},
         .extent = state->window.swapchain.imageExtent,
     };
-    vkCmdSetScissor(state->renderer.commandBuffer, 0, 1, &scissor);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     // Bind the render pipeline to graphics (instead of compute)
-    vkCmdBindPipeline(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipeline);
 
     VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(state->renderer.commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(state->renderer.commandBuffer, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(cmd, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     // No offset and 1 descriptor set bound for this frame
-    vkCmdBindDescriptorSets(state->renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayout,
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayout,
                             0, 1, &state->renderer.pDescriptorSets[state->renderer.currentFrame], 0, VK_NULL_HANDLE);
 
     // DRAW ! ! ! ! !
     // Not using instanced rendering so just 1 instance with nothing for the offset
-    vkCmdDrawIndexed(state->renderer.commandBuffer, NUM_SHADER_INDICIES, 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, NUM_SHADER_INDICIES, 1, 0, 0, 0);
 
     // Must end the render pass if has begun (obviously)
-    vkCmdEndRenderPass(state->renderer.commandBuffer);
+    vkCmdEndRenderPass(cmd);
 
     // All errors generated from vkCmd functions will populate here. The vkCmd functions themselves are all void.
-    LOG_IF_ERROR(vkEndCommandBuffer(state->renderer.commandBuffer),
+    LOG_IF_ERROR(vkEndCommandBuffer(cmd),
                  "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
 }
 
 void commandBufferSubmit(State_t *state)
 {
-    VkPipelineStageFlags stageFlags[] = {
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    };
+    uint32_t frame = state->renderer.currentFrame;
+    VkCommandBuffer cmd = state->renderer.pCommandBuffers[frame];
 
+    VkPipelineStageFlags stageFlags[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        // Only one command buffer at this time (no array stored)
-        .commandBufferCount = 1U,
-        .pCommandBuffers = &state->renderer.commandBuffer,
         .waitSemaphoreCount = 1U,
-        // Wait until the image is acquired
-        .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[state->renderer.currentFrame],
-        .signalSemaphoreCount = 1U,
-        // Signal when the render is finished
-        .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[state->renderer.currentFrame],
+        .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[frame],
         .pWaitDstStageMask = stageFlags,
+        .commandBufferCount = 1U,
+        .pCommandBuffers = &cmd,
+        .signalSemaphoreCount = 1U,
+        .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[frame],
     };
 
-    // Must reset the fence after waiting for it for reuse
-    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[state->renderer.currentFrame]),
-                 "Failed to reset fences")
+    // Reset the fence *right before* submit (this is the only reset for this frame)
+    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[frame]),
+                 "Failed to reset in-flight fence before submit (frame %u)", frame);
 
-    // Just one command submission right now
-    // Signals the fence for when finished rendering
-    LOG_IF_ERROR(vkQueueSubmit(state->context.queue, 1U, &submitInfo, state->renderer.inFlightFences[state->renderer.currentFrame]),
-                 "Failed to submit queue to the command buffer.")
+    VkResult r = vkQueueSubmit(state->context.graphicsQueue, 1U, &submitInfo, state->renderer.inFlightFences[frame]);
+
+    LOG_IF_ERROR(r,
+                 "Failed to submit graphicsQueue to the command buffer.");
 }
 
 void syncObjectsDestroy(State_t *state)
@@ -789,7 +1009,7 @@ void syncObjectsCreate(State_t *state)
 
 void descriptorSetLayoutCreate(State_t *state)
 {
-    VkDescriptorSetLayoutBinding layoutBinding = {
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {
         // Location for the ubo in the shader
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -800,20 +1020,30 @@ void descriptorSetLayoutCreate(State_t *state)
         .pImmutableSamplers = VK_NULL_HANDLE,
     };
 
+    VkDescriptorSetLayoutBinding samplerBinding = {
+        // Location in the shader
+        .binding = 1,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        // No immutable samplers at this time
+        .pImmutableSamplers = VK_NULL_HANDLE,
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    };
+
+    VkDescriptorSetLayoutBinding bindings[] = {
+        uboLayoutBinding,
+        samplerBinding,
+    };
+
     VkDescriptorSetLayoutCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 1,
-        .pBindings = &layoutBinding,
+        .bindingCount = sizeof(bindings) / sizeof(*bindings),
+        .pBindings = bindings,
     };
 
     LOG_IF_ERROR(vkCreateDescriptorSetLayout(state->context.device, &createInfo, state->context.pAllocator,
                                              &state->renderer.descriptorSetLayout),
                  "Failed to create descriptor set layout!")
-}
-
-void descriptorSetLayoutDestroy(State_t *state)
-{
-    vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
 }
 
 void uniformBuffersCreate(State_t *state)
@@ -840,6 +1070,7 @@ void uniformBuffersDestroy(State_t *state)
     for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
     {
         vkDestroyBuffer(state->context.device, state->renderer.pUniformBuffers[i], state->context.pAllocator);
+        vkUnmapMemory(state->context.device, state->renderer.pUniformBufferMemories[i]);
         vkFreeMemory(state->context.device, state->renderer.pUniformBufferMemories[i], state->context.pAllocator);
         state->renderer.pUniformBuffersMapped[i] = NULL;
     }
@@ -868,16 +1099,25 @@ void updateUniformBuffer(State_t *state)
 
 void descriptorPoolCreate(State_t *state)
 {
-    VkDescriptorPoolSize poolSize = {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = state->config.maxFramesInFlight,
+    VkDescriptorPoolSize poolSizes[] = {
+        {
+            // ubo
+            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = state->config.maxFramesInFlight,
+        },
+        {
+            // sampler
+            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = state->config.maxFramesInFlight,
+        },
     };
+
+    uint32_t numPools = sizeof(poolSizes) / sizeof(*poolSizes);
 
     VkDescriptorPoolCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        // Only one pool size for now
-        .poolSizeCount = 1,
-        .pPoolSizes = &poolSize,
+        .poolSizeCount = numPools,
+        .pPoolSizes = poolSizes,
         .maxSets = state->config.maxFramesInFlight,
     };
 
@@ -926,20 +1166,41 @@ void descriptorSetsCreate(State_t *state)
             .range = sizeof(UniformBufferObject_t),
         };
 
-        VkWriteDescriptorSet descriptorWrite = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = state->renderer.pDescriptorSets[i],
-            // location in the vertex shader
-            .dstBinding = 0,
-            // the descriptors can be arrays but thats not implemented at this time so 0 is the first "index"
-            .dstArrayElement = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .descriptorCount = 1,
-            .pBufferInfo = &bufferInfo,
+        VkDescriptorImageInfo imageInfo = {
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageView = state->renderer.textureImageView,
+            .sampler = state->renderer.textureSampler,
+        };
+
+        VkWriteDescriptorSet descriptorWrites[] = {
+            {
+                // ubo
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = state->renderer.pDescriptorSets[i],
+                // location in the vertex shader
+                .dstBinding = 0,
+                // the descriptors can be arrays but thats not implemented at this time so 0 is the first "index"
+                .dstArrayElement = 0,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .descriptorCount = 1,
+                .pBufferInfo = &bufferInfo,
+            },
+            {
+                // sampler
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = state->renderer.pDescriptorSets[i],
+                // location in the vertex shader
+                .dstBinding = 1,
+                .dstArrayElement = 0,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .descriptorCount = 1,
+                .pImageInfo = &imageInfo,
+            },
         };
 
         // Dont copy so 0 copies and destination null
-        vkUpdateDescriptorSets(state->context.device, 1, &descriptorWrite, 0, VK_NULL_HANDLE);
+        vkUpdateDescriptorSets(state->context.device, sizeof(descriptorWrites) / sizeof(*descriptorWrites), descriptorWrites,
+                               0, VK_NULL_HANDLE);
     }
 }
 
@@ -947,6 +1208,89 @@ void descriptorSetsDestroy(State_t *state)
 {
     // The descriptor set itself is freed by Vulkan when the descriptor pool is freed
     vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
+}
+
+VkImageView createImageView(State_t *state, VkImage image, VkFormat format)
+{
+
+    VkImageViewCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.baseMipLevel = 0,
+        .subresourceRange.levelCount = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount = 1,
+        .components = state->config.swapchainComponentMapping,
+    };
+
+    VkImageView textureImageView;
+    LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &textureImageView),
+                 "Failed to create image view!")
+
+    return textureImageView;
+}
+
+void textureViewImageCreate(State_t *state)
+{
+    // Written this way to support looping in the future
+    state->renderer.textureImageView = createImageView(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
+void textureImageViewDestroy(State_t *state)
+{
+    vkDestroyImageView(state->context.device, state->renderer.textureImageView, state->context.pAllocator);
+}
+
+void textureSamplerCreate(State_t *state)
+{
+    float af = (float)state->renderer.anisotropicFilteringOptions[state->renderer.anisotropicFilteringOptionsCount - 1];
+    VkSamplerCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        // Filters specify how to interpolate texels that are magnified or minified
+        // Mag = oversampling and Min = undersampling
+        // See https://vulkan-tutorial.com/Texture_mapping/Image_view_and_sampler
+        // Linear for larger textures (interpolation)
+        // .magFilter = VK_FILTER_LINEAR,
+        // .minFilter = VK_FILTER_LINEAR,
+        // Nearest for small textures (pixel art)
+        .magFilter = VK_FILTER_NEAREST,
+        .minFilter = VK_FILTER_NEAREST,
+        // Addressing can be defined per-axis and for some reason its UVW instead of XYZ (texture space convention)
+        // Repeat is the most commonly used (floors, etc.) for tiling
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .anisotropyEnable = VK_TRUE,
+        .maxAnisotropy = af,
+        // Which color is returned when sampling beyond the image with clamp to border addressing mode. It is possible to
+        // return black, white or transparent in either float or int formats
+        .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+        // Which coordinate system you want to use to address texels in an image. If this field is VK_TRUE, then you can simply
+        // use coordinates within the [0, texWidth) and [0, texHeight) range. If it is VK_FALSE, then the texels are addressed
+        // using the [0, 1) range on all axes. Real-world applications almost always use normalized coordinates, because then
+        // it's possible to use textures of varying resolutions with the exact same coordinates
+        .unnormalizedCoordinates = VK_FALSE,
+        .compareEnable = VK_FALSE,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        // Mipmapping not implemneted at this time
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .mipLodBias = 0.0f,
+        .minLod = 0.0f,
+        .maxLod = 0.0f,
+    };
+
+    logger(LOG_WARN, "Anisotropy is hard-coded to select the highest available (%.fx) at this time.", af);
+
+    LOG_IF_ERROR(vkCreateSampler(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.textureSampler),
+                 "Failed to create texture sampler!")
+}
+
+void textureSamplerDestroy(State_t *state)
+{
+    vkDestroySampler(state->context.device, state->renderer.textureSampler, state->context.pAllocator);
 }
 
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
@@ -960,6 +1304,9 @@ void rendererCreate(State_t *state)
     vertexBufferCreate(state);
     indexBufferCreate(state);
     uniformBuffersCreate(state);
+    textureImageCreate(state);
+    textureViewImageCreate(state);
+    textureSamplerCreate(state);
     descriptorPoolCreate(state);
     descriptorSetsCreate(state);
     commandBufferAllocate(state);
@@ -970,9 +1317,12 @@ void rendererDestroy(State_t *state)
 {
     // The GPU could be working on stuff for the renderer in parallel, meaning the renderer could be
     // destroyed while the GPU is still working. We should wait for the GPU to finish its current tasks.
-    LOG_IF_ERROR(vkQueueWaitIdle(state->context.queue),
-                 "Failed to wait for the Vulkan queue to be idle.")
+    LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
+                 "Failed to wait for the Vulkan graphicsQueue to be idle.")
     syncObjectsDestroy(state);
+    textureSamplerDestroy(state);
+    textureImageViewDestroy(state);
+    textureImageDestroy(state);
     descriptorSetsDestroy(state);
     descriptorPoolDestroy(state);
     uniformBuffersDestroy(state);
@@ -981,6 +1331,5 @@ void rendererDestroy(State_t *state)
     commandPoolDestroy(state);
     framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
-    descriptorSetLayoutDestroy(state);
     renderPassDestroy(state);
 }
