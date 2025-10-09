@@ -22,6 +22,15 @@ typedef enum
     SHADER_STAGE_FRAGMENT = 1,
 } ShaderStage_t;
 
+typedef enum
+{
+    AF_1 = 1,
+    AF_2 = 2,
+    AF_4 = 4,
+    AF_8 = 8,
+    AF_16 = 16,
+} AnisotropicFilteringOptions_t;
+
 typedef struct
 {
     const char *pApplicationName;
@@ -60,6 +69,7 @@ typedef struct
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
+    VkPhysicalDeviceFeatures physicalDeviceFeatures;
     VkQueue graphicsQueue;
     // This is always null right now so that Vulkan uses its own allocator
     VkAllocationCallbacks *pAllocator;
@@ -123,6 +133,10 @@ typedef struct
     // Change these to arrays once more than one texture is loaded
     VkImage textureImage;
     VkDeviceMemory textureImageMemory;
+    VkImageView textureImageView;
+    uint32_t anisotropicFilteringOptionsCount;
+    AnisotropicFilteringOptions_t *anisotropicFilteringOptions;
+    VkSampler textureSampler;
 } Renderer_t;
 
 typedef struct

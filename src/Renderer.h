@@ -1151,6 +1151,85 @@ void descriptorSetsDestroy(State_t *state)
     vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
 }
 
+VkImageView createImageView(State_t *state, VkImage image, VkFormat format)
+{
+
+    VkImageViewCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.baseMipLevel = 0,
+        .subresourceRange.levelCount = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount = 1,
+        .components = state->config.swapchainComponentMapping,
+    };
+
+    VkImageView textureImageView;
+    LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &textureImageView),
+                 "Failed to create image view!")
+
+    return textureImageView;
+}
+
+void textureViewImageCreate(State_t *state)
+{
+    // Written this way to support looping in the future
+    state->renderer.textureImageView = createImageView(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
+void textureImageViewDestroy(State_t *state)
+{
+    vkDestroyImageView(state->context.device, state->renderer.textureImageView, state->context.pAllocator);
+}
+
+void textureSamplerCreate(State_t *state)
+{
+    float af = (float)state->renderer.anisotropicFilteringOptions[state->renderer.anisotropicFilteringOptionsCount - 1];
+    VkSamplerCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        // Filters specify how to interpolate texels that are magnified or minified
+        // Mag = oversampling and Min = undersampling
+        // See https://vulkan-tutorial.com/Texture_mapping/Image_view_and_sampler
+        .magFilter = VK_FILTER_LINEAR,
+        .minFilter = VK_FILTER_LINEAR,
+        // Addressing can be defined per-axis and for some reason its UVW instead of XYZ (texture space convention)
+        // Repeat is the most commonly used (floors, etc.) for tiling
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .anisotropyEnable = VK_TRUE,
+        .maxAnisotropy = af,
+        // Which color is returned when sampling beyond the image with clamp to border addressing mode. It is possible to
+        // return black, white or transparent in either float or int formats
+        .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+        // Which coordinate system you want to use to address texels in an image. If this field is VK_TRUE, then you can simply
+        // use coordinates within the [0, texWidth) and [0, texHeight) range. If it is VK_FALSE, then the texels are addressed
+        // using the [0, 1) range on all axes. Real-world applications almost always use normalized coordinates, because then
+        // it's possible to use textures of varying resolutions with the exact same coordinates
+        .unnormalizedCoordinates = VK_FALSE,
+        .compareEnable = VK_FALSE,
+        .compareOp = VK_COMPARE_OP_ALWAYS,
+        // Mipmapping not implemneted at this time
+        .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .mipLodBias = 0.0f,
+        .minLod = 0.0f,
+        .maxLod = 0.0f,
+    };
+
+    logger(LOG_WARN, "Anisotropy is hard-coded to select the highest available (%.fx) at this time.", af);
+
+    LOG_IF_ERROR(vkCreateSampler(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.textureSampler),
+                 "Failed to create texture sampler!")
+}
+
+void textureSamplerDestroy(State_t *state)
+{
+    vkDestroySampler(state->context.device, state->renderer.textureSampler, state->context.pAllocator);
+}
+
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
@@ -1165,6 +1244,8 @@ void rendererCreate(State_t *state)
     descriptorPoolCreate(state);
     descriptorSetsCreate(state);
     textureImageCreate(state);
+    textureViewImageCreate(state);
+    textureSamplerCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -1176,6 +1257,8 @@ void rendererDestroy(State_t *state)
     LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
                  "Failed to wait for the Vulkan graphicsQueue to be idle.")
     syncObjectsDestroy(state);
+    textureSamplerDestroy(state);
+    textureImageViewDestroy(state);
     textureImageDestroy(state);
     descriptorSetsDestroy(state);
     descriptorPoolDestroy(state);

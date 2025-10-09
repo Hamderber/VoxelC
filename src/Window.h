@@ -275,7 +275,7 @@ void swapchainCreate(State_t *state)
 
     VkSurfaceFormatKHR surfaceFormat = surfaceFormatsSelect(&state->context, &state->window);
 
-    logCapabilitiesInfo(capabilities);
+    logCapabilitiesInfo(state->context.physicalDeviceFeatures, capabilities);
 
     VkPresentModeKHR presentMode = surfacePresentModesSelect(&state->context, &state->window);
 
@@ -284,6 +284,12 @@ void swapchainCreate(State_t *state)
         .width = clamp_uint32_t(capabilities.currentExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
         .height = clamp_uint32_t(capabilities.currentExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
     };
+
+    if (imageExtent.width == 0 || imageExtent.height == 0)
+    {
+        logger(LOG_WARN, "Skipping swapchain recreation due to minimized window.");
+        return;
+    }
 
     state->window.swapchain.imageExtent = imageExtent;
     state->window.swapchain.format = surfaceFormat.format;
@@ -346,9 +352,6 @@ void swapchainCreate(State_t *state)
         state->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
     }
 
-    for (uint32_t i = 0; i < state->window.swapchain.imageCount; ++i)
-        logger(LOG_DEBUG, "imagesInFlight[%u] = %p", i, (void *)state->renderer.imagesInFlight[i]);
-
     swapchainImageViewsCreate(state);
 }
 
@@ -357,6 +360,23 @@ void swapchainDestroy(State_t *state)
     imagesInFlightFree(state);
     swapchainImagesFree(state);
     vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
+}
+
+void windowWaitForValidFramebuffer(State_t *state)
+{
+    // Vulkan errors if the window is minimized and it tries to create a 0x0 size swapchain
+    int width = 0, height = 0;
+
+    // Block until the window is restored (not minimized)
+    while (width == 0 || height == 0)
+    {
+        glfwGetFramebufferSize(state->window.pWindow, &width, &height);
+        // sleep until resize/restored event occurs
+        glfwWaitEvents();
+    }
+
+    state->window.frameBufferWidth = width;
+    state->window.frameBufferHeight = height;
 }
 
 void windowCreate(State_t *state)

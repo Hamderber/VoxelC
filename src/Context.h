@@ -77,6 +77,42 @@ void instanceCreate(State_t *state)
                  "Couldn't create Vulkan instance.")
 }
 
+void anisotropicFilteringOptionsGet(State_t *state)
+{
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(state->context.physicalDevice, &properties);
+
+    float afMax = properties.limits.maxSamplerAnisotropy;
+    logger(LOG_INFO, "The selected physical device supports up to %.fx anisotropic filtering.", afMax);
+
+    if (afMax <= 1.0f)
+    {
+        logger(LOG_WARN, "Anisotropic filtering not supported (maxSamplerAnisotropy <= 1.0).");
+        state->renderer.anisotropicFilteringOptionsCount = 0;
+        state->renderer.anisotropicFilteringOptions = NULL;
+        return;
+    }
+
+    // 1x, 2x, 4x, 8x, 16x max supported (powers of 2)
+    int size = (int)floorf(log2f(afMax)) + 1;
+    state->renderer.anisotropicFilteringOptionsCount = size;
+    state->renderer.anisotropicFilteringOptions = malloc(sizeof(AnisotropicFilteringOptions_t) * size);
+
+    LOG_IF_ERROR(state->renderer.anisotropicFilteringOptions == NULL,
+                 "Failed to allocate anisotropic filtering options!")
+
+    // Fill the table (1x, 2x, 4x, 8x, 16x)
+    for (int i = 0; i < size; i++)
+    {
+        // Binary shift increments in powers of 2
+        float level = (float)(1 << i);
+        if (level > afMax)
+            level = afMax;
+
+        state->renderer.anisotropicFilteringOptions[i] = level;
+    }
+}
+
 void physicalDeviceSelect(State_t *state)
 {
     uint32_t count;
@@ -181,6 +217,19 @@ void queueFamilySelect(State_t *state)
 
 void deviceCreate(State_t *state)
 {
+    // Query what features the selected GPU supports
+    vkGetPhysicalDeviceFeatures(state->context.physicalDevice, &state->context.physicalDeviceFeatures);
+
+    // Enable anisotropy if supported
+    if (state->context.physicalDeviceFeatures.samplerAnisotropy)
+    {
+        state->context.physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
+    }
+    else
+    {
+        logger(LOG_WARN, "Device does not support anisotropic filtering (feature will be disabled).");
+    }
+
     const VkDeviceQueueCreateInfo queueCreateInfos = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .queueFamilyIndex = state->context.queueFamily,
@@ -192,7 +241,9 @@ void deviceCreate(State_t *state)
         .pQueueCreateInfos = &queueCreateInfos,
         .queueCreateInfoCount = 1,
         .enabledExtensionCount = 1,
-        .ppEnabledExtensionNames = &(const char *){VK_KHR_SWAPCHAIN_EXTENSION_NAME}};
+        .ppEnabledExtensionNames = &(const char *){VK_KHR_SWAPCHAIN_EXTENSION_NAME},
+        .pEnabledFeatures = &state->context.physicalDeviceFeatures,
+    };
 
     LOG_IF_ERROR(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.pAllocator, &state->context.device),
                  "Unable to create the Vulkan device.")
@@ -214,6 +265,7 @@ void contextCreate(State_t *state)
 {
     instanceCreate(state);
     physicalDeviceSelect(state);
+    anisotropicFilteringOptionsGet(state);
     queueFamilySelect(state);
     deviceCreate(state);
     queueGet(state);
@@ -223,4 +275,5 @@ void contextDestroy(State_t *state)
 {
     vkDestroyDevice(state->context.device, state->context.pAllocator);
     vkDestroyInstance(state->context.instance, state->context.pAllocator);
+    free(state->renderer.anisotropicFilteringOptions);
 }
