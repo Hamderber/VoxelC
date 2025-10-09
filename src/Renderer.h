@@ -6,23 +6,75 @@
    2. Don't forget to change to VK_CULL_MODE_FRONT_BIT in the future
 */
 
+// Rendering
+typedef struct
+{
+    Vec2f_t pos;
+    Vec3f_t color;
+    Vec2f_t texCoord;
+} ShaderVertex_t;
+
+static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1U;
+// A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
+// of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
+static inline const VkVertexInputBindingDescription *shaderVertexGetBindingDescription(void)
+{
+    static const VkVertexInputBindingDescription descriptions[1] = {
+        {
+            .binding = 0,
+            .stride = sizeof(ShaderVertex_t),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+
+        },
+    };
+
+    return descriptions;
+}
+
+static const uint32_t NUM_SHADER_VERTEX_ATTRIBUTES = 3U;
+// An attribute description struct describes how to extract a vertex attribute from a chunk of vertex data originating
+// from a binding description. We have two attributes, position and color, so we need two attribute description structs.
+static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttributeDescriptions(void)
+{
+    static const VkVertexInputAttributeDescription descriptions[3] = {
+        // Position
+        {
+            .binding = 0U,
+            // The location for the position in the vertex shader
+            .location = 0U,
+            // Type of data (format is data type so color is same format as pos)
+            // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            // Specifies the number of bytes since the start of the per-vertex data to read from.
+            // Position is first so 0
+            .offset = 0U,
+        },
+        // Color
+        {
+            .binding = 0U,
+            // The location for the color in the vertex shader
+            .location = 1U,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            // Position is first so sizeof(pos) type to get offset
+            .offset = sizeof(Vec2f_t),
+        },
+        {
+            .binding = 0U,
+            .location = 2U,
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            .offset = offsetof(ShaderVertex_t, texCoord),
+        },
+    };
+
+    return descriptions;
+}
+
 const ShaderVertex_t SHADER_VERTS[] = {
-    {
-        .position = {-0.5F, -0.5F},
-        .color = {1.0F, 0.0F, 0.0F},
-    },
-    {
-        .position = {0.5F, -0.5F},
-        .color = {0.0F, 1.0F, 0.0F},
-    },
-    {
-        .position = {0.5F, 0.5F},
-        .color = {0.0F, 0.0F, 1.0F},
-    },
-    {
-        .position = {-0.5F, 0.5F},
-        .color = {1.0F, 1.0F, 1.0F},
-    },
+    // Color, pos, texCoord
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 };
 
 // uint16_t for now because we're using less than 65535 unique vertices
@@ -166,50 +218,12 @@ void graphicsPipelineCreate(State_t *state)
         .dynamicStateCount = sizeof(dynamicStates) / sizeof(*dynamicStates),
         .pDynamicStates = dynamicStates};
 
-    // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
-    // of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
-    VkVertexInputBindingDescription bindingDescriptions[] = {
-        {
-            .binding = 0U,
-            // Number of bytes from one entry to the next
-            .stride = sizeof(ShaderVertex_t),
-            // Per-vertex because not concerned with instanced rendering right now
-            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-        },
-    };
-
-    // An attribute description struct describes how to extract a vertex attribute from a chunk of vertex data originating
-    // from a binding description. We have two attributes, position and color, so we need two attribute description structs.
-    VkVertexInputAttributeDescription attributeDescriptions[] = {
-        // Position
-        {
-            .binding = 0U,
-            // The location for the position in the vertex shader
-            .location = 0U,
-            // Type of data (format is data type so color is same format as pos)
-            // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
-            .format = VK_FORMAT_R32G32_SFLOAT,
-            // Specifies the number of bytes since the start of the per-vertex data to read from.
-            // Position is first so 0
-            .offset = 0U,
-        },
-        // Color
-        {
-            .binding = 0U,
-            // The location for the color in the vertex shader
-            .location = 1U,
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
-            // Position is first so sizeof(pos) type to get offset
-            .offset = sizeof(Vec2f_t),
-        },
-    };
-
     VkPipelineVertexInputStateCreateInfo vertexInputState = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = sizeof(bindingDescriptions) / sizeof(*bindingDescriptions),
-        .pVertexBindingDescriptions = bindingDescriptions,
-        .vertexAttributeDescriptionCount = sizeof(attributeDescriptions) / sizeof(*attributeDescriptions),
-        .pVertexAttributeDescriptions = attributeDescriptions,
+        .vertexBindingDescriptionCount = NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS,
+        .pVertexBindingDescriptions = shaderVertexGetBindingDescription(),
+        .vertexAttributeDescriptionCount = NUM_SHADER_VERTEX_ATTRIBUTES,
+        .pVertexAttributeDescriptions = shaderVertexGetInputAttributeDescriptions(),
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {
@@ -995,7 +1009,7 @@ void syncObjectsCreate(State_t *state)
 
 void descriptorSetLayoutCreate(State_t *state)
 {
-    VkDescriptorSetLayoutBinding layoutBinding = {
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {
         // Location for the ubo in the shader
         .binding = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -1006,10 +1020,25 @@ void descriptorSetLayoutCreate(State_t *state)
         .pImmutableSamplers = VK_NULL_HANDLE,
     };
 
+    VkDescriptorSetLayoutBinding samplerBinding = {
+        // Location in the shader
+        .binding = 1,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        // No immutable samplers at this time
+        .pImmutableSamplers = VK_NULL_HANDLE,
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    };
+
+    VkDescriptorSetLayoutBinding bindings[] = {
+        uboLayoutBinding,
+        samplerBinding,
+    };
+
     VkDescriptorSetLayoutCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 1,
-        .pBindings = &layoutBinding,
+        .bindingCount = sizeof(bindings) / sizeof(*bindings),
+        .pBindings = bindings,
     };
 
     LOG_IF_ERROR(vkCreateDescriptorSetLayout(state->context.device, &createInfo, state->context.pAllocator,
@@ -1070,16 +1099,25 @@ void updateUniformBuffer(State_t *state)
 
 void descriptorPoolCreate(State_t *state)
 {
-    VkDescriptorPoolSize poolSize = {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = state->config.maxFramesInFlight,
+    VkDescriptorPoolSize poolSizes[] = {
+        {
+            // ubo
+            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = state->config.maxFramesInFlight,
+        },
+        {
+            // sampler
+            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = state->config.maxFramesInFlight,
+        },
     };
+
+    uint32_t numPools = sizeof(poolSizes) / sizeof(*poolSizes);
 
     VkDescriptorPoolCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        // Only one pool size for now
-        .poolSizeCount = 1,
-        .pPoolSizes = &poolSize,
+        .poolSizeCount = numPools,
+        .pPoolSizes = poolSizes,
         .maxSets = state->config.maxFramesInFlight,
     };
 
@@ -1128,20 +1166,41 @@ void descriptorSetsCreate(State_t *state)
             .range = sizeof(UniformBufferObject_t),
         };
 
-        VkWriteDescriptorSet descriptorWrite = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = state->renderer.pDescriptorSets[i],
-            // location in the vertex shader
-            .dstBinding = 0,
-            // the descriptors can be arrays but thats not implemented at this time so 0 is the first "index"
-            .dstArrayElement = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .descriptorCount = 1,
-            .pBufferInfo = &bufferInfo,
+        VkDescriptorImageInfo imageInfo = {
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageView = state->renderer.textureImageView,
+            .sampler = state->renderer.textureSampler,
+        };
+
+        VkWriteDescriptorSet descriptorWrites[] = {
+            {
+                // ubo
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = state->renderer.pDescriptorSets[i],
+                // location in the vertex shader
+                .dstBinding = 0,
+                // the descriptors can be arrays but thats not implemented at this time so 0 is the first "index"
+                .dstArrayElement = 0,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .descriptorCount = 1,
+                .pBufferInfo = &bufferInfo,
+            },
+            {
+                // sampler
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = state->renderer.pDescriptorSets[i],
+                // location in the vertex shader
+                .dstBinding = 1,
+                .dstArrayElement = 0,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .descriptorCount = 1,
+                .pImageInfo = &imageInfo,
+            },
         };
 
         // Dont copy so 0 copies and destination null
-        vkUpdateDescriptorSets(state->context.device, 1, &descriptorWrite, 0, VK_NULL_HANDLE);
+        vkUpdateDescriptorSets(state->context.device, sizeof(descriptorWrites) / sizeof(*descriptorWrites), descriptorWrites,
+                               0, VK_NULL_HANDLE);
     }
 }
 
@@ -1193,8 +1252,12 @@ void textureSamplerCreate(State_t *state)
         // Filters specify how to interpolate texels that are magnified or minified
         // Mag = oversampling and Min = undersampling
         // See https://vulkan-tutorial.com/Texture_mapping/Image_view_and_sampler
-        .magFilter = VK_FILTER_LINEAR,
-        .minFilter = VK_FILTER_LINEAR,
+        // Linear for larger textures (interpolation)
+        // .magFilter = VK_FILTER_LINEAR,
+        // .minFilter = VK_FILTER_LINEAR,
+        // Nearest for small textures (pixel art)
+        .magFilter = VK_FILTER_NEAREST,
+        .minFilter = VK_FILTER_NEAREST,
         // Addressing can be defined per-axis and for some reason its UVW instead of XYZ (texture space convention)
         // Repeat is the most commonly used (floors, etc.) for tiling
         .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
@@ -1241,11 +1304,11 @@ void rendererCreate(State_t *state)
     vertexBufferCreate(state);
     indexBufferCreate(state);
     uniformBuffersCreate(state);
-    descriptorPoolCreate(state);
-    descriptorSetsCreate(state);
     textureImageCreate(state);
     textureViewImageCreate(state);
     textureSamplerCreate(state);
+    descriptorPoolCreate(state);
+    descriptorSetsCreate(state);
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }

@@ -169,13 +169,6 @@ typedef struct
     float qx, qy, qz, qw;
 } Quaternion_t;
 
-// Rendering
-typedef struct
-{
-    Vec2f_t position;
-    Vec3f_t color;
-} ShaderVertex_t;
-
 // Directions
 static const Vec3f_t RIGHT = {1.0f, 0.0f, 0.0f};
 static const Vec3f_t LEFT = {-1.0f, 0.0f, 0.0f};
