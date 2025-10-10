@@ -137,6 +137,9 @@ typedef struct
     uint32_t anisotropicFilteringOptionsCount;
     AnisotropicFilteringOptions_t *anisotropicFilteringOptions;
     VkSampler textureSampler;
+    VkImage depthImage;
+    VkDeviceMemory depthImageMemory;
+    VkImageView depthImageView;
 } Renderer_t;
 
 typedef struct
