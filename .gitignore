@@ -17,6 +17,7 @@ _CPack_Packages/
 *.lib
 lib/
 blockbench/
+gimp/
 
 # Object files
 *.o

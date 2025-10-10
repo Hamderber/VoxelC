@@ -37,6 +37,7 @@ Engine:
    there will be no y coordinate. Thus, this will happen on a purely 2d plane. These chunk coordinates
    are signed 32-bit integers.
 2. DO NOT USE #pragma pack AT ALL (will break alignment for linear algebra used to copy into shaders)
+3. When using Blockbench to export a model, MAKE SURE THE UV SCALE IS THE SAME AS THE EXPORT SCALE! (16)
 
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
