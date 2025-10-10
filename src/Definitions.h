@@ -3,6 +3,7 @@
 #define PROGRAM_NAME "VoxelC"
 // exe is in ./bin so you have to first go up a directory
 #define RESOURCE_TEXTURE_PATH "../res/textures/"
+#define MODEL_PATH "../res/models/"
 #define PI_D 3.1415926535897931
 #define PI_F 3.1415927F
 
@@ -140,6 +141,7 @@ typedef struct
     VkImage depthImage;
     VkDeviceMemory depthImageMemory;
     VkImageView depthImageView;
+    uint32_t indexCount;
 } Renderer_t;
 
 typedef struct

@@ -16,6 +16,7 @@ _CPack_Packages/
 *.a
 *.lib
 lib/
+blockbench/
 
 # Object files
 *.o

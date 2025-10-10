@@ -69,31 +69,6 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
     return descriptions;
 }
 
-// Color, pos, texCoord
-const ShaderVertex_t SHADER_VERTS[] = {
-    // Plane 1
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-    // Plane 2
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-};
-
-// uint16_t for now because we're using less than 65535 unique vertices
-// VK_INDEX_TYPE_UINT16 must be changed if this is changed to 32
-const uint16_t SHADER_INDICIES[] = {
-    // Plane 1
-    0, 1, 2, 2, 3, 0,
-    // Plane 2
-    4, 5, 6, 6, 7, 4};
-// Obviously temp implementation
-const uint32_t NUM_SHADER_VERTS = 8U;
-const uint32_t NUM_SHADER_INDICIES = 12U;
-
 VkFormat depthFormatGet(State_t *state)
 {
     VkFormat formats[] = {
@@ -572,32 +547,34 @@ void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffe
     commandBufferSingleTimeEnd(state, commandBuffer);
 }
 
-// Similar implementation to vertexBufferCreate
-void indexBufferCreate(State_t *state)
+void indexBufferCreateFromData(State_t *state, uint16_t *indices, uint32_t indexCount)
 {
-    VkDeviceSize bufferSize = sizeof(SHADER_INDICIES[0]) * NUM_SHADER_INDICIES;
+    VkDeviceSize bufferSize = sizeof(uint16_t) * indexCount;
 
     VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VkDeviceMemory stagingMemory;
+
     bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 &stagingBuffer, &stagingBufferMemory);
+                 &stagingBuffer, &stagingMemory);
 
     void *data;
-    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
-                 "Failed to map staging buffer memory.")
-    memcpy(data, SHADER_INDICIES, (size_t)bufferSize);
+    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingMemory, 0, bufferSize, 0, &data),
+                 "Failed to map index staging buffer memory.")
+    memcpy(data, indices, (size_t)bufferSize);
+    vkUnmapMemory(state->context.device, stagingMemory);
 
-    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+    bufferCreate(state, bufferSize,
+                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  &state->renderer.indexBuffer, &state->renderer.indexBufferMemory);
 
     bufferCopy(state, stagingBuffer, state->renderer.indexBuffer, bufferSize);
 
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
+    vkFreeMemory(state->context.device, stagingMemory, state->context.pAllocator);
 
-    vkUnmapMemory(state->context.device, stagingBufferMemory);
-    vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
+    logger(LOG_INFO, "Created index buffer (%u indices, %zu bytes).", indexCount, (size_t)bufferSize);
 }
 
 void indexBufferDestroy(State_t *state)
@@ -606,37 +583,38 @@ void indexBufferDestroy(State_t *state)
     vkFreeMemory(state->context.device, state->renderer.indexBufferMemory, state->context.pAllocator);
 }
 
-void vertexBufferCreate(State_t *state)
+void vertexBufferCreateFromData(State_t *state, ShaderVertex_t *vertices, uint32_t vertexCount)
 {
-    // Not sizeof Vert3f_t because shader vertex has color etc data too
-    VkDeviceSize bufferSize = sizeof(ShaderVertex_t) * NUM_SHADER_VERTS;
+    VkDeviceSize bufferSize = sizeof(ShaderVertex_t) * vertexCount;
 
     VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+    VkDeviceMemory stagingMemory;
+
+    // Create staging buffer (CPU visible)
     bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 &stagingBuffer, &stagingBufferMemory);
+                 &stagingBuffer, &stagingMemory);
 
-    // Map the memory so the CPU can access it, write to it, then unmap it. There can obviously be concurrency issues with this, but
-    // using the VK_MEMORY_PROPERTY_HOST_COHERENT_BIT in the memory property flags resolves this (at the cost of minor performance)
     void *data;
-    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, bufferSize, 0, &data),
-                 "Failed to map staging buffer memory.")
-    memcpy(data, SHADER_VERTS, (size_t)bufferSize);
+    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingMemory, 0, bufferSize, 0, &data),
+                 "Failed to map vertex staging buffer memory.")
+    memcpy(data, vertices, (size_t)bufferSize);
+    vkUnmapMemory(state->context.device, stagingMemory);
 
-    // The vertex buffer uses device-local memory so it cannot be directly copied/written to. A staging buffer is used on the device
-    // for copying data to.
-    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    // Create actual GPU vertex buffer
+    bufferCreate(state, bufferSize,
+                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  &state->renderer.vertexBuffer, &state->renderer.vertexBufferMemory);
 
-    // Copy the staging buffer into the vertex buffer
+    // Copy from staging to GPU
     bufferCopy(state, stagingBuffer, state->renderer.vertexBuffer, bufferSize);
 
-    // Clean up the staging buffer after used
+    // Cleanup staging
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
-    vkUnmapMemory(state->context.device, stagingBufferMemory);
-    vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
+    vkFreeMemory(state->context.device, stagingMemory, state->context.pAllocator);
+
+    logger(LOG_INFO, "Created vertex buffer (%u vertices, %zu bytes).", vertexCount, (size_t)bufferSize);
 }
 
 void vertexBufferDestroy(State_t *state)
@@ -782,7 +760,7 @@ void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat forma
 void textureImageCreate(State_t *state)
 {
     int width, height, channels;
-    const char *imagePath = RESOURCE_TEXTURE_PATH "bricks.png";
+    const char *imagePath = RESOURCE_TEXTURE_PATH "hello_world.png";
     // Force the image to load with an alpha channel
     stbi_uc *pixels = stbi_load(imagePath, &width, &height, &channels, STBI_rgb_alpha);
     // 4 bytes per pixel (RGBA)
@@ -946,6 +924,7 @@ void commandBufferRecord(State_t *state)
     VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+    // 16 limits verticies to 65535 (consider once making own models and having a check?)
     vkCmdBindIndexBuffer(cmd, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     // No offset and 1 descriptor set bound for this frame
@@ -954,7 +933,7 @@ void commandBufferRecord(State_t *state)
 
     // DRAW ! ! ! ! !
     // Not using instanced rendering so just 1 instance with nothing for the offset
-    vkCmdDrawIndexed(cmd, NUM_SHADER_INDICIES, 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, state->renderer.indexCount, 1, 0, 0, 0);
 
     // Must end the render pass if has begun (obviously)
     vkCmdEndRenderPass(cmd);
@@ -1156,8 +1135,13 @@ void updateUniformBuffer(State_t *state)
     // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
     // instead of having stutter with frames.
 
+    Quaternion_t qYaw = la_quatAngleAxis(la_deg2radf(90.0F) * (float)state->time.frameTimeTotal, Y_AXIS);
+    Quaternion_t qPitch = la_quatAngleAxis(la_deg2radf(45.0F) * (float)state->time.frameTimeTotal, X_AXIS);
+    Quaternion_t qCombined = la_quatMultiply(qYaw, qPitch);
+    Mat4c_t model = la_quat2mat(qCombined);
+
     UniformBufferObject_t ubo = {
-        .model = la_matrixRotate(MAT4_IDENTITY, la_deg2radf(90.0F) * (float)state->time.frameTimeTotal, FORWARD),
+        .model = model,
         .view = la_lookAt((Vec3f_t){2.0F, 2.0F, 2.0F}, VEC3_ONE, FORWARD),
         .projection = la_perspective(la_deg2radf(45.0F),
                                      state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
@@ -1388,6 +1372,161 @@ void depthResourcesDestroy(State_t *state)
     vkFreeMemory(state->context.device, state->renderer.depthImageMemory, state->context.pAllocator);
 }
 
+void modelLoad(State_t *state)
+{
+    const char *path = MODEL_PATH "hello_world.glb";
+
+    cgltf_options options = {0};
+    cgltf_data *data = NULL;
+
+    // Parse the glTF model file
+    cgltf_result result = cgltf_parse_file(&options, path, &data);
+    if (result != cgltf_result_success)
+    {
+        logger(LOG_ERROR, "Failed to parse glTF file: %s", path);
+        return;
+    }
+
+    // Load external or embedded buffer data (needed for vertices, indices, etc.)
+    result = cgltf_load_buffers(&options, data, path);
+    if (result != cgltf_result_success)
+    {
+        logger(LOG_ERROR, "Failed to load buffers for: %s", path);
+        cgltf_free(data);
+        return;
+    }
+
+    // Validate structure (optional, but useful for debugging)
+    result = cgltf_validate(data);
+    if (result != cgltf_result_success)
+    {
+        logger(LOG_ERROR, "Invalid glTF data in: %s", path);
+        cgltf_free(data);
+        return;
+    }
+
+    logger(LOG_INFO, "Loaded model: %s", path);
+    logger(LOG_INFO, "Meshes: %zu", data->meshes_count);
+    logger(LOG_INFO, "Materials: %zu", data->materials_count);
+    logger(LOG_INFO, "Nodes: %zu", data->nodes_count);
+
+    // For now, only load the first mesh and its first primitive
+    if (data->meshes_count == 0)
+    {
+        logger(LOG_ERROR, "Model has no meshes! %s", path);
+        cgltf_free(data);
+        return;
+    }
+
+    cgltf_mesh *mesh = &data->meshes[0];
+    if (mesh->primitives_count == 0)
+    {
+        logger(LOG_ERROR, "Mesh has no primitives! %s", path);
+        cgltf_free(data);
+        return;
+    }
+
+    cgltf_primitive *prim = &mesh->primitives[0];
+
+    logger(LOG_INFO, "Loading mesh: %s (%zu primitives)", mesh->name ? mesh->name : "(unnamed)", mesh->primitives_count);
+
+    // Extract the accessors for position, texcoord, and optional color
+    cgltf_accessor *posAccessor = NULL;
+    cgltf_accessor *uvAccessor = NULL;
+    for (size_t k = 0; k < prim->attributes_count; k++)
+    {
+        cgltf_attribute *attr = &prim->attributes[k];
+        if (attr->type == cgltf_attribute_type_position)
+            posAccessor = attr->data;
+        else if (attr->type == cgltf_attribute_type_texcoord)
+            uvAccessor = attr->data;
+    }
+
+    if (posAccessor == NULL)
+    {
+        logger(LOG_ERROR, "Model missing position attribute! %s", path);
+        cgltf_free(data);
+        return;
+    }
+
+    size_t vertexCount = posAccessor->count;
+    ShaderVertex_t *vertices = malloc(sizeof(ShaderVertex_t) * vertexCount);
+    LOG_IF_ERROR(vertices == NULL, "Failed to allocate vertex array for model: %s", path);
+
+    float tmp[4];
+    for (size_t v = 0; v < vertexCount; v++)
+    {
+        // Positions
+        cgltf_accessor_read_float(posAccessor, v, tmp, 3);
+        vertices[v].pos = (Vec3f_t){tmp[0], tmp[1], tmp[2]};
+
+        // Texture coordinates
+        if (uvAccessor)
+        {
+            cgltf_accessor_read_float(uvAccessor, v, tmp, 2);
+            // Flip V coordinate to match Vulkan convention
+            vertices[v].texCoord = (Vec2f_t){tmp[0], 1.0f - tmp[1]};
+        }
+        else
+        {
+            vertices[v].texCoord = (Vec2f_t){0.0f, 0.0f};
+        }
+
+        // Default white color for now (can be replaced if color attributes are added)
+        vertices[v].color = WHITE;
+    }
+
+    // Load indices if they exist
+    uint16_t *indices = NULL;
+    size_t indexCount = 0;
+    if (prim->indices)
+    {
+        cgltf_accessor *indexAccessor = prim->indices;
+        indexCount = indexAccessor->count;
+        indices = malloc(sizeof(uint16_t) * indexCount);
+        LOG_IF_ERROR(indices == NULL, "Failed to allocate index array for model: %s", path);
+
+        for (size_t i = 0; i < indexCount; i++)
+        {
+            indices[i] = (uint16_t)cgltf_accessor_read_index(indexAccessor, i);
+        }
+    }
+    else
+    {
+        // Fallback: sequential indices
+        indexCount = vertexCount;
+        indices = malloc(sizeof(uint16_t) * indexCount);
+        LOG_IF_ERROR(indices == NULL, "Failed to allocate fallback indices for model: %s", path);
+
+        for (size_t i = 0; i < indexCount; i++)
+        {
+            indices[i] = (uint16_t)i;
+        }
+    }
+
+    logger(LOG_INFO, "Model vertex count: %zu", vertexCount);
+    logger(LOG_INFO, "Model index count: %zu", indexCount);
+
+    // Upload to GPU
+    vertexBufferCreateFromData(state, vertices, (uint32_t)vertexCount);
+    indexBufferCreateFromData(state, indices, (uint32_t)indexCount);
+
+    // Store index count in renderer for drawing
+    state->renderer.indexCount = (uint32_t)indexCount;
+
+    // Cleanup CPU-side memory
+    free(vertices);
+    free(indices);
+    cgltf_free(data);
+
+    logger(LOG_INFO, "Model successfully uploaded to GPU: %s", path);
+}
+
+void modelDestroy(State_t *state)
+{
+    // Placeholder. Model destruction currently handled by buffer destruction
+}
+
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
@@ -1395,8 +1534,9 @@ void rendererCreate(State_t *state)
     descriptorSetLayoutCreate(state);
     graphicsPipelineCreate(state);
     commandPoolCreate(state);
-    vertexBufferCreate(state);
-    indexBufferCreate(state);
+    modelLoad(state);
+    // vertexBufferCreate(state);
+    // indexBufferCreate(state);
     uniformBuffersCreate(state);
     depthResourcesCreate(state);
     framebuffersCreate(state);
@@ -1426,6 +1566,7 @@ void rendererDestroy(State_t *state)
     uniformBuffersDestroy(state);
     indexBufferDestroy(state);
     vertexBufferDestroy(state);
+    modelDestroy(state);
     commandPoolDestroy(state);
     graphicsPipelineDestroy(state);
     renderPassDestroy(state);
