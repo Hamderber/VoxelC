@@ -15,6 +15,7 @@ _CPack_Packages/
 *.dylib
 *.a
 *.lib
+lib/
 
 # Object files
 *.o

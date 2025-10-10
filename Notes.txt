@@ -62,4 +62,4 @@ TODO:
 7. Consider adding a folder abstraction to contain everything in .voxelc kind of like .minecraft with just the exe in the root folder
 8. Look into the 3d texture mapping discussion about linear tiling and 3d textures for voxel data
 9. Create a setup command buffer like mentioned near the end of https://vulkan-tutorial.com/Texture_mapping/Images
-12. Blockbench .glb model loader via https://github.com/jkuhlmann/cgltf
+12. Blockbench .glb model loader via https://github.com/jkuhlmann/cgltf or obj https://github.com/tinyobjloader/tinyobjloader (prob. this one)

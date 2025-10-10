@@ -18,6 +18,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/bin")
 # Create executable
 add_executable(VoxelC ${SOURCES})
 
+# Add stb lib
+target_include_directories(VoxelC PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/lib/stb
+)
+
 # Include headers from src/ (so #include "Logger.h" works)
 target_include_directories(VoxelC PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
