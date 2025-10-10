@@ -30,9 +30,14 @@ void renderLoop(State_t *state)
         // Make sure the GPU is idle. This could be a queue wait plus fence if more wait accuracy is needed
         vkDeviceWaitIdle(state->context.device);
         windowWaitForValidFramebuffer(state);
+
+        depthResourcesDestroy(state);
         framebuffersDestroy(state);
+
         swapchainCreate(state);
+        depthResourcesCreate(state);
         framebuffersCreate(state);
+
         logger(LOG_INFO, "Re-created the swapchain.");
         state->window.swapchain.recreate = false;
     }

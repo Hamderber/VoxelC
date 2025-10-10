@@ -1,6 +1,8 @@
 {
     "C_Cpp.errorSquiggles": "enabledIfIncludesResolve",
     "files.associations": {
-        "stb_image.h": "c"
+        "stb_image.h": "c",
+        "format": "c",
+        "vector": "c"
     }
 }

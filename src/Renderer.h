@@ -9,7 +9,7 @@
 // Rendering
 typedef struct
 {
-    Vec2f_t pos;
+    Vec3f_t pos;
     Vec3f_t color;
     Vec2f_t texCoord;
 } ShaderVertex_t;
@@ -44,7 +44,7 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
             .location = 0U,
             // Type of data (format is data type so color is same format as pos)
             // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
-            .format = VK_FORMAT_R32G32_SFLOAT,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
             // Specifies the number of bytes since the start of the per-vertex data to read from.
             // Position is first so 0
             .offset = 0U,
@@ -69,48 +69,74 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
     return descriptions;
 }
 
+// Color, pos, texCoord
 const ShaderVertex_t SHADER_VERTS[] = {
-    // Color, pos, texCoord
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+    // Plane 1
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+    // Plane 2
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
 };
 
 // uint16_t for now because we're using less than 65535 unique vertices
 // VK_INDEX_TYPE_UINT16 must be changed if this is changed to 32
-const uint16_t SHADER_INDICIES[] = {0, 1, 2, 2, 3, 0};
+const uint16_t SHADER_INDICIES[] = {
+    // Plane 1
+    0, 1, 2, 2, 3, 0,
+    // Plane 2
+    4, 5, 6, 6, 7, 4};
 // Obviously temp implementation
-const uint32_t NUM_SHADER_VERTS = 4U;
-const uint32_t NUM_SHADER_INDICIES = 6U;
+const uint32_t NUM_SHADER_VERTS = 8U;
+const uint32_t NUM_SHADER_INDICIES = 12U;
+
+VkFormat depthFormatGet(State_t *state)
+{
+    VkFormat formats[] = {
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT,
+    };
+
+    return formatSupportedFind(state, formats, sizeof(formats) / sizeof(*formats), VK_IMAGE_TILING_OPTIMAL,
+                               VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
 
 /// @brief The render pass is basically the blueprint for the graphics operation in the graphics pipeline
 /// @param state
 void renderPassCreate(State_t *state)
 {
-    VkAttachmentReference colorAttachmentReferences[] = {
-        (VkAttachmentReference){
-            // This 0 is the output location of the outColor vec4 in the fragment shader. If other outputs are needed, the attachment
-            // number would be the same as the output location
-            .attachment = 0U,
-            // Render target for color output
-            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        },
+    VkAttachmentReference colorAttachmentReference = {
+        // This 0 is the output location of the outColor vec4 in the fragment shader. If other outputs are needed, the attachment
+        // number would be the same as the output location
+        .attachment = 0U,
+        // Render target for color output
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     };
 
-    state->renderer.renderpassAttachmentCount = sizeof(colorAttachmentReferences) / sizeof(*colorAttachmentReferences);
+    VkAttachmentReference depthAttachmentReference = {
+        // Depth
+        .attachment = 1U,
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
 
     VkSubpassDescription subpassDescriptions[] = {
         (VkSubpassDescription){
             // Use for graphics pipeline instead of a compute pipeline
             .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .colorAttachmentCount = state->renderer.renderpassAttachmentCount,
-            .pColorAttachments = colorAttachmentReferences,
+            .colorAttachmentCount = 1,
+            .pColorAttachments = &colorAttachmentReference,
+            .pDepthStencilAttachment = &depthAttachmentReference,
         },
     };
 
     VkAttachmentDescription attachmentDescriptions[] = {
-        (VkAttachmentDescription){
+        // Present
+        {
             .format = state->window.swapchain.format,
             // No MSAA at this time
             .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -125,7 +151,21 @@ void renderPassCreate(State_t *state)
             .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         },
+        // Depth
+        {
+            .format = depthFormatGet(state),
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            // The depth data won't be stored because its not used after drawing
+            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        },
     };
+
+    state->renderer.renderpassAttachmentCount = sizeof(attachmentDescriptions) / sizeof(*attachmentDescriptions);
 
     VkSubpassDependency dependencies[] = {
         (VkSubpassDependency){
@@ -133,11 +173,10 @@ void renderPassCreate(State_t *state)
             // Destination is the first subpass
             .dstSubpass = 0U,
             // Wait in the pipeline for the previous external operations to finish before color attachment output
-            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            // No mask needed at this time
-            .srcAccessMask = 0,
-            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+            .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
         },
     };
 
@@ -145,7 +184,7 @@ void renderPassCreate(State_t *state)
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .subpassCount = sizeof(subpassDescriptions) / sizeof(*subpassDescriptions),
         .pSubpasses = subpassDescriptions,
-        .attachmentCount = sizeof(attachmentDescriptions) / sizeof(*attachmentDescriptions),
+        .attachmentCount = state->renderer.renderpassAttachmentCount,
         .pAttachments = attachmentDescriptions,
         .dependencyCount = sizeof(dependencies) / sizeof(*dependencies),
         .pDependencies = dependencies,
@@ -302,6 +341,24 @@ void graphicsPipelineCreate(State_t *state)
     LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pipelineLayout),
                  "Failed to create the pipeline layout.");
 
+    VkPipelineDepthStencilStateCreateInfo depthStencil = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        // If the depth of new fragments should be compared to the depth buffer to see if they should be discarded
+        .depthTestEnable = VK_TRUE,
+        // If the new depth of fragments that pass the depth test should actually be written to the depth buffer
+        .depthWriteEnable = VK_TRUE,
+        // Convention of lower depth = closer so the depth of new fragments should be less (backwards for things like water?)
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        // Optional. Allows you to only keep fragments that fall within the specified depth range. Disabled but included for legibility
+        .depthBoundsTestEnable = VK_FALSE,
+        .minDepthBounds = 0.0f,
+        .maxDepthBounds = 1.0f,
+        // Optional. Would require making sure that the format of the depth/stencil image contains a stencil component
+        .stencilTestEnable = VK_FALSE,
+        // .front = {},
+        // .back = {},
+    };
+
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         // layout, pVertexInputState, and pInputAssemblyState all rely on the vertex layout
@@ -316,7 +373,9 @@ void graphicsPipelineCreate(State_t *state)
         .pMultisampleState = &multisamplingState,
         .pColorBlendState = &colorBlendState,
         .renderPass = state->renderer.pRenderPass,
-        .pViewportState = &viewportStateCreateInfo};
+        .pViewportState = &viewportStateCreateInfo,
+        .pDepthStencilState = &depthStencil,
+    };
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfos[] = {
         graphicsPipelineCreateInfo,
@@ -350,6 +409,12 @@ void framebuffersCreate(State_t *state)
 
     for (uint32_t framebufferIndex = 0U; framebufferIndex < state->renderer.framebufferCount; framebufferIndex++)
     {
+        // Building the image view here by just attaching the depth image view to the original swapchain image view
+        VkImageView attachments[2] = {
+            state->window.swapchain.pImageViews[framebufferIndex],
+            state->renderer.depthImageView,
+        };
+
         VkFramebufferCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             // Only one image layer for the current swapchain configuration
@@ -359,7 +424,7 @@ void framebuffersCreate(State_t *state)
             .height = state->window.swapchain.imageExtent.height,
             // The attachment count must be the same as the amount of attachment descriptions in the renderpass
             .attachmentCount = state->renderer.renderpassAttachmentCount,
-            .pAttachments = &state->window.swapchain.pImageViews[framebufferIndex],
+            .pAttachments = attachments,
         };
 
         LOG_IF_ERROR(vkCreateFramebuffer(state->context.device, &createInfo, state->context.pAllocator,
@@ -806,11 +871,16 @@ void commandBufferRecord(State_t *state)
     };
 
     // Which color values to clear when using the clear operation defined in the attachments of the render pass.
+    // Order of clear values must be equal to order of attachments
     VkClearValue clearValues[] = {
-        // Ex: clears image but leaves a background color
-        (VkClearValue){
+        // Clears image but leaves a background color
+        {
             // Black
             .color.float32 = {0.0F, 0.0F, 0.0F, 0.0F},
+        },
+        // Resets the depth stencil
+        {
+            .depthStencil = {1.0f, 0},
         },
     };
 
@@ -1210,7 +1280,7 @@ void descriptorSetsDestroy(State_t *state)
     vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
 }
 
-VkImageView createImageView(State_t *state, VkImage image, VkFormat format)
+VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 {
 
     VkImageViewCreateInfo createInfo = {
@@ -1218,7 +1288,7 @@ VkImageView createImageView(State_t *state, VkImage image, VkFormat format)
         .image = image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .format = format,
-        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.aspectMask = aspectFlags,
         .subresourceRange.baseMipLevel = 0,
         .subresourceRange.levelCount = 1,
         .subresourceRange.baseArrayLayer = 0,
@@ -1236,7 +1306,8 @@ VkImageView createImageView(State_t *state, VkImage image, VkFormat format)
 void textureViewImageCreate(State_t *state)
 {
     // Written this way to support looping in the future
-    state->renderer.textureImageView = createImageView(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+    state->renderer.textureImageView = imageViewCreate(state, state->renderer.textureImage,
+                                                       VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void textureImageViewDestroy(State_t *state)
@@ -1293,17 +1364,42 @@ void textureSamplerDestroy(State_t *state)
     vkDestroySampler(state->context.device, state->renderer.textureSampler, state->context.pAllocator);
 }
 
+bool formatHasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+void depthResourcesCreate(State_t *state)
+{
+    VkFormat depthFormat = depthFormatGet(state);
+
+    imageCreate(state, state->window.swapchain.imageExtent.width, state->window.swapchain.imageExtent.height,
+                depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                &state->renderer.depthImage, &state->renderer.depthImageMemory);
+
+    state->renderer.depthImageView = imageViewCreate(state, state->renderer.depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+    // Don't need to explicitly transition the layout of the image to a depth attachment because taken care of in the render pass
+}
+
+void depthResourcesDestroy(State_t *state)
+{
+    vkDestroyImageView(state->context.device, state->renderer.depthImageView, state->context.pAllocator);
+    vkDestroyImage(state->context.device, state->renderer.depthImage, state->context.pAllocator);
+    vkFreeMemory(state->context.device, state->renderer.depthImageMemory, state->context.pAllocator);
+}
+
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
     renderPassCreate(state);
     descriptorSetLayoutCreate(state);
     graphicsPipelineCreate(state);
-    framebuffersCreate(state);
     commandPoolCreate(state);
     vertexBufferCreate(state);
     indexBufferCreate(state);
     uniformBuffersCreate(state);
+    depthResourcesCreate(state);
+    framebuffersCreate(state);
     textureImageCreate(state);
     textureViewImageCreate(state);
     textureSamplerCreate(state);
@@ -1325,11 +1421,12 @@ void rendererDestroy(State_t *state)
     textureImageDestroy(state);
     descriptorSetsDestroy(state);
     descriptorPoolDestroy(state);
+    framebuffersDestroy(state);
+    depthResourcesDestroy(state);
     uniformBuffersDestroy(state);
     indexBufferDestroy(state);
     vertexBufferDestroy(state);
     commandPoolDestroy(state);
-    framebuffersDestroy(state);
     graphicsPipelineDestroy(state);
     renderPassDestroy(state);
 }

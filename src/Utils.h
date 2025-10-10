@@ -79,6 +79,31 @@ uint32_t memoryTypeGet(State_t *state, uint32_t memoryRequirements, VkMemoryProp
     return memoryType;
 }
 
+VkFormat formatSupportedFind(State_t *state, VkFormat *candidates, size_t candidateCount, VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+    for (size_t i = 0; i < candidateCount; i++)
+    {
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(state->context.physicalDevice, candidates[i], &properties);
+
+        // Iterate and compare flags for the current format candidate and try to return the first found that is best
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features)
+        {
+            return candidates[i];
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features)
+        {
+            return candidates[i];
+        }
+    }
+
+    logger(LOG_ERROR, "The physical device has no supported format!");
+
+    // Same as error
+    return VK_FORMAT_MAX_ENUM;
+}
+
 bool stateDebugMode(State_t *state)
 {
     return state->config.vulkanValidation;
