@@ -12,7 +12,103 @@ typedef struct
     Vec3f_t pos;
     Vec3f_t color;
     Vec2f_t texCoord;
+    uint32_t atlasIndex;
 } ShaderVertex_t;
+
+static const Vec2f_t faceUVs[4] = {
+    {0.0f, 1.0f}, // top-left
+    {0.0f, 0.0f}, // bottom-left
+    {1.0f, 1.0f}, // top-right
+    {1.0f, 0.0f}, // bottom-right
+};
+
+typedef enum
+{
+    // default
+    TEX_ROT_0 = 0,
+    // clockwise
+    TEX_ROT_90 = 1,
+    TEX_ROT_180 = 2,
+    TEX_ROT_270 = 3,
+    TEX_FLIP_X = 4,
+    TEX_FLIP_Y = 5,
+} TextureRotation_t;
+
+typedef enum
+{
+    FACE_LEFT = 0,   // -X (left)
+    FACE_RIGHT = 1,  // +X (right)
+    FACE_TOP = 2,    // +Y (up)
+    FACE_BOTTOM = 3, // -Y (down)
+    FACE_FRONT = 4,  // +Z (front)
+    FACE_BACK = 5,   // -Z (back)
+} CubeFace_t;
+
+typedef struct
+{
+    // which tile in the atlas
+    AtlasFace_t atlasIndex;
+    // rotation/flip to apply
+    TextureRotation_t rotation;
+} FaceTexture_t;
+
+static inline void applyTextureRotation(Vec2f_t outUVs[4], const Vec2f_t inUVs[4], TextureRotation_t rotation)
+{
+    switch (rotation)
+    {
+    case TEX_ROT_0:
+        // copy as-is
+        memcpy(outUVs, inUVs, sizeof(Vec2f_t) * 4);
+        break;
+
+    case TEX_ROT_90:
+        outUVs[0] = inUVs[1]; // top-left <- bottom-left
+        outUVs[1] = inUVs[3]; // bottom-left <- bottom-right
+        outUVs[2] = inUVs[0]; // top-right <- top-left
+        outUVs[3] = inUVs[2]; // bottom-right <- top-right
+        break;
+
+    case TEX_ROT_180:
+        outUVs[0] = inUVs[3];
+        outUVs[1] = inUVs[2];
+        outUVs[2] = inUVs[1];
+        outUVs[3] = inUVs[0];
+        break;
+
+    case TEX_ROT_270:
+        outUVs[0] = inUVs[2];
+        outUVs[1] = inUVs[0];
+        outUVs[2] = inUVs[3];
+        outUVs[3] = inUVs[1];
+        break;
+
+    case TEX_FLIP_X:
+        outUVs[0] = inUVs[2]; // swap left/right
+        outUVs[1] = inUVs[3];
+        outUVs[2] = inUVs[0];
+        outUVs[3] = inUVs[1];
+        break;
+
+    case TEX_FLIP_Y:
+        outUVs[0] = inUVs[1]; // swap top/bottom
+        outUVs[1] = inUVs[0];
+        outUVs[2] = inUVs[3];
+        outUVs[3] = inUVs[2];
+        break;
+    }
+}
+
+static inline void assignFaceUVs(ShaderVertex_t *verts, size_t start, const AtlasRegion_t *region, TextureRotation_t rotation)
+{
+    Vec2f_t rotatedUVs[4];
+    applyTextureRotation(rotatedUVs, faceUVs, rotation);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        verts[start + i].texCoord.x = region->uvMin.x + rotatedUVs[i].x * (region->uvMax.x - region->uvMin.x);
+        verts[start + i].texCoord.y = region->uvMin.y + rotatedUVs[i].y * (region->uvMax.y - region->uvMin.y);
+    }
+}
 
 static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1U;
 // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
@@ -47,7 +143,7 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
             .format = VK_FORMAT_R32G32B32_SFLOAT,
             // Specifies the number of bytes since the start of the per-vertex data to read from.
             // Position is first so 0
-            .offset = 0U,
+            .offset = offsetof(ShaderVertex_t, pos),
         },
         // Color
         {
@@ -56,7 +152,7 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
             .location = 1U,
             .format = VK_FORMAT_R32G32B32_SFLOAT,
             // Position is first so sizeof(pos) type to get offset
-            .offset = sizeof(Vec2f_t),
+            .offset = offsetof(ShaderVertex_t, color),
         },
         {
             .binding = 0U,
@@ -757,14 +853,23 @@ void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat forma
     vkBindImageMemory(state->context.device, *image, *imageMemory, 0);
 }
 
-void textureImageCreate(State_t *state)
+void atlasTextureImageCreate(State_t *state)
 {
     int width, height, channels;
-    const char *imagePath = RESOURCE_TEXTURE_PATH "hello_world.png";
+    const char *imagePath = RESOURCE_TEXTURE_PATH TEXTURE_ATLAS;
+    // Flip the uv vertically to match face implementation
+    stbi_set_flip_vertically_on_load(true);
+
     // Force the image to load with an alpha channel
     stbi_uc *pixels = stbi_load(imagePath, &width, &height, &channels, STBI_rgb_alpha);
     // 4 bytes per pixel (RGBA)
     VkDeviceSize imageSize = width * height * 4;
+
+    logger(LOG_INFO, "Atlas PNG: %dx%d px, subtextureSize=%u px", width, height, state->config.subtextureSize);
+    state->renderer.atlasWidthInTiles = width / state->config.subtextureSize;
+    state->renderer.atlasHeightInTiles = height / state->config.subtextureSize;
+    state->renderer.atlasRegionCount = state->renderer.atlasWidthInTiles * state->renderer.atlasHeightInTiles;
+    logger(LOG_INFO, "The atlas texture has %u regions.", state->renderer.atlasRegionCount);
 
     LOG_IF_ERROR(pixels == NULL,
                  "Failed to load texture %s!", imagePath)
@@ -789,27 +894,27 @@ void textureImageCreate(State_t *state)
 
     imageCreate(state, width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                &state->renderer.textureImage, &state->renderer.textureImageMemory);
+                &state->renderer.atlasTextureImage, &state->renderer.atlasTextureImageMemory);
 
     // Transition the image for copy
     // Undefined because don't care about original contents of the image before the copy operation
-    imageLayoutTransition(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+    imageLayoutTransition(state, state->renderer.atlasTextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    bufferCopyToImage(state, stagingBuffer, state->renderer.textureImage, (uint32_t)width, (uint32_t)height);
+    bufferCopyToImage(state, stagingBuffer, state->renderer.atlasTextureImage, (uint32_t)width, (uint32_t)height);
 
     // Transition the image for sampling
-    imageLayoutTransition(state, state->renderer.textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+    imageLayoutTransition(state, state->renderer.atlasTextureImage, VK_FORMAT_R8G8B8A8_SRGB,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
     vkFreeMemory(state->context.device, stagingBufferMemory, state->context.pAllocator);
 }
 
-void textureImageDestroy(State_t *state)
+void atlasTextureImageDestroy(State_t *state)
 {
-    vkDestroyImage(state->context.device, state->renderer.textureImage, state->context.pAllocator);
-    vkFreeMemory(state->context.device, state->renderer.textureImageMemory, state->context.pAllocator);
+    vkDestroyImage(state->context.device, state->renderer.atlasTextureImage, state->context.pAllocator);
+    vkFreeMemory(state->context.device, state->renderer.atlasTextureImageMemory, state->context.pAllocator);
 }
 
 void commandBufferAllocate(State_t *state)
@@ -933,7 +1038,7 @@ void commandBufferRecord(State_t *state)
 
     // DRAW ! ! ! ! !
     // Not using instanced rendering so just 1 instance with nothing for the offset
-    vkCmdDrawIndexed(cmd, state->renderer.indexCount, 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, state->renderer.modelIndexCount, 1, 0, 0, 0);
 
     // Must end the render pass if has begun (obviously)
     vkCmdEndRenderPass(cmd);
@@ -1135,14 +1240,22 @@ void updateUniformBuffer(State_t *state)
     // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
     // instead of having stutter with frames.
 
-    Quaternion_t qYaw = la_quatAngleAxis(la_deg2radf(90.0F) * (float)state->time.frameTimeTotal, Y_AXIS);
-    Quaternion_t qPitch = la_quatAngleAxis(la_deg2radf(45.0F) * (float)state->time.frameTimeTotal, X_AXIS);
-    Quaternion_t qCombined = la_quatMultiply(qYaw, qPitch);
+    float rotateDegreesY = 45.0F;
+    float rotateDegreesX = 45.0F;
+    float rotateDegreesZ = 45.0F;
+
+    Quaternion_t qYaw = la_quatAngleAxis(la_deg2radf(rotateDegreesY) * (float)state->time.frameTimeTotal, Y_AXIS);
+    Quaternion_t qPitch = la_quatAngleAxis(la_deg2radf(rotateDegreesX) * (float)state->time.frameTimeTotal, X_AXIS);
+    Quaternion_t qRoll = la_quatAngleAxis(la_deg2radf(rotateDegreesZ) * (float)state->time.frameTimeTotal, Z_AXIS);
+    Quaternion_t qTemp = la_quatMultiply(qYaw, qPitch);
+    Quaternion_t qCombined = la_quatMultiply(qTemp, qRoll);
     Mat4c_t model = la_quat2mat(qCombined);
 
     UniformBufferObject_t ubo = {
         .model = model,
-        .view = la_lookAt((Vec3f_t){2.0F, 2.0F, 2.0F}, VEC3_ONE, FORWARD),
+        .view = la_lookAt((Vec3f_t){0.0F, 3.0F, -3.0F}, // camera position
+                          VEC3_ZERO,                    // look at origin
+                          UP),                          // up = +Y
         .projection = la_perspective(la_deg2radf(45.0F),
                                      state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
                                      0.1F, 10.0F),
@@ -1222,7 +1335,7 @@ void descriptorSetsCreate(State_t *state)
 
         VkDescriptorImageInfo imageInfo = {
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .imageView = state->renderer.textureImageView,
+            .imageView = state->renderer.atlasTextureImageView,
             .sampler = state->renderer.textureSampler,
         };
 
@@ -1280,23 +1393,23 @@ VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkIm
         .components = state->config.swapchainComponentMapping,
     };
 
-    VkImageView textureImageView;
-    LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &textureImageView),
+    VkImageView imageView;
+    LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &imageView),
                  "Failed to create image view!")
 
-    return textureImageView;
+    return imageView;
 }
 
-void textureViewImageCreate(State_t *state)
+void atlasTextureViewImageCreate(State_t *state)
 {
     // Written this way to support looping in the future
-    state->renderer.textureImageView = imageViewCreate(state, state->renderer.textureImage,
-                                                       VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+    state->renderer.atlasTextureImageView = imageViewCreate(state, state->renderer.atlasTextureImage,
+                                                            VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
-void textureImageViewDestroy(State_t *state)
+void atlasTextureImageViewDestroy(State_t *state)
 {
-    vkDestroyImageView(state->context.device, state->renderer.textureImageView, state->context.pAllocator);
+    vkDestroyImageView(state->context.device, state->renderer.atlasTextureImageView, state->context.pAllocator);
 }
 
 void textureSamplerCreate(State_t *state)
@@ -1372,9 +1485,19 @@ void depthResourcesDestroy(State_t *state)
     vkFreeMemory(state->context.device, state->renderer.depthImageMemory, state->context.pAllocator);
 }
 
+static inline void atlasRegionUVApply(State_t *state, uint32_t index, ShaderVertex_t *verts, size_t start, size_t count, AtlasRegion_t region)
+{
+    for (size_t i = 0; i < count; i++)
+    {
+        Vec2f_t uv = verts[start + i].texCoord;
+        verts[start + i].texCoord.x = region.uvMin.x + uv.x * (region.uvMax.x - region.uvMin.x);
+        verts[start + i].texCoord.y = region.uvMin.y + uv.y * (region.uvMax.y - region.uvMin.y);
+    }
+}
+
 void modelLoad(State_t *state)
 {
-    const char *path = MODEL_PATH "hello_world.glb";
+    const char *path = MODEL_PATH "base_16x16_block.glb";
 
     cgltf_options options = {0};
     cgltf_data *data = NULL;
@@ -1504,22 +1627,38 @@ void modelLoad(State_t *state)
         }
     }
 
-    logger(LOG_INFO, "Model vertex count: %zu", vertexCount);
-    logger(LOG_INFO, "Model index count: %zu", indexCount);
+    // Assign each face to an atlas region
+    const int vertsPerFace = 4;
+    const FaceTexture_t FACE_TEXTURES[6] = {
+        [FACE_LEFT] = {MELON_SIDE, TEX_ROT_0},
+        [FACE_RIGHT] = {MELON_SIDE, TEX_ROT_270},
+        [FACE_TOP] = {MELON_TOP, TEX_ROT_0},
+        [FACE_BOTTOM] = {MELON_TOP, TEX_ROT_90},
+        [FACE_FRONT] = {MELON_SIDE, TEX_ROT_270},
+        [FACE_BACK] = {MELON_SIDE, TEX_ROT_0},
+    };
+
+    for (int face = 0; face < 6; face++)
+    {
+        const FaceTexture_t tex = FACE_TEXTURES[face];
+        const AtlasRegion_t *region = &state->renderer.pAtlasRegions[tex.atlasIndex];
+
+        assignFaceUVs(vertices, face * vertsPerFace, region, tex.rotation);
+    }
 
     // Upload to GPU
     vertexBufferCreateFromData(state, vertices, (uint32_t)vertexCount);
     indexBufferCreateFromData(state, indices, (uint32_t)indexCount);
 
     // Store index count in renderer for drawing
-    state->renderer.indexCount = (uint32_t)indexCount;
+    state->renderer.modelIndexCount = (uint32_t)indexCount;
 
     // Cleanup CPU-side memory
     free(vertices);
     free(indices);
     cgltf_free(data);
 
-    logger(LOG_INFO, "Model successfully uploaded to GPU: %s", path);
+    logger(LOG_DEBUG, "Model successfully uploaded to GPU: %s", path);
 }
 
 void modelDestroy(State_t *state)
@@ -1527,24 +1666,106 @@ void modelDestroy(State_t *state)
     // Placeholder. Model destruction currently handled by buffer destruction
 }
 
+void atlasDestroy(State_t *state)
+{
+    free(state->renderer.pAtlasRegions);
+    state->renderer.pAtlasRegions = NULL;
+}
+
+/*
+    The atlas is index bottom left to top right sequentially
+    3 4 5
+    0 1 2
+*/
+void atlasCreate(State_t *state)
+{
+    logger(LOG_INFO, "Creating texture atlas regions...");
+
+    atlasDestroy(state);
+
+    state->renderer.pAtlasRegions = malloc(sizeof(AtlasRegion_t) * state->renderer.atlasRegionCount);
+    LOG_IF_ERROR(state->renderer.pAtlasRegions == NULL,
+                 "Failed to allocate memory for the atlas texture regions!")
+
+    const float dU = 1.0f / (float)state->renderer.atlasWidthInTiles;
+    const float dV = 1.0f / (float)state->renderer.atlasHeightInTiles;
+
+    uint32_t regionIndex = 0U;
+    for (uint32_t y = 0; y < state->renderer.atlasHeightInTiles; y++)
+    {
+        for (uint32_t x = 0; x < state->renderer.atlasWidthInTiles; x++)
+        {
+            float u0 = (float)x * dU;
+            float v0 = (float)y * dV;
+            float u1 = u0 + dU;
+            float v1 = v0 + dV;
+
+            state->renderer.pAtlasRegions[regionIndex] = (AtlasRegion_t){
+                .uvMin = {u0, v0},
+                .uvMax = {u1, v1},
+            };
+
+            regionIndex++;
+        }
+    }
+
+    logger(LOG_INFO, "Generated %u atlas UV regions (%dx%d).",
+           state->renderer.atlasRegionCount, state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles);
+
+    logger(LOG_INFO, "tilesX=%u tilesY=%u  |  dU=%.5f dV=%.5f",
+           state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles,
+           dU,
+           dV);
+
+    AtlasRegion_t r = state->renderer.pAtlasRegions[0];
+    logger(LOG_INFO, "Region[0]: uvMin=(%.5f,%.5f) uvMax=(%.5f,%.5f) span=(%.5f,%.5f)",
+           r.uvMin.x, r.uvMin.y, r.uvMax.x, r.uvMax.y,
+           r.uvMax.x - r.uvMin.x, r.uvMax.y - r.uvMin.y);
+}
+
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
+    // Must exist before anything that references it
     renderPassCreate(state);
     descriptorSetLayoutCreate(state);
     graphicsPipelineCreate(state);
+
+    // Needed for all staging/copies and one-time commands
     commandPoolCreate(state);
-    modelLoad(state);
-    // vertexBufferCreate(state);
-    // indexBufferCreate(state);
-    uniformBuffersCreate(state);
-    depthResourcesCreate(state);
-    framebuffersCreate(state);
-    textureImageCreate(state);
-    textureViewImageCreate(state);
+
+    // Atlas resources FIRST (image -> view -> sampler -> regions)
+    // so modelLoad can remap UVs using pAtlasRegions
+    // loads atlas.png, creates VkImage + memory
+    atlasTextureImageCreate(state);
+    // view for the atlas image
+    atlasTextureViewImageCreate(state);
+    // sampler used by descriptors
     textureSamplerCreate(state);
+    // call the dynamic atlas region builder *after* you know width/height
+    // fills renderer.pAtlasRegions[0..N)
+    atlasCreate(state);
+
+    // Model upload that may use pAtlasRegions for UV remap
+    // builds vertex/index buffers
+    modelLoad(state);
+
+    // Per-frame resources that descriptors will point at
+    // UBOs (needed before descriptorSetsCreate)
+    uniformBuffersCreate(state);
+
+    // Depth & framebuffers must happen before recording
+    // creates depth image + view
+    depthResourcesCreate(state);
+    // needs swapchain views + depth view + render pass
+    framebuffersCreate(state);
+
+    // Descriptor pool/sets AFTER UBO + atlas view + sampler exist
     descriptorPoolCreate(state);
+    // writes UBO & combined image sampler
     descriptorSetsCreate(state);
+
+    // Command buffers and sync last
     commandBufferAllocate(state);
     syncObjectsCreate(state);
 }
@@ -1555,19 +1776,34 @@ void rendererDestroy(State_t *state)
     // destroyed while the GPU is still working. We should wait for the GPU to finish its current tasks.
     LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
                  "Failed to wait for the Vulkan graphicsQueue to be idle.")
+    // Stop GPU use first
     syncObjectsDestroy(state);
-    textureSamplerDestroy(state);
-    textureImageViewDestroy(state);
-    textureImageDestroy(state);
+
+    // Descriptors before destroying underlying resources
     descriptorSetsDestroy(state);
     descriptorPoolDestroy(state);
+
+    // Framebuffer graph
     framebuffersDestroy(state);
     depthResourcesDestroy(state);
+
+    // Per-model buffers
     uniformBuffersDestroy(state);
     indexBufferDestroy(state);
     vertexBufferDestroy(state);
     modelDestroy(state);
+
+    // Atlas GPU resources
+    textureSamplerDestroy(state);
+    atlasTextureImageViewDestroy(state);
+    atlasTextureImageDestroy(state);
+    // frees pAtlasRegions (heap)
+    atlasDestroy(state);
+
+    // Command pool after any single-time buffers etc. are destroyed
     commandPoolDestroy(state);
+
+    // Pipeline objects last
     graphicsPipelineDestroy(state);
     renderPassDestroy(state);
 }
