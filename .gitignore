@@ -15,6 +15,9 @@ _CPack_Packages/
 *.dylib
 *.a
 *.lib
+lib/
+blockbench/
+gimp/
 
 # Object files
 *.o

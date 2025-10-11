@@ -2,7 +2,9 @@
 
 #define PROGRAM_NAME "VoxelC"
 // exe is in ./bin so you have to first go up a directory
+#define TEXTURE_ATLAS "atlas.png"
 #define RESOURCE_TEXTURE_PATH "../res/textures/"
+#define MODEL_PATH "../res/models/"
 #define PI_D 3.1415926535897931
 #define PI_F 3.1415927F
 
@@ -33,6 +35,36 @@ typedef enum
 
 typedef struct
 {
+    float x, y;
+} Vec2f_t;
+
+typedef struct
+{
+    float x, y, z;
+} Vec3f_t;
+
+// A w of 0 means rotation and 1 means position
+typedef struct
+{
+    float x, y, z, w;
+} Vec4f_t;
+
+typedef struct
+{
+    float qx, qy, qz, qw;
+} Quaternion_t;
+
+// A region represents the subtexture located on the atlas
+typedef struct
+{
+    // Lower-left corner (U,V) in atlas (0–1)
+    Vec2f_t uvMin;
+    // Upper-right corner (U,V) in atlas (0–1)
+    Vec2f_t uvMax;
+} AtlasRegion_t;
+
+typedef struct
+{
     const char *pApplicationName;
     const char *pEngineName;
     const char *pWindowTitle;
@@ -50,6 +82,8 @@ typedef struct
     double fixedTimeStep; // ex: 1.0 / 50.0
     uint32_t maxPhysicsFrameDelay;
     bool vulkanValidation;
+    // Size in pixels of each subtexture on the texture atlas. Minecraft is 16px
+    uint32_t subtextureSize;
 } Config_t;
 
 typedef struct
@@ -131,15 +165,20 @@ typedef struct
     VkDescriptorPool descriptorPool;
     VkDescriptorSet *pDescriptorSets;
     // Change these to arrays once more than one texture is loaded
-    VkImage textureImage;
-    VkDeviceMemory textureImageMemory;
-    VkImageView textureImageView;
+    VkImage atlasTextureImage;
+    VkDeviceMemory atlasTextureImageMemory;
+    VkImageView atlasTextureImageView;
     uint32_t anisotropicFilteringOptionsCount;
     AnisotropicFilteringOptions_t *anisotropicFilteringOptions;
     VkSampler textureSampler;
     VkImage depthImage;
     VkDeviceMemory depthImageMemory;
     VkImageView depthImageView;
+    uint32_t modelIndexCount;
+    uint32_t atlasRegionCount;
+    uint32_t atlasWidthInTiles;
+    uint32_t atlasHeightInTiles;
+    AtlasRegion_t *pAtlasRegions;
 } Renderer_t;
 
 typedef struct
@@ -150,27 +189,6 @@ typedef struct
     Renderer_t renderer;
     Time_t time;
 } State_t;
-
-typedef struct
-{
-    float x, y;
-} Vec2f_t;
-
-typedef struct
-{
-    float x, y, z;
-} Vec3f_t;
-
-// A w of 0 means rotation and 1 means position
-typedef struct
-{
-    float x, y, z, w;
-} Vec4f_t;
-
-typedef struct
-{
-    float qx, qy, qz, qw;
-} Quaternion_t;
 
 // Directions
 static const Vec3f_t RIGHT = {1.0f, 0.0f, 0.0f};
@@ -236,3 +254,20 @@ typedef struct
     alignas(16) Mat4c_t view;
     alignas(16) Mat4c_t projection;
 } UniformBufferObject_t;
+
+typedef enum
+{
+    // Only included noteworthy ones for now
+    DEBUG_0 = 0,
+    DEBUG_1 = 1,
+    DEBUG_2 = 2,
+    DEBUG_3 = 3,
+    DEBUG_4 = 4,
+    DEBUG_5 = 5,
+    NETHERRACK = 4,
+    NOTE_BLOCK = 5,
+    OBSIDIAN = 6,
+    OAK_PLANKS = 15,
+    MELON_SIDE = 33,
+    MELON_TOP = 36,
+} AtlasFace_t;

@@ -3,6 +3,16 @@
     "files.associations": {
         "stb_image.h": "c",
         "format": "c",
-        "vector": "c"
+        "vector": "c",
+        "xutility": "c",
+        "array": "c",
+        "compare": "c",
+        "functional": "c",
+        "memory": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "xmemory": "c",
+        "xtr1common": "c"
     }
 }

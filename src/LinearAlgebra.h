@@ -107,6 +107,133 @@ Quaternion_t la_quatNormalize(Quaternion_t quat)
     }
 }
 
+// Multiply two quaternions (rotation composition)
+// Order matters: q = q1 * q2 means "apply q2, then q1"
+Quaternion_t la_quatMultiply(Quaternion_t a, Quaternion_t b)
+{
+    return (Quaternion_t){
+        .qx = a.qw * b.qx + a.qx * b.qw + a.qy * b.qz - a.qz * b.qy,
+        .qy = a.qw * b.qy - a.qx * b.qz + a.qy * b.qw + a.qz * b.qx,
+        .qz = a.qw * b.qz + a.qx * b.qy - a.qy * b.qx + a.qz * b.qw,
+        .qw = a.qw * b.qw - a.qx * b.qx - a.qy * b.qy - a.qz * b.qz,
+    };
+}
+
+// Create a quaternion representing rotation about an axis
+Quaternion_t la_quatAngleAxis(float radians, Vec3f_t axis)
+{
+    float len = sqrtf(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
+    if (len < 1e-6f)
+    {
+        // Avoid divide by zero, fallback to identity
+        return QUAT_IDENTITY;
+    }
+
+    float s = sinf(radians * 0.5f);
+    float c = cosf(radians * 0.5f);
+
+    float nx = axis.x / len;
+    float ny = axis.y / len;
+    float nz = axis.z / len;
+
+    return (Quaternion_t){
+        .qx = nx * s,
+        .qy = ny * s,
+        .qz = nz * s,
+        .qw = c,
+    };
+}
+
+// Rotate one quaternion toward another (spherical linear interpolation)
+Quaternion_t la_quatSlerp(Quaternion_t a, Quaternion_t b, float t)
+{
+    // Clamp t [0, 1]
+    if (t < 0.0f)
+        t = 0.0f;
+    else if (t > 1.0f)
+        t = 1.0f;
+
+    // Compute cosine of the angle between the two quaternions
+    float dot = a.qx * b.qx + a.qy * b.qy + a.qz * b.qz + a.qw * b.qw;
+
+    // If dot < 0, the quaternions are opposite so negate one to take the shortest path
+    if (dot < 0.0f)
+    {
+        b.qx = -b.qx;
+        b.qy = -b.qy;
+        b.qz = -b.qz;
+        b.qw = -b.qw;
+        dot = -dot;
+    }
+
+    const float DOT_THRESHOLD = 0.9995f;
+    if (dot > DOT_THRESHOLD)
+    {
+        // Quaternions are the same so use linear interpolation
+        Quaternion_t result = {
+            .qx = a.qx + t * (b.qx - a.qx),
+            .qy = a.qy + t * (b.qy - a.qy),
+            .qz = a.qz + t * (b.qz - a.qz),
+            .qw = a.qw + t * (b.qw - a.qw),
+        };
+        return la_quatNormalize(result);
+    }
+
+    // Compute the angle between them
+    float theta_0 = acosf(dot);
+    float theta = theta_0 * t;
+
+    float sin_theta_0 = sinf(theta_0);
+    float sin_theta = sinf(theta);
+
+    float s0 = cosf(theta) - dot * sin_theta / sin_theta_0;
+    float s1 = sin_theta / sin_theta_0;
+
+    Quaternion_t result = {
+        .qx = (a.qx * s0) + (b.qx * s1),
+        .qy = (a.qy * s0) + (b.qy * s1),
+        .qz = (a.qz * s0) + (b.qz * s1),
+        .qw = (a.qw * s0) + (b.qw * s1),
+    };
+
+    return la_quatNormalize(result);
+}
+
+// Convert quaternion to axis-angle representation
+void la_quatToAxisAngle(Quaternion_t q, Vec3f_t *axis, float *angle)
+{
+    q = la_quatNormalize(q);
+    float sinHalfAngle = sqrtf(1.0f - q.qw * q.qw);
+
+    if (sinHalfAngle < 1e-6f)
+    {
+        // Angle is zero so arbitrary axis
+        *axis = (Vec3f_t){1.0f, 0.0f, 0.0f};
+        *angle = 0.0f;
+    }
+    else
+    {
+        *axis = (Vec3f_t){
+            .x = q.qx / sinHalfAngle,
+            .y = q.qy / sinHalfAngle,
+            .z = q.qz / sinHalfAngle,
+        };
+        *angle = 2.0f * acosf(q.qw);
+    }
+}
+
+// Apply quaternion rotation to a vector (v' = q * v * q^-1)
+Vec3f_t la_quatRotateVec3(Quaternion_t q, Vec3f_t v)
+{
+    Quaternion_t qv = {.qx = v.x, .qy = v.y, .qz = v.z, .qw = 0.0f};
+
+    Quaternion_t qvRot = la_quatMultiply(q, qv);
+    Quaternion_t qConj = {.qx = -q.qx, .qy = -q.qy, .qz = -q.qz, .qw = q.qw};
+    Quaternion_t qResult = la_quatMultiply(qvRot, qConj);
+
+    return (Vec3f_t){qResult.qx, qResult.qy, qResult.qz};
+}
+
 // Column-major matrix × vector
 Vec4f_t la_matrixTransform(Mat4c_t matrix, Vec4f_t v)
 {

@@ -15,8 +15,27 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/bin")
 
+add_library(stb STATIC lib/stb/stb_image_impl.c)
+add_library(cgltf STATIC lib/stb/cgltf_impl.c)
+target_include_directories(stb PUBLIC lib/stb)
+target_compile_options(stb PRIVATE -w)
+
+# Ignore stncpy warnings from cgltf
+if(MSVC)
+    target_compile_definitions(cgltf PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(cgltf PRIVATE /w)
+else()
+    target_compile_options(cgltf PRIVATE -w)
+endif()
+
 # Create executable
 add_executable(VoxelC ${SOURCES})
+
+# Add stb lib
+target_include_directories(VoxelC PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/lib/stb
+)
 
 # Include headers from src/ (so #include "Logger.h" works)
 target_include_directories(VoxelC PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -24,6 +43,8 @@ target_include_directories(VoxelC PRIVATE ${CMAKE_SOURCE_DIR}/src)
 # --- Find Vulkan ---
 find_package(Vulkan REQUIRED)
 target_link_libraries(VoxelC PRIVATE Vulkan::Vulkan)
+target_link_libraries(VoxelC PRIVATE stb)
+target_link_libraries(VoxelC PRIVATE stb cgltf)
 
 # --- Add static GLFW manually ---
 set(GLFW_INCLUDE_DIR "C:/vcpkg/installed/x64-windows-static/include")

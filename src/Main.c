@@ -35,6 +35,7 @@ int main(void)
         // Skip if more than x frames accumulated
         .maxPhysicsFrameDelay = 10,
         .vulkanValidation = true,
+        .subtextureSize = 16,
     };
 
     State_t state = {

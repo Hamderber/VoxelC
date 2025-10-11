@@ -37,12 +37,14 @@ Engine:
    there will be no y coordinate. Thus, this will happen on a purely 2d plane. These chunk coordinates
    are signed 32-bit integers.
 2. DO NOT USE #pragma pack AT ALL (will break alignment for linear algebra used to copy into shaders)
+3. When using Blockbench to export a model, MAKE SURE THE UV SCALE IS THE SAME AS THE EXPORT SCALE! (16)
 
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
 2. Vertex buffer: https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 3. Rendering matricies: https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/
 4. https://github.com/nothings/stb
+5. https://github.com/jkuhlmann/cgltf
 
 TODO:
 1. At some point in the future, check EVERY entry of LOG_IF_ERROR to ensure that if anything allocates memory but fails,
@@ -62,4 +64,6 @@ TODO:
 7. Consider adding a folder abstraction to contain everything in .voxelc kind of like .minecraft with just the exe in the root folder
 8. Look into the 3d texture mapping discussion about linear tiling and 3d textures for voxel data
 9. Create a setup command buffer like mentioned near the end of https://vulkan-tutorial.com/Texture_mapping/Images
-12. Blockbench .glb model loader via https://github.com/jkuhlmann/cgltf
+12. Blockbench .glb model loader via https://github.com/jkuhlmann/cgltf or obj https://github.com/tinyobjloader/tinyobjloader (prob. this one)
+13. ValidateModels.bat to verify vercicies are <= 65535
+14. Texture atlas stitching
