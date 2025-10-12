@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 #include "core/vk_instance.h"
 #include "core/glfw_instance.h"
 #include "gui/swapchain.h"

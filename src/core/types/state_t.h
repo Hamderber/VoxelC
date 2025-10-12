@@ -1,10 +1,10 @@
 #pragma once
 
 #include "core/config.h"
-#include "window_t.h"
-#include "context_t.h"
+#include "core/types/window_t.h"
+#include "core/types/context_t.h"
 #include "core/app_time.h"
-#include "renderer_t.h"
+#include "core/types/renderer_t.h"
 
 typedef struct
 {

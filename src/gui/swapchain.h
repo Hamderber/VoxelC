@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 
 void sc_imageAcquireNext(State_t *state);
 

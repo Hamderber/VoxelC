@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 #include <vulkan/vulkan.h>
 
 static const char *pVALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};

@@ -1,18 +1,6 @@
 #pragma once
 
-// #include "core/state.h"
-
-typedef struct
-{
-    // Time since last frame
-    double frameTimeDelta;
-    // Actual last time (not delta)
-    double frameTimeLast;
-    double frameTimeTotal;
-    double framesPerSecond;
-    // Fixed-step physics
-    double fixedTimeAccumulated;
-} Time_t;
+#include "core/types/time_t.h"
 
 void time_init(Time_t *time);
 

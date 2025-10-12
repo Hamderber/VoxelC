@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 
 /// @brief Gets the best supported depth format
 /// @param state

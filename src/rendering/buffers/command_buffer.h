@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 
 VkCommandBuffer commandBufferSingleTimeBegin(State_t *state)
 {

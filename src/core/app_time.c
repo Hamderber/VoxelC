@@ -1,5 +1,5 @@
 #include <GLFW/glfw3.h>
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 #include "app_time.h"
 
 /// @brief Sets app (GLFW) time and state time to zero

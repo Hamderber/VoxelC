@@ -1,8 +1,8 @@
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 #include <vulkan/vulkan.h>
 #include <string.h>
 #include <stdlib.h>
-#include "vk_instance.h"
+#include "core/vk_instance.h"
 
 /// @brief Logs the Vukan version
 /// @param  void

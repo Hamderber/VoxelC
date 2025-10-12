@@ -1,6 +1,6 @@
 #pragma once
 
-#include "swapchain_t.h"
+#include "core/types/swapchain_t.h"
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 

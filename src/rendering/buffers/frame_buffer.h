@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "core/logs.h"
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 #include <vulkan/vulkan.h>
 #include "rendering/buffers/buffers.h"
 
