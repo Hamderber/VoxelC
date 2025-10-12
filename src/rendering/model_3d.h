@@ -10,20 +10,8 @@
 #include "rendering/buffers/buffers.h"
 #include "rendering/buffers/index_buffer.h"
 #include "rendering/buffers/vertex_buffer.h"
-
+#include "rendering/types/uniformBufferObject_t.h"
 // Rendering
-// https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/
-// Struct members are the same as the shader codes'
-typedef struct
-{
-    // It is critical to make sure that the sizing is
-    // alligned for use with vulkan and shaders. 16 per row.
-    // So for values less than 16 do Ex: alignas(16) float foo;
-    // Just have everything start with alignas for safety
-    alignas(16) Mat4c_t model;
-    alignas(16) Mat4c_t view;
-    alignas(16) Mat4c_t projection;
-} UniformBufferObject_t;
 
 /// @brief Loads a 3d model (.glb file)
 /// @param state
