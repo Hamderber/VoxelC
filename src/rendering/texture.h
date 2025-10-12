@@ -1,28 +1,9 @@
 #pragma once
 
 #include <string.h>
-#include "rendering/atlas_texture.h"
 #include "c_math/c_math.h"
-
-typedef enum
-{
-    // default
-    TEX_ROT_0 = 0,
-    // clockwise
-    TEX_ROT_90 = 1,
-    TEX_ROT_180 = 2,
-    TEX_ROT_270 = 3,
-    TEX_FLIP_X = 4,
-    TEX_FLIP_Y = 5,
-} TextureRotation_t;
-
-typedef struct
-{
-    // which tile in the atlas
-    AtlasFace_t atlasIndex;
-    // rotation/flip to apply
-    TextureRotation_t rotation;
-} FaceTexture_t;
+#include "rendering/types/textureRotation_t.h"
+#include "core/types/state_t.h"
 
 static inline void applyTextureRotation(Vec2f_t outUVs[4], const Vec2f_t inUVs[4], TextureRotation_t rotation)
 {
@@ -69,3 +50,7 @@ static inline void applyTextureRotation(Vec2f_t outUVs[4], const Vec2f_t inUVs[4
         break;
     }
 }
+
+void textureSamplerCreate(State_t *state);
+
+void textureSamplerDestroy(State_t *state);

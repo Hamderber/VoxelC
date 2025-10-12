@@ -31,7 +31,7 @@ void indexBufferCreateFromData(State_t *state, uint16_t *indices, uint32_t index
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
     vkFreeMemory(state->context.device, stagingMemory, state->context.pAllocator);
 
-    logs_log(LOG_INFO, "Created index buffer (%u indices, %zu bytes).", indexCount, (size_t)bufferSize);
+    logs_log(LOG_DEBUG, "Created index buffer (%u indices, %zu bytes).", indexCount, (size_t)bufferSize);
 }
 
 void indexBufferDestroy(State_t *state)

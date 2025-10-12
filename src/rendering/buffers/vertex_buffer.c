@@ -38,7 +38,7 @@ void vertexBufferCreateFromData(State_t *state, ShaderVertex_t *vertices, uint32
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
     vkFreeMemory(state->context.device, stagingMemory, state->context.pAllocator);
 
-    logs_log(LOG_INFO, "Created vertex buffer (%u vertices, %zu bytes).", vertexCount, (size_t)bufferSize);
+    logs_log(LOG_DEBUG, "Created vertex buffer (%u vertices, %zu bytes).", vertexCount, (size_t)bufferSize);
 }
 
 void vertexBufferDestroy(State_t *state)

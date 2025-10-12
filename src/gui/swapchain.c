@@ -104,7 +104,7 @@ static void sc_imagesGet(State_t *state)
     logs_logIfError(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
                                             &state->window.swapchain.imageCount, NULL),
                     "Failed to query the number of images in the swapchain.")
-        logs_log(LOG_INFO, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
+        logs_log(LOG_DEBUG, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
 
     state->window.swapchain.pImages = malloc(sizeof(VkImage) * state->window.swapchain.imageCount);
     logs_logIfError(state->window.swapchain.pImages == NULL,
@@ -200,7 +200,7 @@ static void sc_imagesInFlightFree(State_t *state)
 /// @param state
 void sc_create(State_t *state)
 {
-    logs_log(LOG_INFO, "Creating the swapchain...");
+    logs_log(LOG_DEBUG, "Creating the swapchain...");
 
     VkSurfaceCapabilitiesKHR capabilities = win_surfaceCapabilitiesGet(&state->context, &state->window);
 

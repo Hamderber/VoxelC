@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "core/logs.h"
 #include <GLFW/glfw3.h>
-#include "core/state/state.h"
+#include "core/types/state_t.h"
 
 /// @brief Logs the GLFW version
 /// @param  void

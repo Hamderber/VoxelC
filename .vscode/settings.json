@@ -52,6 +52,12 @@
         "renderer_t.h": "c",
         "state_t.h": "c",
         "image.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "uniformbufferobject_t.h": "c",
+        "uniform_buffer.h": "c",
+        "string.h": "c",
+        "syncobjects.h": "c",
+        "graphics_pipeline.h": "c",
+        "stdint.h": "c"
     }
 }

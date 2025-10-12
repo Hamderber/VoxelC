@@ -3,59 +3,66 @@
 #include <time.h>
 #include "c_math/c_math.h"
 
-static uint32_t rng_state;
-static uint32_t rng_seed;
+static uint32_t state;
+static uint32_t rand_seed;
 
-uint32_t rand_seedGet(void)
+/// @brief Gets the current rng state value (changes each query)
+/// @param void
+/// @return uint32_t
+uint32_t rand_stateGet(void)
 {
-    return rng_state;
+    return state;
 }
 
-uint32_t rand_next_u32(void)
+/// @brief Gets the original rng seed
+/// @param  void
+/// @return uint32_t
+uint32_t rand_seedGet(void)
 {
-    uint32_t x = rng_state;
+    return rand_seed;
+}
+
+uint32_t rand_nextU32t(void)
+{
+    uint32_t x = state;
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
-    return rng_state = x;
+    return state = x;
 }
 
-int8_t rand_range8bit(uint32_t numBits)
+int64_t rand_rangeNbit(int numBits)
 {
-    numBits = cm_clampu32t(numBits, 1, 8);
-    uint8_t range = (uint8_t)(1U << numBits);
-    uint8_t r = (uint8_t)rand_next_u32();
-    return (int8_t)((r % range) - (range >> 1));
+    numBits = cm_clampu32t(numBits, 1, 31);
+
+    // Fix always getting 0 because of the shifting correction from larger numbers
+    if (numBits == 1)
+    {
+        return (rand_nextU32t() & 1u) ? 1 : -1;
+    }
+
+    // Build an unsigned integer with exactly numBits of entropy
+    uint64_t value = 0;
+    int bitsRemaining = numBits;
+    while (bitsRemaining > 0)
+    {
+        // Take chunks from rand_nextU32t() 32 bits at a time
+        uint32_t chunk = rand_nextU32t();
+        int take = bitsRemaining > 32 ? 32 : bitsRemaining;
+        value = (value << take) | (chunk & ((1u << take) - 1u));
+        bitsRemaining -= take;
+    }
+
+    // Re-center around 0, mapping the extra negative bin to 0 for symmetry (slightly less variance)
+    int64_t signedVal = (int64_t)(value) - ((int64_t)1 << (numBits - 1));
+    if (signedVal == -(int64_t)(1 << (numBits - 1)))
+        signedVal = 0;
+    return signedVal;
 }
 
 bool rand_5050(void)
 {
-    return rand_range8bit(1);
-}
-
-int16_t rand_range16bit(uint32_t numBits)
-{
-    numBits = cm_clampu32t(numBits, 1, 16);
-    uint16_t range = (uint16_t)(1U << numBits);
-    uint16_t r = (uint16_t)rand_next_u32();
-    return (int16_t)((r % range) - (range >> 1));
-}
-
-int32_t rand_range32bit(uint32_t numBits)
-{
-    numBits = cm_clampu32t(numBits, 1, 32);
-    uint32_t range = (numBits == 32) ? UINT32_MAX : (1U << numBits);
-    uint32_t r = rand_next_u32();
-    return (int32_t)((r % range) - (range >> 1));
-}
-
-int64_t rand_range64bit(uint32_t numBits)
-{
-    numBits = cm_clampu32t(numBits, 1, 64);
-    uint64_t range = (numBits == 64) ? UINT64_MAX : (1ULL << numBits);
-    // Mix two xorshift32 values to get 64-bit output
-    uint64_t r = ((uint64_t)rand_next_u32() << 32) | rand_next_u32();
-    return (int64_t)((r % range) - (range >> 1));
+    return rand_rangeNbit(1);
 }
 
 void rand_init(uint32_t seed)
@@ -66,6 +73,6 @@ void rand_init(uint32_t seed)
         seed = (uint32_t)time(NULL);
     }
 
-    rng_state = seed;
-    rng_seed = seed;
+    state = seed;
+    rand_seed = seed;
 }

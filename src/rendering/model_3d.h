@@ -11,7 +11,8 @@
 #include "rendering/buffers/index_buffer.h"
 #include "rendering/buffers/vertex_buffer.h"
 #include "rendering/types/uniformBufferObject_t.h"
-// Rendering
+#include "rendering/types/faceTexture_t.h"
+#include "main.h"
 
 /// @brief Loads a 3d model (.glb file)
 /// @param state
@@ -48,10 +49,10 @@ void m3d_load(State_t *state)
         return;
     }
 
-    logs_log(LOG_INFO, "Loaded model: %s", path);
-    logs_log(LOG_INFO, "Meshes: %zu", data->meshes_count);
-    logs_log(LOG_INFO, "Materials: %zu", data->materials_count);
-    logs_log(LOG_INFO, "Nodes: %zu", data->nodes_count);
+    logs_log(LOG_DEBUG, "Loaded model: %s", path);
+    logs_log(LOG_DEBUG, "Meshes: %zu", data->meshes_count);
+    logs_log(LOG_DEBUG, "Materials: %zu", data->materials_count);
+    logs_log(LOG_DEBUG, "Nodes: %zu", data->nodes_count);
 
     // For now, only load the first mesh and its first primitive
     if (data->meshes_count == 0)
@@ -71,7 +72,7 @@ void m3d_load(State_t *state)
 
     cgltf_primitive *prim = &mesh->primitives[0];
 
-    logs_log(LOG_INFO, "Loading mesh: %s (%zu primitives)", mesh->name ? mesh->name : "(unnamed)", mesh->primitives_count);
+    logs_log(LOG_DEBUG, "Loading mesh: %s (%zu primitives)", mesh->name ? mesh->name : "(unnamed)", mesh->primitives_count);
 
     // Extract the accessors for position, texcoord, and optional color
     cgltf_accessor *posAccessor = NULL;

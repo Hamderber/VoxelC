@@ -2,11 +2,10 @@
 
 #include "core/core.h"
 #include "rendering/shaders.h"
-#include "Renderer.h"
+#include "rendering/rendering.h"
 #include "gui/window.h"
 #include "physics/physics.h"
 #include "main.h"
-#include "gui/swapchain.h"
 
 void app_init(State_t *state)
 {
@@ -16,7 +15,7 @@ void app_init(State_t *state)
 
     vki_create(state);
     win_create(state, &state->window, &state->config);
-    rendererCreate(state);
+    rend_create(state);
 
     time_init(&state->time);
 }
@@ -32,26 +31,10 @@ void app_renderLoop(State_t *state)
     // once the user STOPS the resize process.
     if (state->window.swapchain.recreate)
     {
-        // Make sure the GPU is idle. This could be a queue wait plus fence if more wait accuracy is needed
-        vkDeviceWaitIdle(state->context.device);
-        win_waitForValidFramebuffer(&state->window);
-
-        depthResourcesDestroy(state);
-        framebuffersDestroy(state);
-
-        sc_create(state);
-        depthResourcesCreate(state);
-        framebuffersCreate(state);
-
-        logs_log(LOG_INFO, "Re-created the swapchain.");
-        state->window.swapchain.recreate = false;
+        rend_recreate(state);
     }
 
-    updateUniformBuffer(state);
-    sc_imageAcquireNext(state);
-    commandBufferRecord(state);
-    commandBufferSubmit(state);
-    sc_imagePresent(state);
+    rend_present(state);
 
     time_update(&state->time);
 }
@@ -62,7 +45,7 @@ void app_loop(State_t *state)
     {
         physicsLoop(state);
         app_renderLoop(state);
-        // logs_log(LOG_INFO, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
+        // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
     }
 }
 
@@ -71,7 +54,7 @@ void app_cleanup(State_t *state)
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
     // vki_instanceCreate() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.
-    rendererDestroy(state);
+    rend_destroy(state);
     win_destroy(state);
     vki_destroy(state);
     // Best practice to mitigate dangling pointers. Not strictly necessary, though

@@ -16,7 +16,7 @@ void vki_logAPI(void)
     uint32_t apiVersionMinor = VK_API_VERSION_MINOR(instanceAPIVersion);
     uint32_t apiVersionPatch = VK_API_VERSION_PATCH(instanceAPIVersion);
 
-    logs_log(LOG_INFO, "Vulkan API %i.%i.%i.%i", apiVersionVariant, apiVersionMajor, apiVersionMinor, apiVersionPatch);
+    logs_log(LOG_DEBUG, "Vulkan API %i.%i.%i.%i", apiVersionVariant, apiVersionMajor, apiVersionMinor, apiVersionPatch);
 }
 
 /// @brief Logs the physical device's features and capabilities
@@ -24,10 +24,10 @@ void vki_logAPI(void)
 /// @param capabilities
 void vki_logCapabilities(VkPhysicalDeviceFeatures physicalDeviceFeatures, const VkSurfaceCapabilitiesKHR capabilities)
 {
-    logs_log(LOG_INFO, "The physical device has the following features:");
-    logs_log(LOG_INFO, "\t\tImage count range: [%d-%d]", capabilities.minImageCount, capabilities.maxImageCount);
-    logs_log(LOG_INFO, "\t\tMax Image Array Layers: %d", capabilities.maxImageArrayLayers);
-    logs_log(LOG_INFO, "\t\tAnisotropic Filtering: %s", physicalDeviceFeatures.samplerAnisotropy ? "Enabled" : "Disabled");
+    logs_log(LOG_DEBUG, "The physical device has the following features:");
+    logs_log(LOG_DEBUG, "\t\tImage count range: [%d-%d]", capabilities.minImageCount, capabilities.maxImageCount);
+    logs_log(LOG_DEBUG, "\t\tMax Image Array Layers: %d", capabilities.maxImageArrayLayers);
+    logs_log(LOG_DEBUG, "\t\tAnisotropic Filtering: %s", physicalDeviceFeatures.samplerAnisotropy ? "Enabled" : "Disabled");
 }
 
 /// @brief Gets the first memory type (best) that matches the property flags for the state's physical device
@@ -89,6 +89,14 @@ VkFormat vki_formatSupportedFind(State_t *state, VkFormat *candidates, size_t ca
 
     // Same as error
     return VK_FORMAT_MAX_ENUM;
+}
+
+/// @brief Checks if the format has VK_FORMAT_D32_SFLOAT_S8_UINT or VK_FORMAT_D24_UNORM_S8_UINT
+/// @param format
+/// @return bool
+bool vki_formatHasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
 /// @brief Enumerates the Vulkan instance's layer properties to determine if the pVALIDATION_LAYERS are supported
@@ -162,7 +170,7 @@ static void vki_instanceCreate(State_t *state)
     {
         createInfo.enabledLayerCount = VALIDATION_LAYER_COUNT;
         createInfo.ppEnabledLayerNames = pVALIDATION_LAYERS;
-        logs_log(LOG_INFO, "Vulkan enabled with validation layers.");
+        logs_log(LOG_DEBUG, "Vulkan enabled with validation layers.");
     }
 
     logs_logIfError(vkCreateInstance(&createInfo, state->context.pAllocator, &state->context.instance),
@@ -177,7 +185,7 @@ static void vki_anisotropicFilteringOptionsGet(State_t *state)
     vkGetPhysicalDeviceProperties(state->context.physicalDevice, &properties);
 
     float afMax = properties.limits.maxSamplerAnisotropy;
-    logs_log(LOG_INFO, "The selected physical device supports up to %.fx anisotropic filtering.", afMax);
+    logs_log(LOG_DEBUG, "The selected physical device supports up to %.fx anisotropic filtering.", afMax);
 
     if (afMax <= 1.0f)
     {
@@ -222,7 +230,7 @@ static void vki_physicalDeviceSelect(State_t *state)
 
         if (count > 0)
     {
-        logs_log(LOG_INFO, "Found %d Vulkan-supported physical device(s):", count);
+        logs_log(LOG_DEBUG, "Found %d Vulkan-supported physical device(s):", count);
 
         VkPhysicalDevice *physicalDevices = malloc(sizeof(VkPhysicalDevice) * count);
         logs_logIfError(physicalDevices == NULL,
@@ -259,7 +267,7 @@ static void vki_physicalDeviceSelect(State_t *state)
 
             preamble = i == 0 ? "(Selected)\t" : "\t\t";
 
-            logs_log(LOG_INFO, "%s%s (%d) %s", preamble, properties.deviceName, properties.deviceID, deviceType);
+            logs_log(LOG_DEBUG, "%s%s (%d) %s", preamble, properties.deviceName, properties.deviceID, deviceType);
         }
 
         state->context.physicalDevice = physicalDevices[0];
@@ -300,7 +308,7 @@ static void vki_queueFamilySelect(State_t *state)
         {
             state->context.queueFamily = queueFamilyIndex;
 
-            logs_log(LOG_INFO, "Selected Queue Family %d of (0-%d) for use with Vulkan and GLFW.", queueFamilyIndex, count - 1);
+            logs_log(LOG_DEBUG, "Selected Queue Family %d of (0-%d) for use with Vulkan and GLFW.", queueFamilyIndex, count - 1);
 
             break;
         }

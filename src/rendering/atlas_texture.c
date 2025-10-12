@@ -23,16 +23,16 @@ void atlasTextureImageCreate(State_t *state)
     // 4 bytes per pixel (RGBA)
     VkDeviceSize imageSize = width * height * 4;
 
-    logs_log(LOG_INFO, "Atlas PNG: %dx%d px, subtextureSize=%u px", width, height, state->config.subtextureSize);
+    logs_log(LOG_DEBUG, "Atlas PNG: %dx%d px, subtextureSize=%u px", width, height, state->config.subtextureSize);
     state->renderer.atlasWidthInTiles = width / state->config.subtextureSize;
     state->renderer.atlasHeightInTiles = height / state->config.subtextureSize;
     state->renderer.atlasRegionCount = state->renderer.atlasWidthInTiles * state->renderer.atlasHeightInTiles;
-    logs_log(LOG_INFO, "The atlas texture has %u regions.", state->renderer.atlasRegionCount);
+    logs_log(LOG_DEBUG, "The atlas texture has %u regions.", state->renderer.atlasRegionCount);
 
     logs_logIfError(pixels == NULL,
                     "Failed to load texture %s!", imagePath)
 
-        logs_log(LOG_INFO, "Loaded texture %s", imagePath);
+        logs_log(LOG_DEBUG, "Loaded texture %s", imagePath);
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -95,7 +95,7 @@ void atlasDestroy(AtlasRegion_t *pAtlasRegions)
 
 AtlasRegion_t *atlasCreate(AtlasRegion_t *pAtlasRegions, uint32_t atlasRegionCount, uint32_t atlasWidthInTiles, uint32_t atlasHeightInTiles)
 {
-    logs_log(LOG_INFO, "Creating texture atlas regions...");
+    logs_log(LOG_DEBUG, "Creating texture atlas regions...");
 
     atlasDestroy(pAtlasRegions);
 
@@ -125,16 +125,16 @@ AtlasRegion_t *atlasCreate(AtlasRegion_t *pAtlasRegions, uint32_t atlasRegionCou
         }
     }
 
-    logs_log(LOG_INFO, "Generated %u atlas UV regions (%dx%d).",
+    logs_log(LOG_DEBUG, "Generated %u atlas UV regions (%dx%d).",
              atlasRegionCount, atlasWidthInTiles, atlasHeightInTiles);
 
-    logs_log(LOG_INFO, "tilesX=%u tilesY=%u  |  dU=%.5f dV=%.5f",
+    logs_log(LOG_DEBUG, "tilesX=%u tilesY=%u  |  dU=%.5f dV=%.5f",
              atlasWidthInTiles, atlasHeightInTiles,
              dU,
              dV);
 
     AtlasRegion_t r = pAtlasRegions[0];
-    logs_log(LOG_INFO, "Region[0]: uvMin=(%.5f,%.5f) uvMax=(%.5f,%.5f) span=(%.5f,%.5f)",
+    logs_log(LOG_DEBUG, "Region[0]: uvMin=(%.5f,%.5f) uvMax=(%.5f,%.5f) span=(%.5f,%.5f)",
              r.uvMin.x, r.uvMin.y, r.uvMax.x, r.uvMax.y,
              r.uvMax.x - r.uvMin.x, r.uvMax.y - r.uvMin.y);
 
