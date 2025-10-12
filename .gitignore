@@ -18,6 +18,7 @@ _CPack_Packages/
 lib/
 blockbench/
 gimp/
+logs/
 
 # Object files
 *.o

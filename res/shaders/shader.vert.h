@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-const uint32_t shaderVertCode[] = {
+static const uint32_t shaderVertCode[] = {
 0x07230203,0x00010000,0x000d000b,0x00000035,
 0x00000000,0x00020011,0x00000001,0x0006000b,
 0x00000001,0x4c534c47,0x6474732e,0x3035342e,
@@ -120,4 +120,4 @@ const uint32_t shaderVertCode[] = {
 0x0000002f,0x00000034,0x00000033,0x0003003e,
 0x00000031,0x00000034,0x000100fd,0x00010038
 };
-const size_t shaderVertCodeSize = sizeof(shaderVertCode);
+static const size_t shaderVertCodeSize = sizeof(shaderVertCode);
