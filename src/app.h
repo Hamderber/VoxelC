@@ -15,16 +15,16 @@ void app_init(State_t *state)
     glfwi_init();
 
     vki_create(state);
-    win_create(state);
+    win_create(state, &state->window, &state->config);
     rendererCreate(state);
 
-    time_init(state);
+    time_init(&state->time);
 }
 
 void app_renderLoop(State_t *state)
 {
     // Handle the window events, including actually closing the window with the X
-    win_pollEvents(state);
+    win_pollEvents();
 
     // Must call this after the window poll events (glfwPollEvents(); specifically) because resizing the window and the
     // associated callback would be generated from that function. This will only hit AFTER the user has LET GO of the
@@ -34,7 +34,7 @@ void app_renderLoop(State_t *state)
     {
         // Make sure the GPU is idle. This could be a queue wait plus fence if more wait accuracy is needed
         vkDeviceWaitIdle(state->context.device);
-        win_waitForValidFramebuffer(state);
+        win_waitForValidFramebuffer(&state->window);
 
         depthResourcesDestroy(state);
         framebuffersDestroy(state);
@@ -53,12 +53,12 @@ void app_renderLoop(State_t *state)
     commandBufferSubmit(state);
     sc_imagePresent(state);
 
-    time_update(state);
+    time_update(&state->time);
 }
 
 void app_loop(State_t *state)
 {
-    while (!win_shouldClose(state))
+    while (!win_shouldClose(&state->window))
     {
         physicsLoop(state);
         app_renderLoop(state);

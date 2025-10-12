@@ -1,13 +1,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
-#include "core/state.h"
+#include "core/state/state.h"
 #include "core/vk_instance.h"
 #include "core/glfw_instance.h"
 #include "gui/swapchain.h"
 
 /// @brief Wrapper for polling GLFW events
-/// @param state
-void win_pollEvents(const State_t *state)
+/// @param void
+void win_pollEvents(void)
 {
     glfwPollEvents();
 }
@@ -15,9 +15,9 @@ void win_pollEvents(const State_t *state)
 /// @brief Gets the should-window-close flag for the state's GLFW window (thread unsafe)
 /// @param state
 /// @return
-bool win_shouldClose(const State_t *state)
+bool win_shouldClose(Window_t *window)
 {
-    return glfwWindowShouldClose(state->window.pWindow);
+    return glfwWindowShouldClose(window->pWindow);
 }
 
 /// @brief Creates the GLFW window surface
@@ -120,7 +120,7 @@ VkPresentModeKHR win_surfacePresentModesSelect(const Context_t *context, const W
 
 /// @brief Intentionally hangs while the window is minimized
 /// @param state
-void win_waitForValidFramebuffer(State_t *state)
+void win_waitForValidFramebuffer(Window_t *window)
 {
     // Vulkan errors if the window is minimized and it tries to create a 0x0 size swapchain
     int width = 0, height = 0;
@@ -128,29 +128,29 @@ void win_waitForValidFramebuffer(State_t *state)
     // Block until the window is restored (not minimized)
     while (width == 0 || height == 0)
     {
-        glfwGetFramebufferSize(state->window.pWindow, &width, &height);
+        glfwGetFramebufferSize(window->pWindow, &width, &height);
         // sleep until resize/restored event occurs
         glfwWaitEvents();
     }
 
-    state->window.frameBufferWidth = width;
-    state->window.frameBufferHeight = height;
+    window->frameBufferWidth = width;
+    window->frameBufferHeight = height;
 }
 
 /// @brief Creates the GLFW window
 /// @param state
-void win_create(State_t *state)
+void win_create(void *state, Window_t *window, Config_t *config)
 {
     // Vulkan => no api. OpenGL would require the OpenGL api
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, state->config.windowResizable);
+    glfwWindowHint(GLFW_RESIZABLE, config->windowResizable);
 
-    int width = state->config.windowWidth;
-    int height = state->config.windowHeight;
+    int width = config->windowWidth;
+    int height = config->windowHeight;
     // There is no need to store the actual monitor reference. Just the window.
     GLFWmonitor *monitor = NULL;
 
-    if (state->config.windowFullscreen)
+    if (config->windowFullscreen)
     {
         monitor = glfwGetPrimaryMonitor();
         // If the window is fullscreen, set the window's resolution to the monitor's
@@ -160,25 +160,25 @@ void win_create(State_t *state)
     }
 
     // If not fullscreen, set window resolution to the default state values (set in main())
-    state->window.pWindow = glfwCreateWindow(width, height, state->config.pWindowTitle, monitor, NULL);
+    window->pWindow = glfwCreateWindow(width, height, config->pWindowTitle, monitor, NULL);
 
     int frameBufferWidth;
     int frameBufferHeight;
-    glfwGetFramebufferSize(state->window.pWindow, &frameBufferWidth, &frameBufferHeight);
-    state->window.frameBufferWidth = frameBufferWidth;
-    state->window.frameBufferHeight = frameBufferHeight;
+    glfwGetFramebufferSize(window->pWindow, &frameBufferWidth, &frameBufferHeight);
+    window->frameBufferWidth = frameBufferWidth;
+    window->frameBufferHeight = frameBufferHeight;
 
     // This allows for the glfw window to keep a reference to the state. Thus, we don't have to make state a global variable.
     // This is necessary for things such as callback functions (see below in this method) where the callback function
     // otherwise wouldn't have access to the state.
-    glfwSetWindowUserPointer(state->window.pWindow, state);
+    glfwSetWindowUserPointer(window->pWindow, state);
 
     // If the window changes size, call this function. There is a window-specific one, but the frame buffer one is better.
     // This allows for supporting retina displays and other screens that use subpixels (Vulkan sees subpixels as normal pixels).
     // For those types of displays, the window width/height and the frame buffer size would be different numbers. Also consider
     // that if the user has two monitors with only one being a retina display, they could drag the window from one screen to another
     // which would change the frame buffer size but NOT the actual window dimensions.
-    glfwSetFramebufferSizeCallback(state->window.pWindow, glfwi_framebufferSizeCallback);
+    glfwSetFramebufferSizeCallback(window->pWindow, glfwi_framebufferSizeCallback);
 
     win_surfaceCreate(state);
     sc_create(state);

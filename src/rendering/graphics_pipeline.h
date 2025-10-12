@@ -2,7 +2,7 @@
 
 #include "core/logs.h"
 #include <vulkan/vulkan.h>
-#include "core/state.h"
+#include "core/state/state.h"
 
 /// @brief Creates the graphics pipeline
 /// @param state

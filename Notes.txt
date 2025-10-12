@@ -72,3 +72,4 @@ TODO:
 14. Texture atlas stitching
 15. Add an additional pipeline that uses the line rendering mode to draw connections between verticies (for showing voxel hitboxes and chunks)
     or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?
+16. Refactor functions that take the state to use only the necessary portions of the state and make them const when possible

@@ -1,62 +1,10 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 #include "core/config.h"
 #include "rendering/atlas_texture.h"
-
-typedef struct
-{
-    // Time since last frame
-    double frameTimeDelta;
-    // Actual last time (not delta)
-    double frameTimeLast;
-    double frameTimeTotal;
-    double framesPerSecond;
-    // Fixed-step physics
-    double fixedTimeAccumulated;
-} Time_t;
-
-typedef struct
-{
-    VkInstance instance;
-    VkPhysicalDevice physicalDevice;
-    VkDevice device;
-    VkPhysicalDeviceFeatures physicalDeviceFeatures;
-    VkQueue graphicsQueue;
-    // This is always null right now so that Vulkan uses its own allocator
-    VkAllocationCallbacks *pAllocator;
-    /// @brief UINT32_MAX means no family assigned (set to max during creation)
-    uint32_t queueFamily;
-} Context_t;
-
-typedef struct
-{
-    // Swapchain
-    // https://www.youtube.com/watch?v=nSzQcyQTtRY
-    VkSwapchainKHR handle;
-    uint32_t imageCount;
-    uint32_t imageAcquiredIndex;
-    bool recreate;
-    VkImage *pImages;
-    VkImageView *pImageViews;
-    VkFormat format;
-    VkColorSpaceKHR colorSpace;
-    VkExtent2D imageExtent;
-} Swapchain_t;
-
-typedef struct
-{
-    // Vulkan
-    Swapchain_t swapchain;
-    VkSurfaceKHR surface;
-
-    // GLFW
-    GLFWwindow *pWindow;
-    int frameBufferWidth;
-    int frameBufferHeight;
-} Window_t;
 
 typedef struct
 {
@@ -100,12 +48,3 @@ typedef struct
     uint32_t atlasHeightInTiles;
     AtlasRegion_t *pAtlasRegions;
 } Renderer_t;
-
-typedef struct
-{
-    Config_t config;
-    Window_t window;
-    Context_t context;
-    Renderer_t renderer;
-    Time_t time;
-} State_t;

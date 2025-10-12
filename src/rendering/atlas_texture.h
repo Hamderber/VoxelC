@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include "core/logs.h"
 #include "c_math/c_math.h"
-#include "core/state.h"
 #include "rendering/shaders.h"
 
 // A region represents the subtexture located on the atlas
@@ -34,9 +33,6 @@ typedef enum
     MELON_TOP = 36,
 } AtlasFace_t;
 
-// void atlasDestroy(State_t *state);
-// struct ShaderVertex_t;
+AtlasRegion_t *atlasCreate(AtlasRegion_t *pAtlasRegions, uint32_t atlasRegionCount, uint32_t atlasWidthInTiles, uint32_t atlasHeightInTiles);
 
-// void atlasRegionUVApply(State_t *state, uint32_t index, ShaderVertex_t *verts, size_t start, size_t count, AtlasRegion_t region);
-
-// void atlasCreate(State_t *state);
+void atlasDestroy(AtlasRegion_t *pAtlasRegions);

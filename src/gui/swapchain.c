@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <vulkan/vulkan.h>
 #include "core/logs.h"
-#include "core/state.h"
+#include "core/state/state.h"
 #include "core/vk_instance.h"
 #include "gui/window.h"
 
