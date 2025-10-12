@@ -52,3 +52,8 @@ set(GLFW_LIBRARY "C:/vcpkg/installed/x64-windows-static/lib/glfw3.lib")
 
 target_include_directories(VoxelC PRIVATE ${GLFW_INCLUDE_DIR})
 target_link_libraries(VoxelC PRIVATE ${GLFW_LIBRARY})
+
+target_compile_definitions(VoxelC PRIVATE
+    $<$<CONFIG:Debug>:DEBUG>
+    $<$<CONFIG:Release>:NDEBUG>
+)

@@ -7,7 +7,7 @@ def to_camel_case(name: str) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: ./ConvertShaders.py shader.spv")
+        print("Usage: ./convert_shaders.py shader.spv")
         sys.exit(1)
 
     infile = sys.argv[1]
@@ -31,8 +31,8 @@ def main():
         f.write(f"// Auto-generated from {os.path.basename(infile)}\n")
         f.write("#pragma once\n\n")
         f.write("#include <stdint.h>\n\n")
-        f.write(f"const uint32_t {varname}Code[] = {{\n{contents}\n}};\n")
-        f.write(f"const size_t {varname}CodeSize = sizeof({varname}Code);\n")
+        f.write(f"static const uint32_t {varname}Code[] = {{\n{contents}\n}};\n")
+        f.write(f"static const size_t {varname}CodeSize = sizeof({varname}Code);\n")
 
     print(f"Generated: {outfile}")
 

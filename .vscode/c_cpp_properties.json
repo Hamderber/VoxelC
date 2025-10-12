@@ -6,7 +6,8 @@
                 "${workspaceFolder}/**",
                 "${vcpkgRoot}/x64-windows/include",
                 "${vcpkgRoot}/x64-windows-static/include",
-                "C:/VulkanSDK/1.4.321.1/Lib/"
+                "C:/VulkanSDK/1.4.321.1/Lib/",
+                "C:/VulkanSDK/1.4.321.1/Include"
             ],
             "defines": [
                 "_DEBUG",

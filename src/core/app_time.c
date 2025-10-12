@@ -1,8 +1,10 @@
-#pragma once
+#include <GLFW/glfw3.h>
+#include "core/state.h"
+#include "app_time.h"
 
-#include "Headers.h"
-
-void timeInit(State_t *state)
+/// @brief Sets app (GLFW) time and state time to zero
+/// @param state
+void time_init(State_t *state)
 {
     Time_t time = {
         .fixedTimeAccumulated = 0.0,
@@ -14,7 +16,9 @@ void timeInit(State_t *state)
     glfwSetTime(0.0);
 }
 
-void timeUpdate(State_t *state)
+/// @brief Updates state time (including deltas) with current GLFW time
+/// @param state
+void time_update(State_t *state)
 {
     double currentTime = glfwGetTime();
     state->time.frameTimeDelta = currentTime - state->time.frameTimeLast;

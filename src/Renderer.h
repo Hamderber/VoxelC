@@ -1,522 +1,87 @@
 #pragma once
 
-/* TODO:
-   1. Add an additional pipeline that uses the line rendering mode to draw connections between verticies (for showing voxel hitboxes and chunks)
-      or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?
-   2. Don't forget to change to VK_CULL_MODE_FRONT_BIT in the future
+#include <string.h>
+#include "stb_image.h"
+#include "cgltf.h"
+// #include "rendering/rendering.h"
+#include "rendering/texture.h"
+#include "rendering/voxel.h"
+#include "rendering/render_pass.h"
+#include "rendering/depth.h"
+#include "rendering/graphics_pipeline.h"
+#include "rendering/buffers/buffers.h"
+#include "rendering/model_3d.h"
+#include "rendering/buffers/command_buffer.h"
+#include "rendering/buffers/index_buffer.h"
+#include "rendering/buffers/vertex_buffer.h"
+#include "rendering/buffers/frame_buffer.h"
+#include "rendering/atlas_texture.h"
+
+void atlasRegionUVApply(State_t *state, uint32_t index, ShaderVertex_t *verts, size_t start, size_t count, AtlasRegion_t region)
+{
+    for (size_t i = 0; i < count; i++)
+    {
+        Vec2f_t uv = verts[start + i].texCoord;
+        verts[start + i].texCoord.x = region.uvMin.x + uv.x * (region.uvMax.x - region.uvMin.x);
+        verts[start + i].texCoord.y = region.uvMin.y + uv.y * (region.uvMax.y - region.uvMin.y);
+    }
+}
+
+void atlasDestroy(State_t *state)
+{
+    free(state->renderer.pAtlasRegions);
+    state->renderer.pAtlasRegions = NULL;
+}
+
+/*
+    The atlas is index bottom left to top right sequentially
+    3 4 5
+    0 1 2
 */
-
-// Rendering
-typedef struct
+void atlasCreate(State_t *state)
 {
-    Vec3f_t pos;
-    Vec3f_t color;
-    Vec2f_t texCoord;
-    uint32_t atlasIndex;
-} ShaderVertex_t;
+    logs_log(LOG_INFO, "Creating texture atlas regions...");
 
-static const Vec2f_t faceUVs[4] = {
-    {0.0f, 1.0f}, // top-left
-    {0.0f, 0.0f}, // bottom-left
-    {1.0f, 1.0f}, // top-right
-    {1.0f, 0.0f}, // bottom-right
-};
+    atlasDestroy(state);
 
-typedef enum
-{
-    // default
-    TEX_ROT_0 = 0,
-    // clockwise
-    TEX_ROT_90 = 1,
-    TEX_ROT_180 = 2,
-    TEX_ROT_270 = 3,
-    TEX_FLIP_X = 4,
-    TEX_FLIP_Y = 5,
-} TextureRotation_t;
+    state->renderer.pAtlasRegions = malloc(sizeof(AtlasRegion_t) * state->renderer.atlasRegionCount);
+    logs_logIfError(state->renderer.pAtlasRegions == NULL,
+                    "Failed to allocate memory for the atlas texture regions!")
 
-typedef enum
-{
-    FACE_LEFT = 0,   // -X (left)
-    FACE_RIGHT = 1,  // +X (right)
-    FACE_TOP = 2,    // +Y (up)
-    FACE_BOTTOM = 3, // -Y (down)
-    FACE_FRONT = 4,  // +Z (front)
-    FACE_BACK = 5,   // -Z (back)
-} CubeFace_t;
+        const float dU = 1.0f / (float)state->renderer.atlasWidthInTiles;
+    const float dV = 1.0f / (float)state->renderer.atlasHeightInTiles;
 
-typedef struct
-{
-    // which tile in the atlas
-    AtlasFace_t atlasIndex;
-    // rotation/flip to apply
-    TextureRotation_t rotation;
-} FaceTexture_t;
-
-static inline void applyTextureRotation(Vec2f_t outUVs[4], const Vec2f_t inUVs[4], TextureRotation_t rotation)
-{
-    switch (rotation)
+    uint32_t regionIndex = 0U;
+    for (uint32_t y = 0; y < state->renderer.atlasHeightInTiles; y++)
     {
-    case TEX_ROT_0:
-        // copy as-is
-        memcpy(outUVs, inUVs, sizeof(Vec2f_t) * 4);
-        break;
-
-    case TEX_ROT_90:
-        outUVs[0] = inUVs[1]; // top-left <- bottom-left
-        outUVs[1] = inUVs[3]; // bottom-left <- bottom-right
-        outUVs[2] = inUVs[0]; // top-right <- top-left
-        outUVs[3] = inUVs[2]; // bottom-right <- top-right
-        break;
-
-    case TEX_ROT_180:
-        outUVs[0] = inUVs[3];
-        outUVs[1] = inUVs[2];
-        outUVs[2] = inUVs[1];
-        outUVs[3] = inUVs[0];
-        break;
-
-    case TEX_ROT_270:
-        outUVs[0] = inUVs[2];
-        outUVs[1] = inUVs[0];
-        outUVs[2] = inUVs[3];
-        outUVs[3] = inUVs[1];
-        break;
-
-    case TEX_FLIP_X:
-        outUVs[0] = inUVs[2]; // swap left/right
-        outUVs[1] = inUVs[3];
-        outUVs[2] = inUVs[0];
-        outUVs[3] = inUVs[1];
-        break;
-
-    case TEX_FLIP_Y:
-        outUVs[0] = inUVs[1]; // swap top/bottom
-        outUVs[1] = inUVs[0];
-        outUVs[2] = inUVs[3];
-        outUVs[3] = inUVs[2];
-        break;
-    }
-}
-
-static inline void assignFaceUVs(ShaderVertex_t *verts, size_t start, const AtlasRegion_t *region, TextureRotation_t rotation)
-{
-    Vec2f_t rotatedUVs[4];
-    applyTextureRotation(rotatedUVs, faceUVs, rotation);
-
-    for (int i = 0; i < 4; ++i)
-    {
-        verts[start + i].texCoord.x = region->uvMin.x + rotatedUVs[i].x * (region->uvMax.x - region->uvMin.x);
-        verts[start + i].texCoord.y = region->uvMin.y + rotatedUVs[i].y * (region->uvMax.y - region->uvMin.y);
-    }
-}
-
-static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1U;
-// A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
-// of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
-static inline const VkVertexInputBindingDescription *shaderVertexGetBindingDescription(void)
-{
-    static const VkVertexInputBindingDescription descriptions[1] = {
+        for (uint32_t x = 0; x < state->renderer.atlasWidthInTiles; x++)
         {
-            .binding = 0,
-            .stride = sizeof(ShaderVertex_t),
-            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            float u0 = (float)x * dU;
+            float v0 = (float)y * dV;
+            float u1 = u0 + dU;
+            float v1 = v0 + dV;
 
-        },
-    };
+            state->renderer.pAtlasRegions[regionIndex] = (AtlasRegion_t){
+                .uvMin = {u0, v0},
+                .uvMax = {u1, v1},
+            };
 
-    return descriptions;
-}
-
-static const uint32_t NUM_SHADER_VERTEX_ATTRIBUTES = 3U;
-// An attribute description struct describes how to extract a vertex attribute from a chunk of vertex data originating
-// from a binding description. We have two attributes, position and color, so we need two attribute description structs.
-static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttributeDescriptions(void)
-{
-    static const VkVertexInputAttributeDescription descriptions[3] = {
-        // Position
-        {
-            .binding = 0U,
-            // The location for the position in the vertex shader
-            .location = 0U,
-            // Type of data (format is data type so color is same format as pos)
-            // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
-            // Specifies the number of bytes since the start of the per-vertex data to read from.
-            // Position is first so 0
-            .offset = offsetof(ShaderVertex_t, pos),
-        },
-        // Color
-        {
-            .binding = 0U,
-            // The location for the color in the vertex shader
-            .location = 1U,
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
-            // Position is first so sizeof(pos) type to get offset
-            .offset = offsetof(ShaderVertex_t, color),
-        },
-        {
-            .binding = 0U,
-            .location = 2U,
-            .format = VK_FORMAT_R32G32_SFLOAT,
-            .offset = offsetof(ShaderVertex_t, texCoord),
-        },
-    };
-
-    return descriptions;
-}
-
-VkFormat depthFormatGet(State_t *state)
-{
-    VkFormat formats[] = {
-        VK_FORMAT_D32_SFLOAT,
-        VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_D24_UNORM_S8_UINT,
-    };
-
-    return formatSupportedFind(state, formats, sizeof(formats) / sizeof(*formats), VK_IMAGE_TILING_OPTIMAL,
-                               VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-}
-
-/// @brief The render pass is basically the blueprint for the graphics operation in the graphics pipeline
-/// @param state
-void renderPassCreate(State_t *state)
-{
-    VkAttachmentReference colorAttachmentReference = {
-        // This 0 is the output location of the outColor vec4 in the fragment shader. If other outputs are needed, the attachment
-        // number would be the same as the output location
-        .attachment = 0U,
-        // Render target for color output
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    };
-
-    VkAttachmentReference depthAttachmentReference = {
-        // Depth
-        .attachment = 1U,
-        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    };
-
-    VkSubpassDescription subpassDescriptions[] = {
-        (VkSubpassDescription){
-            // Use for graphics pipeline instead of a compute pipeline
-            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &colorAttachmentReference,
-            .pDepthStencilAttachment = &depthAttachmentReference,
-        },
-    };
-
-    VkAttachmentDescription attachmentDescriptions[] = {
-        // Present
-        {
-            .format = state->window.swapchain.format,
-            // No MSAA at this time
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            // We don't know what the original layout will be
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            // Tells Vulkan to transition the image layout to presentation source for presenting to the screen
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            // The load operation will be clear (clear image initially)
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            // We want to store the results of this render
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        },
-        // Depth
-        {
-            .format = depthFormatGet(state),
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            // The depth data won't be stored because its not used after drawing
-            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        },
-    };
-
-    state->renderer.renderpassAttachmentCount = sizeof(attachmentDescriptions) / sizeof(*attachmentDescriptions);
-
-    VkSubpassDependency dependencies[] = {
-        (VkSubpassDependency){
-            .srcSubpass = VK_SUBPASS_EXTERNAL,
-            // Destination is the first subpass
-            .dstSubpass = 0U,
-            // Wait in the pipeline for the previous external operations to finish before color attachment output
-            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-            .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        },
-    };
-
-    VkRenderPassCreateInfo createInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .subpassCount = sizeof(subpassDescriptions) / sizeof(*subpassDescriptions),
-        .pSubpasses = subpassDescriptions,
-        .attachmentCount = state->renderer.renderpassAttachmentCount,
-        .pAttachments = attachmentDescriptions,
-        .dependencyCount = sizeof(dependencies) / sizeof(*dependencies),
-        .pDependencies = dependencies,
-    };
-
-    LOG_IF_ERROR(vkCreateRenderPass(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.pRenderPass),
-                 "Failed to create the render pass.")
-}
-
-void renderPassDestroy(State_t *state)
-{
-    vkDestroyRenderPass(state->context.device, state->renderer.pRenderPass, state->context.pAllocator);
-
-    state->renderer.renderpassAttachmentCount = 0U;
-}
-
-void graphicsPipelineCreate(State_t *state)
-{
-    const char *shaderEntryFunctionName = "main";
-
-    logger(LOG_INFO, "Loading shaders...");
-
-    VkShaderModuleCreateInfo vertexShaderModuleCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        // Need to pass how big the code actuallly is...
-        .codeSize = shaderVertCodeSize,
-        // ... For it to correctly allocate storage for it here.
-        .pCode = shaderVertCode,
-    };
-    VkShaderModule vertexShaderModule;
-    LOG_IF_ERROR(vkCreateShaderModule(state->context.device, &vertexShaderModuleCreateInfo, state->context.pAllocator, &vertexShaderModule),
-                 "Couldn't create the vertex shader module.")
-
-    VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        .codeSize = shaderFragCodeSize,
-        .pCode = shaderFragCode,
-    };
-    VkShaderModule fragmentShaderModule;
-    LOG_IF_ERROR(vkCreateShaderModule(state->context.device, &fragmentShaderModuleCreateInfo, state->context.pAllocator, &fragmentShaderModule),
-                 "Couldn't create the fragment shader module.")
-
-    // Because these indexes are hardcoded, they can be referenced by definitions (SHADER_STAGE_xxx)
-    VkPipelineShaderStageCreateInfo shaderStages[] = {
-        // Stage 0 (vertex)
-        (VkPipelineShaderStageCreateInfo){
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .module = vertexShaderModule,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-            // The entry point of the actual shader code. Default is obviously keeping the function as "main"
-            .pName = shaderEntryFunctionName},
-        // Stage 1 (fragment)
-        (VkPipelineShaderStageCreateInfo){
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .module = fragmentShaderModule,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .pName = shaderEntryFunctionName},
-    };
-
-    // Dynamic states are the things that can be changed at runtime without requiring a recreation of the render pipeline (ex: window/viewport size)
-    // https://registry.khronos.org/vulkan/specs/latest/man/html/VkDynamicState.html
-    const VkDynamicState dynamicStates[] = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        // The amount of scissors used to divide the pipeline into smaller rectangles
-        VK_DYNAMIC_STATE_SCISSOR,
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicState = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-        .dynamicStateCount = sizeof(dynamicStates) / sizeof(*dynamicStates),
-        .pDynamicStates = dynamicStates};
-
-    VkPipelineVertexInputStateCreateInfo vertexInputState = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS,
-        .pVertexBindingDescriptions = shaderVertexGetBindingDescription(),
-        .vertexAttributeDescriptionCount = NUM_SHADER_VERTEX_ATTRIBUTES,
-        .pVertexAttributeDescriptions = shaderVertexGetInputAttributeDescriptions(),
-    };
-
-    VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-        // The type of primitives used for rendering. The most common is triangles as defined by three verticies.
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-        // Passing a special index to a verticy will inform the GPU that the mesh wants to be split at that point.
-        // Unnecessary for now.
-        .primitiveRestartEnable = VK_FALSE};
-
-    VkViewport viewports[] = {
-        (VkViewport){
-            // Origin (default is 0 but explicitly saying this is helpful to see)
-            .x = 0,
-            .y = 0,
-            .width = (float)state->window.swapchain.imageExtent.width,
-            .height = (float)state->window.swapchain.imageExtent.height,
-            .maxDepth = 1.0F}};
-
-    VkRect2D scissors[] = {
-        (VkRect2D){
-            .extent = state->window.swapchain.imageExtent}};
-
-    VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-        .viewportCount = sizeof(viewports) / sizeof(*viewports),
-        .pViewports = viewports,
-        .scissorCount = sizeof(scissors) / sizeof(*scissors),
-        .pScissors = scissors,
-    };
-
-    VkPipelineRasterizationStateCreateInfo rasterizationState = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-        .lineWidth = 1.0F,
-        // This one is super duper important. It is convention to have verticies rotate counter-clockwise. So a triangle would have points
-        // 0, 1, and 2 at the top, bottom left, and then bottom right. This lets the renderer know which way a triangle is facing. If the
-        // renderer is passed a triangle with verticies going clockwise when the front face is assigned as counter-clockwise then that
-        // means the triangle is backwards/facing away from the camera reference and can be culled/etc.
-        .frontFace = state->config.vertexWindingDirection,
-        // Tells the render pipeline what faces should be culled (hidden). Back but means that back (covered/blocked) bits won't be rendered.
-        // This is literally the backface culling that makes Minecraft playable
-        .cullMode = state->config.cullModeMask,
-        // Fill is opaque normally rendered object and line is wireframe
-        .polygonMode = VK_POLYGON_MODE_FILL,
-    };
-
-    VkPipelineMultisampleStateCreateInfo multisamplingState = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        // Don't care about multisampling for now
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-    };
-
-    const VkPipelineColorBlendAttachmentState colorBlendAttachmentStates[] = {
-        // Color blending omitted at this time
-        (VkPipelineColorBlendAttachmentState){
-            // Bitwise OR to build the mask of what color bits the blend will write to
-            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-        }};
-
-    // This configuration will need to be changed if alpha (transparency) is to be supported in the future.
-    VkPipelineColorBlendStateCreateInfo colorBlendState = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .attachmentCount = sizeof(colorBlendAttachmentStates) / sizeof(*colorBlendAttachmentStates),
-        .pAttachments = colorBlendAttachmentStates,
-        // Default blend constants applied to all the color blend attachments. When default, this declaration isn't necessary
-        // but this is good to include for legibility. The struct doesn't accept the array directly and requires index replacement.
-        .blendConstants = {0, 0, 0, 0},
-    };
-
-    const VkPipelineLayoutCreateInfo layoutCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 1,
-        .pSetLayouts = &state->renderer.descriptorSetLayout,
-    };
-
-    LOG_IF_ERROR(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator, &state->renderer.pipelineLayout),
-                 "Failed to create the pipeline layout.");
-
-    VkPipelineDepthStencilStateCreateInfo depthStencil = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        // If the depth of new fragments should be compared to the depth buffer to see if they should be discarded
-        .depthTestEnable = VK_TRUE,
-        // If the new depth of fragments that pass the depth test should actually be written to the depth buffer
-        .depthWriteEnable = VK_TRUE,
-        // Convention of lower depth = closer so the depth of new fragments should be less (backwards for things like water?)
-        .depthCompareOp = VK_COMPARE_OP_LESS,
-        // Optional. Allows you to only keep fragments that fall within the specified depth range. Disabled but included for legibility
-        .depthBoundsTestEnable = VK_FALSE,
-        .minDepthBounds = 0.0f,
-        .maxDepthBounds = 1.0f,
-        // Optional. Would require making sure that the format of the depth/stencil image contains a stencil component
-        .stencilTestEnable = VK_FALSE,
-        // .front = {},
-        // .back = {},
-    };
-
-    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        // layout, pVertexInputState, and pInputAssemblyState all rely on the vertex layout
-        .layout = state->renderer.pipelineLayout,
-        .pVertexInputState = &vertexInputState,
-        .pInputAssemblyState = &inputAssemblyState,
-        // Get the length of the array by dividing the size of the shaderStages array by the size of the type of the first index of the array
-        .stageCount = sizeof(shaderStages) / sizeof(*shaderStages),
-        .pStages = shaderStages,
-        .pDynamicState = &dynamicState,
-        .pRasterizationState = &rasterizationState,
-        .pMultisampleState = &multisamplingState,
-        .pColorBlendState = &colorBlendState,
-        .renderPass = state->renderer.pRenderPass,
-        .pViewportState = &viewportStateCreateInfo,
-        .pDepthStencilState = &depthStencil,
-    };
-
-    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfos[] = {
-        graphicsPipelineCreateInfo,
-    };
-    // Don't care about pipeline cache right now and only need to create 1 pipeline
-    LOG_IF_ERROR(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
-                                           &state->renderer.graphicsPipeline),
-                 "Failed to create the graphics pipeline.")
-
-    // Once the render pipeline has been created, the shader information is stored within it. Thus, the shader modules can
-    // actually be destroyed now. Do note that this means that if the shaders need to be changed, everything done in this function
-    // must be re-performed.
-    vkDestroyShaderModule(state->context.device, fragmentShaderModule, state->context.pAllocator);
-    vkDestroyShaderModule(state->context.device, vertexShaderModule, state->context.pAllocator);
-}
-
-void graphicsPipelineDestroy(State_t *state)
-{
-    vkDestroyPipeline(state->context.device, state->renderer.graphicsPipeline, state->context.pAllocator);
-    vkDestroyPipelineLayout(state->context.device, state->renderer.pipelineLayout, state->context.pAllocator);
-}
-
-void framebuffersCreate(State_t *state)
-{
-
-    state->renderer.framebufferCount = state->window.swapchain.imageCount;
-    state->renderer.pFramebuffers = malloc(sizeof(VkFramebuffer) * state->renderer.framebufferCount);
-
-    LOG_IF_ERROR(!state->renderer.pFramebuffers,
-                 "Failed to allocate memory for the framebuffers.")
-
-    for (uint32_t framebufferIndex = 0U; framebufferIndex < state->renderer.framebufferCount; framebufferIndex++)
-    {
-        // Building the image view here by just attaching the depth image view to the original swapchain image view
-        VkImageView attachments[2] = {
-            state->window.swapchain.pImageViews[framebufferIndex],
-            state->renderer.depthImageView,
-        };
-
-        VkFramebufferCreateInfo createInfo = {
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            // Only one image layer for the current swapchain configuration
-            .layers = 1U,
-            .renderPass = state->renderer.pRenderPass,
-            .width = state->window.swapchain.imageExtent.width,
-            .height = state->window.swapchain.imageExtent.height,
-            // The attachment count must be the same as the amount of attachment descriptions in the renderpass
-            .attachmentCount = state->renderer.renderpassAttachmentCount,
-            .pAttachments = attachments,
-        };
-
-        LOG_IF_ERROR(vkCreateFramebuffer(state->context.device, &createInfo, state->context.pAllocator,
-                                         &state->renderer.pFramebuffers[framebufferIndex]),
-                     "Failed to create frame buffer %d.", framebufferIndex)
-    }
-}
-
-void framebuffersDestroy(State_t *state)
-{
-    // There is a hypothtical situation where the cause of detroying framebuffers is due to changing the amount of swapchain
-    // images. In such a case, directly relying on state->window.swapchain.imageCount would be insufficient and cause a memory leak.
-    for (uint32_t i = 0; i < state->renderer.framebufferCount; i++)
-    {
-        vkDestroyFramebuffer(state->context.device, state->renderer.pFramebuffers[i], state->context.pAllocator);
+            regionIndex++;
+        }
     }
 
-    free(state->renderer.pFramebuffers);
+    logs_log(LOG_INFO, "Generated %u atlas UV regions (%dx%d).",
+             state->renderer.atlasRegionCount, state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles);
 
-    state->renderer.pFramebuffers = NULL;
-    state->renderer.framebufferCount = 0U;
+    logs_log(LOG_INFO, "tilesX=%u tilesY=%u  |  dU=%.5f dV=%.5f",
+             state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles,
+             dU,
+             dV);
+
+    AtlasRegion_t r = state->renderer.pAtlasRegions[0];
+    logs_log(LOG_INFO, "Region[0]: uvMin=(%.5f,%.5f) uvMax=(%.5f,%.5f) span=(%.5f,%.5f)",
+             r.uvMin.x, r.uvMin.y, r.uvMax.x, r.uvMax.y,
+             r.uvMax.x - r.uvMin.x, r.uvMax.y - r.uvMin.y);
 }
 
 void commandPoolCreate(State_t *state)
@@ -532,219 +97,13 @@ void commandPoolCreate(State_t *state)
         .flags = createFlags,
     };
 
-    LOG_IF_ERROR(vkCreateCommandPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.commandPool),
-                 "Failed to create command pool.")
+    logs_logIfError(vkCreateCommandPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.commandPool),
+                    "Failed to create command pool.")
 }
 
 void commandPoolDestroy(State_t *state)
 {
     vkDestroyCommandPool(state->context.device, state->renderer.commandPool, state->context.pAllocator);
-}
-
-void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags propertyFlags,
-                  VkBuffer *buffer, VkDeviceMemory *bufferMemory)
-{
-    VkBufferCreateInfo createInfo = {
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size = bufferSize,
-        .usage = usageFlags,
-        // Don't need to share this buffer between queue families right now
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    };
-
-    LOG_IF_ERROR(vkCreateBuffer(state->context.device, &createInfo, state->context.pAllocator, buffer),
-                 "Failed to create buffer!")
-
-    VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(state->context.device, *buffer, &memoryRequirements);
-
-    uint32_t memoryType = memoryTypeGet(state, memoryRequirements.memoryTypeBits, propertyFlags);
-
-    VkMemoryAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = memoryRequirements.size,
-        .memoryTypeIndex = memoryType,
-    };
-
-    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, bufferMemory),
-                 "Failed to allocate buffer memory!")
-
-    // No offset required. If there was an offset, it would have to be divisible by memoryRequirements.alignment
-    LOG_IF_ERROR(vkBindBufferMemory(state->context.device, *buffer, *bufferMemory, 0),
-                 "Failed to bind buffer memory!")
-}
-
-VkCommandBuffer commandBufferSingleTimeBegin(State_t *state)
-{
-    VkCommandBufferAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = state->renderer.commandPool,
-        .commandBufferCount = 1,
-    };
-
-    VkCommandBuffer commandBuffer;
-    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &commandBuffer),
-                 "Failed to allocate command buffer!")
-
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-
-    LOG_IF_ERROR(vkBeginCommandBuffer(commandBuffer, &beginInfo),
-                 "Failed to begin command buffer!")
-
-    return commandBuffer;
-}
-
-void commandBufferSingleTimeEnd(State_t *state, VkCommandBuffer commandBuffer)
-{
-    LOG_IF_ERROR(vkEndCommandBuffer(commandBuffer),
-                 "Failed to end command buffer!")
-
-    VkSubmitInfo submitInfo = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-    };
-
-    // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
-    // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
-    // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
-    LOG_IF_ERROR(vkQueueSubmit(state->context.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE),
-                 "Failed to submit graphicsQueue!")
-    LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
-                 "Failed to wait for graphics queue to idle!")
-
-    vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
-}
-
-void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)
-{
-    VkCommandBufferAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = state->renderer.commandPool,
-        .commandBufferCount = 1U,
-    };
-
-    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
-
-    VkBufferCopy copyRegion = {
-        .srcOffset = 0,
-        .dstOffset = 0,
-        .size = size,
-    };
-
-    // Only copying one region
-    vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1, &copyRegion);
-
-    commandBufferSingleTimeEnd(state, commandBuffer);
-}
-
-void indexBufferCreateFromData(State_t *state, uint16_t *indices, uint32_t indexCount)
-{
-    VkDeviceSize bufferSize = sizeof(uint16_t) * indexCount;
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingMemory;
-
-    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 &stagingBuffer, &stagingMemory);
-
-    void *data;
-    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingMemory, 0, bufferSize, 0, &data),
-                 "Failed to map index staging buffer memory.")
-    memcpy(data, indices, (size_t)bufferSize);
-    vkUnmapMemory(state->context.device, stagingMemory);
-
-    bufferCreate(state, bufferSize,
-                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 &state->renderer.indexBuffer, &state->renderer.indexBufferMemory);
-
-    bufferCopy(state, stagingBuffer, state->renderer.indexBuffer, bufferSize);
-
-    vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
-    vkFreeMemory(state->context.device, stagingMemory, state->context.pAllocator);
-
-    logger(LOG_INFO, "Created index buffer (%u indices, %zu bytes).", indexCount, (size_t)bufferSize);
-}
-
-void indexBufferDestroy(State_t *state)
-{
-    vkDestroyBuffer(state->context.device, state->renderer.indexBuffer, state->context.pAllocator);
-    vkFreeMemory(state->context.device, state->renderer.indexBufferMemory, state->context.pAllocator);
-}
-
-void vertexBufferCreateFromData(State_t *state, ShaderVertex_t *vertices, uint32_t vertexCount)
-{
-    VkDeviceSize bufferSize = sizeof(ShaderVertex_t) * vertexCount;
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingMemory;
-
-    // Create staging buffer (CPU visible)
-    bufferCreate(state, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 &stagingBuffer, &stagingMemory);
-
-    void *data;
-    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingMemory, 0, bufferSize, 0, &data),
-                 "Failed to map vertex staging buffer memory.")
-    memcpy(data, vertices, (size_t)bufferSize);
-    vkUnmapMemory(state->context.device, stagingMemory);
-
-    // Create actual GPU vertex buffer
-    bufferCreate(state, bufferSize,
-                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 &state->renderer.vertexBuffer, &state->renderer.vertexBufferMemory);
-
-    // Copy from staging to GPU
-    bufferCopy(state, stagingBuffer, state->renderer.vertexBuffer, bufferSize);
-
-    // Cleanup staging
-    vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);
-    vkFreeMemory(state->context.device, stagingMemory, state->context.pAllocator);
-
-    logger(LOG_INFO, "Created vertex buffer (%u vertices, %zu bytes).", vertexCount, (size_t)bufferSize);
-}
-
-void vertexBufferDestroy(State_t *state)
-{
-    vkDestroyBuffer(state->context.device, state->renderer.vertexBuffer, state->context.pAllocator);
-    vkFreeMemory(state->context.device, state->renderer.vertexBufferMemory, state->context.pAllocator);
-}
-
-void bufferCopyToImage(State_t *state, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
-{
-    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
-
-    VkBufferImageCopy region = {
-        // Byte offset
-        .bufferOffset = 0,
-        // Length and height of how buffer is laid out in memory
-        .bufferRowLength = 0,
-        .bufferImageHeight = 0,
-        .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .imageSubresource.mipLevel = 0,
-        .imageSubresource.baseArrayLayer = 0,
-        .imageSubresource.layerCount = 1,
-        .imageOffset = {0, 0, 0},
-        .imageExtent = {
-            .width = width,
-            .height = height,
-            .depth = 1,
-        },
-    };
-
-    // Assuming that the image has already been transitioned to a copy-optimal layout
-    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    commandBufferSingleTimeEnd(state, commandBuffer);
 }
 
 void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
@@ -791,8 +150,8 @@ void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkIma
     }
     else
     {
-        LOG_IF_ERROR(true,
-                     "Unsupported layout transition!")
+        logs_logIfError(true,
+                        "Unsupported layout transition!")
     }
 
     vkCmdPipelineBarrier(commandBuffer,
@@ -835,22 +194,22 @@ void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat forma
         .flags = 0,
     };
 
-    LOG_IF_ERROR(vkCreateImage(state->context.device, &createInfo, state->context.pAllocator, image),
-                 "Failed to create image!")
+    logs_logIfError(vkCreateImage(state->context.device, &createInfo, state->context.pAllocator, image),
+                    "Failed to create image!")
 
-    VkMemoryRequirements memoryRequirements;
+        VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(state->context.device, *image, &memoryRequirements);
 
     VkMemoryAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = memoryRequirements.size,
-        .memoryTypeIndex = memoryTypeGet(state, memoryRequirements.memoryTypeBits, properties),
+        .memoryTypeIndex = vki_physicalMemoryTypeGet(state, memoryRequirements.memoryTypeBits, properties),
     };
 
-    LOG_IF_ERROR(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, imageMemory),
-                 "Failed to allocate memory for texture images!")
+    logs_logIfError(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, imageMemory),
+                    "Failed to allocate memory for texture images!")
 
-    vkBindImageMemory(state->context.device, *image, *imageMemory, 0);
+        vkBindImageMemory(state->context.device, *image, *imageMemory, 0);
 }
 
 void atlasTextureImageCreate(State_t *state)
@@ -865,16 +224,16 @@ void atlasTextureImageCreate(State_t *state)
     // 4 bytes per pixel (RGBA)
     VkDeviceSize imageSize = width * height * 4;
 
-    logger(LOG_INFO, "Atlas PNG: %dx%d px, subtextureSize=%u px", width, height, state->config.subtextureSize);
+    logs_log(LOG_INFO, "Atlas PNG: %dx%d px, subtextureSize=%u px", width, height, state->config.subtextureSize);
     state->renderer.atlasWidthInTiles = width / state->config.subtextureSize;
     state->renderer.atlasHeightInTiles = height / state->config.subtextureSize;
     state->renderer.atlasRegionCount = state->renderer.atlasWidthInTiles * state->renderer.atlasHeightInTiles;
-    logger(LOG_INFO, "The atlas texture has %u regions.", state->renderer.atlasRegionCount);
+    logs_log(LOG_INFO, "The atlas texture has %u regions.", state->renderer.atlasRegionCount);
 
-    LOG_IF_ERROR(pixels == NULL,
-                 "Failed to load texture %s!", imagePath)
+    logs_logIfError(pixels == NULL,
+                    "Failed to load texture %s!", imagePath)
 
-    logger(LOG_INFO, "Loaded texture %s", imagePath);
+        logs_log(LOG_INFO, "Loaded texture %s", imagePath);
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -885,9 +244,9 @@ void atlasTextureImageCreate(State_t *state)
 
     // Map and copy the data into the staging buffer
     void *data;
-    LOG_IF_ERROR(vkMapMemory(state->context.device, stagingBufferMemory, 0, imageSize, 0, &data),
-                 "Failed to map texture staging buffer memory.")
-    memcpy(data, pixels, (size_t)imageSize);
+    logs_logIfError(vkMapMemory(state->context.device, stagingBufferMemory, 0, imageSize, 0, &data),
+                    "Failed to map texture staging buffer memory.")
+        memcpy(data, pixels, (size_t)imageSize);
     vkUnmapMemory(state->context.device, stagingBufferMemory);
     // free the image array that was loaded
     stbi_image_free(pixels);
@@ -929,18 +288,18 @@ void commandBufferAllocate(State_t *state)
     }
 
     state->renderer.pCommandBuffers = malloc(sizeof(VkCommandBuffer) * state->config.maxFramesInFlight);
-    LOG_IF_ERROR(state->renderer.pCommandBuffers == NULL,
-                 "Failed to allocate memory for command buffers")
+    logs_logIfError(state->renderer.pCommandBuffers == NULL,
+                    "Failed to allocate memory for command buffers")
 
-    VkCommandBufferAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = state->renderer.commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = state->config.maxFramesInFlight,
-    };
+        VkCommandBufferAllocateInfo allocateInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = state->renderer.commandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = state->config.maxFramesInFlight,
+        };
 
-    LOG_IF_ERROR(vkAllocateCommandBuffers(state->context.device, &allocateInfo, state->renderer.pCommandBuffers),
-                 "Failed to allocate command buffers")
+    logs_logIfError(vkAllocateCommandBuffers(state->context.device, &allocateInfo, state->renderer.pCommandBuffers),
+                    "Failed to allocate command buffers")
 }
 
 void commandBufferRecord(State_t *state)
@@ -970,7 +329,7 @@ void commandBufferRecord(State_t *state)
     // Avoid access violations
     if (!state->renderer.pFramebuffers || state->window.swapchain.imageAcquiredIndex >= state->renderer.framebufferCount)
     {
-        logger(LOG_WARN, "Skipped an access violation during frame buffer access during commandBufferRecord!");
+        logs_log(LOG_WARN, "Skipped an access violation during frame buffer access during commandBufferRecord!");
         return;
     }
 
@@ -985,13 +344,13 @@ void commandBufferRecord(State_t *state)
     VkResult r = vkResetCommandBuffer(cmd, 0);
     if (r != VK_SUCCESS)
     {
-        // Don't just do LOG_IF_ERROR because we want to early exit here
-        logger(LOG_ERROR, "vkResetCommandBuffer failed (%d) for frame %u", r, frameIndex);
+        // Don't just do logs_logIfError because we want to early exit here
+        logs_log(LOG_ERROR, "vkResetCommandBuffer failed (%d) for frame %u", r, frameIndex);
         return;
     }
 
-    LOG_IF_ERROR(vkBeginCommandBuffer(cmd, &commandBufferBeginInfo),
-                 "Failed to begin command buffer (frame %u)", frameIndex);
+    logs_logIfError(vkBeginCommandBuffer(cmd, &commandBufferBeginInfo),
+                    "Failed to begin command buffer (frame %u)", frameIndex);
 
     // ALL vkCmd functions (commands) MUST go between the begin and end command buffer functions (obviously)
     VkRenderPassBeginInfo renderPassBeginInfo = {
@@ -1044,8 +403,8 @@ void commandBufferRecord(State_t *state)
     vkCmdEndRenderPass(cmd);
 
     // All errors generated from vkCmd functions will populate here. The vkCmd functions themselves are all void.
-    LOG_IF_ERROR(vkEndCommandBuffer(cmd),
-                 "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
+    logs_logIfError(vkEndCommandBuffer(cmd),
+                    "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
 }
 
 void commandBufferSubmit(State_t *state)
@@ -1066,13 +425,13 @@ void commandBufferSubmit(State_t *state)
     };
 
     // Reset the fence *right before* submit (this is the only reset for this frame)
-    LOG_IF_ERROR(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[frame]),
-                 "Failed to reset in-flight fence before submit (frame %u)", frame);
+    logs_logIfError(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[frame]),
+                    "Failed to reset in-flight fence before submit (frame %u)", frame);
 
     VkResult r = vkQueueSubmit(state->context.graphicsQueue, 1U, &submitInfo, state->renderer.inFlightFences[frame]);
 
-    LOG_IF_ERROR(r,
-                 "Failed to submit graphicsQueue to the command buffer.");
+    logs_logIfError(r,
+                    "Failed to submit graphicsQueue to the command buffer.");
 }
 
 void syncObjectsDestroy(State_t *state)
@@ -1118,24 +477,24 @@ void syncObjectsCreate(State_t *state)
     syncObjectsDestroy(state);
 
     state->renderer.imageAcquiredSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
-    LOG_IF_ERROR(state->renderer.imageAcquiredSemaphores == NULL,
-                 "Failed to allcoate memory for image acquired semaphors!")
+    logs_logIfError(state->renderer.imageAcquiredSemaphores == NULL,
+                    "Failed to allcoate memory for image acquired semaphors!")
 
-    state->renderer.renderFinishedSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
-    LOG_IF_ERROR(state->renderer.renderFinishedSemaphores == NULL,
-                 "Failed to allcoate memory for render finished semaphors!")
+        state->renderer.renderFinishedSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
+    logs_logIfError(state->renderer.renderFinishedSemaphores == NULL,
+                    "Failed to allcoate memory for render finished semaphors!")
 
-    state->renderer.inFlightFences = malloc(sizeof(VkFence) * state->config.maxFramesInFlight);
-    LOG_IF_ERROR(state->renderer.inFlightFences == NULL,
-                 "Failed to allcoate memory for in-flight fences!")
+        state->renderer.inFlightFences = malloc(sizeof(VkFence) * state->config.maxFramesInFlight);
+    logs_logIfError(state->renderer.inFlightFences == NULL,
+                    "Failed to allcoate memory for in-flight fences!")
 
-    // GPU operations are async so sync is required to aid in parallel execution
-    // Semaphore: (syncronization) action signal for GPU processes. Cannot continue until the relavent semaphore is complete
-    // Fence: same above but for CPU
-    VkSemaphoreCreateInfo semaphoreCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        // Binary is just signaled/not signaled. Timeline is more states than 2 (0/1) basically.
-    };
+        // GPU operations are async so sync is required to aid in parallel execution
+        // Semaphore: (syncronization) action signal for GPU processes. Cannot continue until the relavent semaphore is complete
+        // Fence: same above but for CPU
+        VkSemaphoreCreateInfo semaphoreCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            // Binary is just signaled/not signaled. Timeline is more states than 2 (0/1) basically.
+        };
 
     // Must start with the fences signaled so something actually renders initially
     VkFenceCreateInfo fenceCreateInfo = {
@@ -1145,17 +504,17 @@ void syncObjectsCreate(State_t *state)
 
     for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
     {
-        LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
-                                       &state->renderer.imageAcquiredSemaphores[i]),
-                     "Failed to create image acquired semaphore")
+        logs_logIfError(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                          &state->renderer.imageAcquiredSemaphores[i]),
+                        "Failed to create image acquired semaphore")
 
-        LOG_IF_ERROR(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
-                                       &state->renderer.renderFinishedSemaphores[i]),
-                     "Failed to create render finished semaphore")
+            logs_logIfError(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                              &state->renderer.renderFinishedSemaphores[i]),
+                            "Failed to create render finished semaphore")
 
-        LOG_IF_ERROR(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
-                                   &state->renderer.inFlightFences[i]),
-                     "Failed to create in-flight fence")
+                logs_logIfError(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
+                                              &state->renderer.inFlightFences[i]),
+                                "Failed to create in-flight fence")
     }
 
     state->renderer.currentFrame = 0;
@@ -1195,9 +554,9 @@ void descriptorSetLayoutCreate(State_t *state)
         .pBindings = bindings,
     };
 
-    LOG_IF_ERROR(vkCreateDescriptorSetLayout(state->context.device, &createInfo, state->context.pAllocator,
-                                             &state->renderer.descriptorSetLayout),
-                 "Failed to create descriptor set layout!")
+    logs_logIfError(vkCreateDescriptorSetLayout(state->context.device, &createInfo, state->context.pAllocator,
+                                                &state->renderer.descriptorSetLayout),
+                    "Failed to create descriptor set layout!")
 }
 
 void uniformBuffersCreate(State_t *state)
@@ -1213,9 +572,9 @@ void uniformBuffersCreate(State_t *state)
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      &state->renderer.pUniformBuffers[i], &state->renderer.pUniformBufferMemories[i]);
 
-        LOG_IF_ERROR(vkMapMemory(state->context.device, state->renderer.pUniformBufferMemories[i], 0, bufferSize, 0,
-                                 &state->renderer.pUniformBuffersMapped[i]),
-                     "Failed to map memory for uniform buffer!")
+        logs_logIfError(vkMapMemory(state->context.device, state->renderer.pUniformBufferMemories[i], 0, bufferSize, 0,
+                                    &state->renderer.pUniformBuffersMapped[i]),
+                        "Failed to map memory for uniform buffer!")
     }
 }
 
@@ -1244,19 +603,19 @@ void updateUniformBuffer(State_t *state)
     float rotateDegreesX = 45.0F;
     float rotateDegreesZ = 45.0F;
 
-    Quaternion_t qYaw = la_quatAngleAxis(la_deg2radf(rotateDegreesY) * (float)state->time.frameTimeTotal, Y_AXIS);
-    Quaternion_t qPitch = la_quatAngleAxis(la_deg2radf(rotateDegreesX) * (float)state->time.frameTimeTotal, X_AXIS);
-    Quaternion_t qRoll = la_quatAngleAxis(la_deg2radf(rotateDegreesZ) * (float)state->time.frameTimeTotal, Z_AXIS);
-    Quaternion_t qTemp = la_quatMultiply(qYaw, qPitch);
-    Quaternion_t qCombined = la_quatMultiply(qTemp, qRoll);
-    Mat4c_t model = la_quat2mat(qCombined);
+    Quaternion_t qYaw = cm_quatAngleAxis(cm_deg2radf(rotateDegreesY) * (float)state->time.frameTimeTotal, Y_AXIS);
+    Quaternion_t qPitch = cm_quatAngleAxis(cm_deg2radf(rotateDegreesX) * (float)state->time.frameTimeTotal, X_AXIS);
+    Quaternion_t qRoll = cm_quatAngleAxis(cm_deg2radf(rotateDegreesZ) * (float)state->time.frameTimeTotal, Z_AXIS);
+    Quaternion_t qTemp = cm_quatMultiply(qYaw, qPitch);
+    Quaternion_t qCombined = cm_quatMultiply(qTemp, qRoll);
+    Mat4c_t model = cm_quat2mat(qCombined);
 
     UniformBufferObject_t ubo = {
         .model = model,
-        .view = la_lookAt((Vec3f_t){0.0F, 3.0F, -3.0F}, // camera position
+        .view = cm_lookAt((Vec3f_t){0.0F, 3.0F, -3.0F}, // camera position
                           VEC3_ZERO,                    // look at origin
                           UP),                          // up = +Y
-        .projection = la_perspective(la_deg2radf(45.0F),
+        .projection = cm_perspective(cm_deg2radf(45.0F),
                                      state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
                                      0.1F, 10.0F),
     };
@@ -1288,8 +647,8 @@ void descriptorPoolCreate(State_t *state)
         .maxSets = state->config.maxFramesInFlight,
     };
 
-    LOG_IF_ERROR(vkCreateDescriptorPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.descriptorPool),
-                 "Failed to create descriptor pool!")
+    logs_logIfError(vkCreateDescriptorPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.descriptorPool),
+                    "Failed to create descriptor pool!")
 }
 
 void descriptorPoolDestroy(State_t *state)
@@ -1300,9 +659,8 @@ void descriptorPoolDestroy(State_t *state)
 void descriptorSetsCreate(State_t *state)
 {
     VkDescriptorSetLayout *layouts = malloc(sizeof(VkDescriptorSetLayout) * state->config.maxFramesInFlight);
-    LOG_IF_ERROR(layouts == NULL,
-                 "Failed to allocate memory for descriptor set layouts!")
-    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    logs_logIfError(layouts == NULL,
+                    "Failed to allocate memory for descriptor set layouts!") for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
     {
         layouts[i] = state->renderer.descriptorSetLayout;
     }
@@ -1315,13 +673,13 @@ void descriptorSetsCreate(State_t *state)
     };
 
     state->renderer.pDescriptorSets = malloc(sizeof(VkDescriptorSet) * state->config.maxFramesInFlight);
-    LOG_IF_ERROR(state->renderer.pDescriptorSets == NULL,
-                 "Failed to allocate memory for descriptor sets!")
+    logs_logIfError(state->renderer.pDescriptorSets == NULL,
+                    "Failed to allocate memory for descriptor sets!")
 
-    LOG_IF_ERROR(vkAllocateDescriptorSets(state->context.device, &allocateInfo, state->renderer.pDescriptorSets),
-                 "Failed to allocate descriptor sets!")
+        logs_logIfError(vkAllocateDescriptorSets(state->context.device, &allocateInfo, state->renderer.pDescriptorSets),
+                        "Failed to allocate descriptor sets!")
 
-    free(layouts);
+            free(layouts);
 
     // Populate descriptors
 
@@ -1394,10 +752,10 @@ VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkIm
     };
 
     VkImageView imageView;
-    LOG_IF_ERROR(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &imageView),
-                 "Failed to create image view!")
+    logs_logIfError(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &imageView),
+                    "Failed to create image view!")
 
-    return imageView;
+        return imageView;
 }
 
 void atlasTextureViewImageCreate(State_t *state)
@@ -1450,10 +808,10 @@ void textureSamplerCreate(State_t *state)
         .maxLod = 0.0f,
     };
 
-    logger(LOG_WARN, "Anisotropy is hard-coded to select the highest available (%.fx) at this time.", af);
+    logs_log(LOG_WARN, "Anisotropy is hard-coded to select the highest available (%.fx) at this time.", af);
 
-    LOG_IF_ERROR(vkCreateSampler(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.textureSampler),
-                 "Failed to create texture sampler!")
+    logs_logIfError(vkCreateSampler(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.textureSampler),
+                    "Failed to create texture sampler!")
 }
 
 void textureSamplerDestroy(State_t *state)
@@ -1468,7 +826,7 @@ bool formatHasStencilComponent(VkFormat format)
 
 void depthResourcesCreate(State_t *state)
 {
-    VkFormat depthFormat = depthFormatGet(state);
+    VkFormat depthFormat = depth_formatGet(state);
 
     imageCreate(state, state->window.swapchain.imageExtent.width, state->window.swapchain.imageExtent.height,
                 depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -1485,257 +843,19 @@ void depthResourcesDestroy(State_t *state)
     vkFreeMemory(state->context.device, state->renderer.depthImageMemory, state->context.pAllocator);
 }
 
-static inline void atlasRegionUVApply(State_t *state, uint32_t index, ShaderVertex_t *verts, size_t start, size_t count, AtlasRegion_t region)
-{
-    for (size_t i = 0; i < count; i++)
-    {
-        Vec2f_t uv = verts[start + i].texCoord;
-        verts[start + i].texCoord.x = region.uvMin.x + uv.x * (region.uvMax.x - region.uvMin.x);
-        verts[start + i].texCoord.y = region.uvMin.y + uv.y * (region.uvMax.y - region.uvMin.y);
-    }
-}
-
-void modelLoad(State_t *state)
-{
-    const char *path = MODEL_PATH "base_16x16_block.glb";
-
-    cgltf_options options = {0};
-    cgltf_data *data = NULL;
-
-    // Parse the glTF model file
-    cgltf_result result = cgltf_parse_file(&options, path, &data);
-    if (result != cgltf_result_success)
-    {
-        logger(LOG_ERROR, "Failed to parse glTF file: %s", path);
-        return;
-    }
-
-    // Load external or embedded buffer data (needed for vertices, indices, etc.)
-    result = cgltf_load_buffers(&options, data, path);
-    if (result != cgltf_result_success)
-    {
-        logger(LOG_ERROR, "Failed to load buffers for: %s", path);
-        cgltf_free(data);
-        return;
-    }
-
-    // Validate structure (optional, but useful for debugging)
-    result = cgltf_validate(data);
-    if (result != cgltf_result_success)
-    {
-        logger(LOG_ERROR, "Invalid glTF data in: %s", path);
-        cgltf_free(data);
-        return;
-    }
-
-    logger(LOG_INFO, "Loaded model: %s", path);
-    logger(LOG_INFO, "Meshes: %zu", data->meshes_count);
-    logger(LOG_INFO, "Materials: %zu", data->materials_count);
-    logger(LOG_INFO, "Nodes: %zu", data->nodes_count);
-
-    // For now, only load the first mesh and its first primitive
-    if (data->meshes_count == 0)
-    {
-        logger(LOG_ERROR, "Model has no meshes! %s", path);
-        cgltf_free(data);
-        return;
-    }
-
-    cgltf_mesh *mesh = &data->meshes[0];
-    if (mesh->primitives_count == 0)
-    {
-        logger(LOG_ERROR, "Mesh has no primitives! %s", path);
-        cgltf_free(data);
-        return;
-    }
-
-    cgltf_primitive *prim = &mesh->primitives[0];
-
-    logger(LOG_INFO, "Loading mesh: %s (%zu primitives)", mesh->name ? mesh->name : "(unnamed)", mesh->primitives_count);
-
-    // Extract the accessors for position, texcoord, and optional color
-    cgltf_accessor *posAccessor = NULL;
-    cgltf_accessor *uvAccessor = NULL;
-    for (size_t k = 0; k < prim->attributes_count; k++)
-    {
-        cgltf_attribute *attr = &prim->attributes[k];
-        if (attr->type == cgltf_attribute_type_position)
-            posAccessor = attr->data;
-        else if (attr->type == cgltf_attribute_type_texcoord)
-            uvAccessor = attr->data;
-    }
-
-    if (posAccessor == NULL)
-    {
-        logger(LOG_ERROR, "Model missing position attribute! %s", path);
-        cgltf_free(data);
-        return;
-    }
-
-    size_t vertexCount = posAccessor->count;
-    ShaderVertex_t *vertices = malloc(sizeof(ShaderVertex_t) * vertexCount);
-    LOG_IF_ERROR(vertices == NULL, "Failed to allocate vertex array for model: %s", path);
-
-    float tmp[4];
-    for (size_t v = 0; v < vertexCount; v++)
-    {
-        // Positions
-        cgltf_accessor_read_float(posAccessor, v, tmp, 3);
-        vertices[v].pos = (Vec3f_t){tmp[0], tmp[1], tmp[2]};
-
-        // Texture coordinates
-        if (uvAccessor)
-        {
-            cgltf_accessor_read_float(uvAccessor, v, tmp, 2);
-            // Flip V coordinate to match Vulkan convention
-            vertices[v].texCoord = (Vec2f_t){tmp[0], 1.0f - tmp[1]};
-        }
-        else
-        {
-            vertices[v].texCoord = (Vec2f_t){0.0f, 0.0f};
-        }
-
-        // Default white color for now (can be replaced if color attributes are added)
-        vertices[v].color = WHITE;
-    }
-
-    // Load indices if they exist
-    uint16_t *indices = NULL;
-    size_t indexCount = 0;
-    if (prim->indices)
-    {
-        cgltf_accessor *indexAccessor = prim->indices;
-        indexCount = indexAccessor->count;
-        indices = malloc(sizeof(uint16_t) * indexCount);
-        LOG_IF_ERROR(indices == NULL, "Failed to allocate index array for model: %s", path);
-
-        for (size_t i = 0; i < indexCount; i++)
-        {
-            indices[i] = (uint16_t)cgltf_accessor_read_index(indexAccessor, i);
-        }
-    }
-    else
-    {
-        // Fallback: sequential indices
-        indexCount = vertexCount;
-        indices = malloc(sizeof(uint16_t) * indexCount);
-        LOG_IF_ERROR(indices == NULL, "Failed to allocate fallback indices for model: %s", path);
-
-        for (size_t i = 0; i < indexCount; i++)
-        {
-            indices[i] = (uint16_t)i;
-        }
-    }
-
-    // Assign each face to an atlas region
-    const int vertsPerFace = 4;
-    const FaceTexture_t FACE_TEXTURES[6] = {
-        [FACE_LEFT] = {MELON_SIDE, TEX_ROT_0},
-        [FACE_RIGHT] = {MELON_SIDE, TEX_ROT_270},
-        [FACE_TOP] = {MELON_TOP, TEX_ROT_0},
-        [FACE_BOTTOM] = {MELON_TOP, TEX_ROT_90},
-        [FACE_FRONT] = {MELON_SIDE, TEX_ROT_270},
-        [FACE_BACK] = {MELON_SIDE, TEX_ROT_0},
-    };
-
-    for (int face = 0; face < 6; face++)
-    {
-        const FaceTexture_t tex = FACE_TEXTURES[face];
-        const AtlasRegion_t *region = &state->renderer.pAtlasRegions[tex.atlasIndex];
-
-        assignFaceUVs(vertices, face * vertsPerFace, region, tex.rotation);
-    }
-
-    // Upload to GPU
-    vertexBufferCreateFromData(state, vertices, (uint32_t)vertexCount);
-    indexBufferCreateFromData(state, indices, (uint32_t)indexCount);
-
-    // Store index count in renderer for drawing
-    state->renderer.modelIndexCount = (uint32_t)indexCount;
-
-    // Cleanup CPU-side memory
-    free(vertices);
-    free(indices);
-    cgltf_free(data);
-
-    logger(LOG_DEBUG, "Model successfully uploaded to GPU: %s", path);
-}
-
-void modelDestroy(State_t *state)
-{
-    // Placeholder. Model destruction currently handled by buffer destruction
-}
-
-void atlasDestroy(State_t *state)
-{
-    free(state->renderer.pAtlasRegions);
-    state->renderer.pAtlasRegions = NULL;
-}
-
-/*
-    The atlas is index bottom left to top right sequentially
-    3 4 5
-    0 1 2
-*/
-void atlasCreate(State_t *state)
-{
-    logger(LOG_INFO, "Creating texture atlas regions...");
-
-    atlasDestroy(state);
-
-    state->renderer.pAtlasRegions = malloc(sizeof(AtlasRegion_t) * state->renderer.atlasRegionCount);
-    LOG_IF_ERROR(state->renderer.pAtlasRegions == NULL,
-                 "Failed to allocate memory for the atlas texture regions!")
-
-    const float dU = 1.0f / (float)state->renderer.atlasWidthInTiles;
-    const float dV = 1.0f / (float)state->renderer.atlasHeightInTiles;
-
-    uint32_t regionIndex = 0U;
-    for (uint32_t y = 0; y < state->renderer.atlasHeightInTiles; y++)
-    {
-        for (uint32_t x = 0; x < state->renderer.atlasWidthInTiles; x++)
-        {
-            float u0 = (float)x * dU;
-            float v0 = (float)y * dV;
-            float u1 = u0 + dU;
-            float v1 = v0 + dV;
-
-            state->renderer.pAtlasRegions[regionIndex] = (AtlasRegion_t){
-                .uvMin = {u0, v0},
-                .uvMax = {u1, v1},
-            };
-
-            regionIndex++;
-        }
-    }
-
-    logger(LOG_INFO, "Generated %u atlas UV regions (%dx%d).",
-           state->renderer.atlasRegionCount, state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles);
-
-    logger(LOG_INFO, "tilesX=%u tilesY=%u  |  dU=%.5f dV=%.5f",
-           state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles,
-           dU,
-           dV);
-
-    AtlasRegion_t r = state->renderer.pAtlasRegions[0];
-    logger(LOG_INFO, "Region[0]: uvMin=(%.5f,%.5f) uvMax=(%.5f,%.5f) span=(%.5f,%.5f)",
-           r.uvMin.x, r.uvMin.y, r.uvMax.x, r.uvMax.y,
-           r.uvMax.x - r.uvMin.x, r.uvMax.y - r.uvMin.y);
-}
-
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rendererCreate(State_t *state)
 {
     // Must exist before anything that references it
-    renderPassCreate(state);
+    rp_create(state);
     descriptorSetLayoutCreate(state);
-    graphicsPipelineCreate(state);
+    gp_create(state);
 
     // Needed for all staging/copies and one-time commands
     commandPoolCreate(state);
 
     // Atlas resources FIRST (image -> view -> sampler -> regions)
-    // so modelLoad can remap UVs using pAtlasRegions
+    // so m3d_load can remap UVs using pAtlasRegions
     // loads atlas.png, creates VkImage + memory
     atlasTextureImageCreate(state);
     // view for the atlas image
@@ -1748,7 +868,7 @@ void rendererCreate(State_t *state)
 
     // Model upload that may use pAtlasRegions for UV remap
     // builds vertex/index buffers
-    modelLoad(state);
+    m3d_load(state);
 
     // Per-frame resources that descriptors will point at
     // UBOs (needed before descriptorSetsCreate)
@@ -1774,10 +894,10 @@ void rendererDestroy(State_t *state)
 {
     // The GPU could be working on stuff for the renderer in parallel, meaning the renderer could be
     // destroyed while the GPU is still working. We should wait for the GPU to finish its current tasks.
-    LOG_IF_ERROR(vkQueueWaitIdle(state->context.graphicsQueue),
-                 "Failed to wait for the Vulkan graphicsQueue to be idle.")
-    // Stop GPU use first
-    syncObjectsDestroy(state);
+    logs_logIfError(vkQueueWaitIdle(state->context.graphicsQueue),
+                    "Failed to wait for the Vulkan graphicsQueue to be idle.")
+        // Stop GPU use first
+        syncObjectsDestroy(state);
 
     // Descriptors before destroying underlying resources
     descriptorSetsDestroy(state);
@@ -1791,7 +911,7 @@ void rendererDestroy(State_t *state)
     uniformBuffersDestroy(state);
     indexBufferDestroy(state);
     vertexBufferDestroy(state);
-    modelDestroy(state);
+    m3d_destroy(state);
 
     // Atlas GPU resources
     textureSamplerDestroy(state);
@@ -1804,6 +924,6 @@ void rendererDestroy(State_t *state)
     commandPoolDestroy(state);
 
     // Pipeline objects last
-    graphicsPipelineDestroy(state);
-    renderPassDestroy(state);
+    gp_destroy(state);
+    rp_destroy(state);
 }

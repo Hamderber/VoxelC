@@ -31,6 +31,8 @@ Conventions:
 17. CMake is configured to ALWAYS output to ./bin regardless of release type. This allows for having the same
     file access structure regardless of target.
 18. There shall be no functions with () they must have at the very least (void). Ex: foo(void) NOT foo()
+19. Global variables will start with a g. ex: static int gGlobalInt or a global pointer static char *gpString 
+    (global pointer char array)
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,
@@ -45,6 +47,7 @@ References:
 3. Rendering matricies: https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/
 4. https://github.com/nothings/stb
 5. https://github.com/jkuhlmann/cgltf
+6. To change cmake configuration: CTRL + SHIFT + P then "CMake: Select Variant"
 
 TODO:
 1. At some point in the future, check EVERY entry of LOG_IF_ERROR to ensure that if anything allocates memory but fails,
@@ -67,3 +70,5 @@ TODO:
 12. Blockbench .glb model loader via https://github.com/jkuhlmann/cgltf or obj https://github.com/tinyobjloader/tinyobjloader (prob. this one)
 13. ValidateModels.bat to verify vercicies are <= 65535
 14. Texture atlas stitching
+15. Add an additional pipeline that uses the line rendering mode to draw connections between verticies (for showing voxel hitboxes and chunks)
+    or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?
