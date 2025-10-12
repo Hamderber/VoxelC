@@ -3,20 +3,13 @@
 #include <vulkan/vulkan.h>
 #include "..\\res\\shaders\\shader.frag.h"
 #include "..\\res\\shaders\\shader.vert.h"
+#include "rendering/types/shaderVertex_t.h"
 
 typedef enum
 {
     SHADER_STAGE_VERTEX = 0,
     SHADER_STAGE_FRAGMENT = 1,
 } ShaderStage_t;
-
-typedef struct
-{
-    Vec3f_t pos;
-    Vec3f_t color;
-    Vec2f_t texCoord;
-    uint32_t atlasIndex;
-} ShaderVertex_t;
 
 static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1U;
 // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number

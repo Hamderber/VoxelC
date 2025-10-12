@@ -50,6 +50,8 @@
         "glfw_instance.h": "c",
         "context_t.h": "c",
         "renderer_t.h": "c",
-        "state_t.h": "c"
+        "state_t.h": "c",
+        "image.h": "c",
+        "stdlib.h": "c"
     }
 }

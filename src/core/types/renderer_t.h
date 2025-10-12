@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <vulkan/vulkan.h>
 #include "core/config.h"
-#include "rendering/atlas_texture.h"
+#include "core/types/atlasRegion_t.h"
 
 typedef struct
 {
