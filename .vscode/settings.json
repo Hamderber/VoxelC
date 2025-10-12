@@ -49,6 +49,7 @@
         "swapchain_t.h": "c",
         "glfw_instance.h": "c",
         "context_t.h": "c",
-        "renderer_t.h": "c"
+        "renderer_t.h": "c",
+        "state_t.h": "c"
     }
 }

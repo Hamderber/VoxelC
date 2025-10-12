@@ -3,6 +3,19 @@
 #include "core/logs.h"
 #include "c_math/c_math.h"
 #include "rendering/atlas_texture.h"
+#include "rendering/image.h"
+
+// void atlasTextureViewImageCreate(State_t *state)
+// {
+//     // Written this way to support looping in the future
+//     state->renderer.atlasTextureImageView = imageViewCreate(state, state->renderer.atlasTextureImage,
+//                                                             VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+// }
+
+// void atlasTextureImageViewDestroy(State_t *state)
+// {
+//     vkDestroyImageView(state->context.device, state->renderer.atlasTextureImageView, state->context.pAllocator);
+// }
 
 void atlasDestroy(AtlasRegion_t *pAtlasRegions)
 {

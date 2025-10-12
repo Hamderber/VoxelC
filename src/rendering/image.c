@@ -5,6 +5,29 @@
 #include "rendering/buffers/command_buffer.h"
 #include "core/vk_instance.h"
 
+VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+{
+
+    VkImageViewCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .subresourceRange.aspectMask = aspectFlags,
+        .subresourceRange.baseMipLevel = 0,
+        .subresourceRange.levelCount = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount = 1,
+        .components = state->config.swapchainComponentMapping,
+    };
+
+    VkImageView imageView;
+    logs_logIfError(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &imageView),
+                    "Failed to create image view!")
+
+        return imageView;
+}
+
 void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
     VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);

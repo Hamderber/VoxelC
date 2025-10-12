@@ -3,7 +3,6 @@
 #include <string.h>
 #include "stb_image.h"
 #include "cgltf.h"
-// #include "rendering/rendering.h"
 #include "rendering/texture.h"
 #include "rendering/voxel.h"
 #include "rendering/render_pass.h"
@@ -382,29 +381,6 @@ void descriptorSetsDestroy(State_t *state)
 {
     // The descriptor set itself is freed by Vulkan when the descriptor pool is freed
     vkDestroyDescriptorSetLayout(state->context.device, state->renderer.descriptorSetLayout, state->context.pAllocator);
-}
-
-VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
-{
-
-    VkImageViewCreateInfo createInfo = {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image = image,
-        .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = format,
-        .subresourceRange.aspectMask = aspectFlags,
-        .subresourceRange.baseMipLevel = 0,
-        .subresourceRange.levelCount = 1,
-        .subresourceRange.baseArrayLayer = 0,
-        .subresourceRange.layerCount = 1,
-        .components = state->config.swapchainComponentMapping,
-    };
-
-    VkImageView imageView;
-    logs_logIfError(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &imageView),
-                    "Failed to create image view!")
-
-        return imageView;
 }
 
 void atlasTextureViewImageCreate(State_t *state)
