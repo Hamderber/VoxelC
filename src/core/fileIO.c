@@ -34,7 +34,7 @@ void file_close(FILE *file, const char *debugName)
 
     logs_log(LOG_DEBUG, "Closing file at Address %p (%s)", file, debugName);
     logs_logIfError(fclose(file),
-                    "Error while closing file at Address %p (%s)", file, debugName)
+                    "Error while closing file at Address %p (%s)", file, debugName);
 }
 
 FILE *file_open(const char *path, const char *mode, const char *debugName)

@@ -13,8 +13,8 @@ VkSurfaceCapabilitiesKHR win_surfaceCapabilitiesGet(const Context_t *context, co
 
 VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Window_t *window);
 
-VkPresentModeKHR win_surfacePresentModesSelect(const Context_t *context, const Window_t *window);
+VkPresentModeKHR win_surfacePresentModesSelect(const AppConfig_t *config, const Context_t *context, const Window_t *window);
 
-void win_create(void *state, Window_t *window, Config_t *config);
+void win_create(void *state, Window_t *window, AppConfig_t *config);
 
 void win_destroy(State_t *state);

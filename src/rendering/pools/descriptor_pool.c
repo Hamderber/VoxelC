@@ -41,7 +41,7 @@ void descriptorSetLayoutCreate(State_t *state)
 
     logs_logIfError(vkCreateDescriptorSetLayout(state->context.device, &createInfo, state->context.pAllocator,
                                                 &state->renderer.descriptorSetLayout),
-                    "Failed to create descriptor set layout!")
+                    "Failed to create descriptor set layout!");
 }
 
 void descriptorPoolCreate(State_t *state)
@@ -69,7 +69,7 @@ void descriptorPoolCreate(State_t *state)
     };
 
     logs_logIfError(vkCreateDescriptorPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.descriptorPool),
-                    "Failed to create descriptor pool!")
+                    "Failed to create descriptor pool!");
 }
 
 void descriptorPoolDestroy(State_t *state)
@@ -81,7 +81,8 @@ void descriptorSetsCreate(State_t *state)
 {
     VkDescriptorSetLayout *layouts = malloc(sizeof(VkDescriptorSetLayout) * state->config.maxFramesInFlight);
     logs_logIfError(layouts == NULL,
-                    "Failed to allocate memory for descriptor set layouts!") for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+                    "Failed to allocate memory for descriptor set layouts!");
+    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
     {
         layouts[i] = state->renderer.descriptorSetLayout;
     }
@@ -95,12 +96,12 @@ void descriptorSetsCreate(State_t *state)
 
     state->renderer.pDescriptorSets = malloc(sizeof(VkDescriptorSet) * state->config.maxFramesInFlight);
     logs_logIfError(state->renderer.pDescriptorSets == NULL,
-                    "Failed to allocate memory for descriptor sets!")
+                    "Failed to allocate memory for descriptor sets!");
 
-        logs_logIfError(vkAllocateDescriptorSets(state->context.device, &allocateInfo, state->renderer.pDescriptorSets),
-                        "Failed to allocate descriptor sets!")
+    logs_logIfError(vkAllocateDescriptorSets(state->context.device, &allocateInfo, state->renderer.pDescriptorSets),
+                    "Failed to allocate descriptor sets!");
 
-            free(layouts);
+    free(layouts);
 
     // Populate descriptors
 

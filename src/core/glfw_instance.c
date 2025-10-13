@@ -17,7 +17,7 @@ void glfwi_logInfo(void)
 static void glfwi_errorCallback(int errorCode, const char *description)
 {
     logs_logIfError(errorCode,
-                    "GLFW: %s", description)
+                    "GLFW: %s", description);
 }
 
 /// @brief Terminates GLFW (very important). Function is called on program exit.

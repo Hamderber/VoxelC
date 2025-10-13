@@ -27,7 +27,7 @@ static void win_surfaceCreate(State_t *state)
     // surface is just a cross-platform abstraction of the window (helps with vulkan)
     logs_logIfError(glfwCreateWindowSurface(state->context.instance, state->window.pWindow, state->context.pAllocator,
                                             &state->window.surface),
-                    "Unable to create Vulkan window surface")
+                    "Unable to create Vulkan window surface");
 }
 
 /// @brief Destroys the Vulkan surface associated with the GLFW window
@@ -45,9 +45,9 @@ VkSurfaceCapabilitiesKHR win_surfaceCapabilitiesGet(const Context_t *context, co
 {
     VkSurfaceCapabilitiesKHR capabilities;
     logs_logIfError(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, window->surface, &capabilities),
-                    "Failed to query physical device surface capabilities.")
+                    "Failed to query physical device surface capabilities.");
 
-        return capabilities;
+    return capabilities;
 }
 
 /// @brief Selects the best surface format from the available options
@@ -59,14 +59,14 @@ VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Wind
     uint32_t formatCount;
     // null so that we just get the number of formats
     logs_logIfError(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, NULL),
-                    "Failed to query physical device surface format count.")
-        VkSurfaceFormatKHR *formats = malloc(sizeof(VkSurfaceFormatKHR) * formatCount);
+                    "Failed to query physical device surface format count.");
+    VkSurfaceFormatKHR *formats = malloc(sizeof(VkSurfaceFormatKHR) * formatCount);
     logs_logIfError(formats == NULL,
-                    "Unable to allocate memory for Vulkan surface formats")
-        logs_logIfError(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, formats),
-                        "Failed to query physical device surface formats.")
+                    "Unable to allocate memory for Vulkan surface formats");
+    logs_logIfError(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, formats),
+                    "Failed to query physical device surface formats.");
 
-            VkSurfaceFormatKHR format = formats[0]; // Default to the first format ...
+    VkSurfaceFormatKHR format = formats[0]; // Default to the first format ...
     for (uint32_t i = 0U; i < formatCount; i++)
     {
         // SRGB is the most commonly supported (and best) so we want that one if available
@@ -87,8 +87,15 @@ VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Wind
 /// @param context
 /// @param window
 /// @return VkPresentModeKHR
-VkPresentModeKHR win_surfacePresentModesSelect(const Context_t *context, const Window_t *window)
+VkPresentModeKHR win_surfacePresentModesSelect(const AppConfig_t *config, const Context_t *context, const Window_t *window)
 {
+    // If vsync is disabled, don't bother enumerating the available options. Immediate is always supported and will
+    // throw as many frames as possible despite monitor refresh rate. This WILL cause screen tearing.
+    if (!config->vsync)
+    {
+        return VK_PRESENT_MODE_IMMEDIATE_KHR;
+    }
+
     // See https://www.youtube.com/watch?v=nSzQcyQTtRY for the different present modes (visual examples)
     // Immedaite causes screen tearing (don't use) and I think Mailbox sounds the best. Unfortunately,
     // Mailbox isn't universally supported and is much more power-intensive (constant frame generation/discarding)
@@ -96,14 +103,14 @@ VkPresentModeKHR win_surfacePresentModesSelect(const Context_t *context, const W
     uint32_t presentModeCount;
     // null so that we just get the number of present modes
     logs_logIfError(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, NULL),
-                    "Failed to query physical device surface presentation modes.")
-        VkPresentModeKHR *presentModes = malloc(sizeof(VkPresentModeKHR) * presentModeCount);
+                    "Failed to query physical device surface presentation modes.");
+    VkPresentModeKHR *presentModes = malloc(sizeof(VkPresentModeKHR) * presentModeCount);
     logs_logIfError(presentModes == NULL,
-                    "Unable to allocate memory for Vulkan present modes.")
-        logs_logIfError(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, presentModes),
-                        "Failed to query physical device surface presentation modes.")
+                    "Unable to allocate memory for Vulkan present modes.");
+    logs_logIfError(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, presentModes),
+                    "Failed to query physical device surface presentation modes.");
 
-            VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // Default to FIFO ...
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // Default to FIFO ...
     for (uint32_t i = 0U; i < presentModeCount; i++)
     {
         if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -139,7 +146,7 @@ void win_waitForValidFramebuffer(Window_t *window)
 
 /// @brief Creates the GLFW window
 /// @param state
-void win_create(void *state, Window_t *window, Config_t *config)
+void win_create(void *state, Window_t *window, AppConfig_t *config)
 {
     // Vulkan => no api. OpenGL would require the OpenGL api
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);

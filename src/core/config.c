@@ -13,7 +13,7 @@ static FILE *pCfg;
 
 #define APP_CONFIG_NAME PROGRAM_NAME ".cfg.json"
 
-static Config_t appConfig = {
+static AppConfig_t appConfig = {
     .pApplicationName = (PROGRAM_NAME " Application"),
     .pEngineName = (PROGRAM_NAME " Engine"),
     .pWindowTitle = PROGRAM_NAME,
@@ -45,6 +45,8 @@ static Config_t appConfig = {
     .maxPhysicsFrameDelay = 10,
     .vulkanValidation = true,
     .subtextureSize = 16,
+    .vsync = true,
+    .anisotropy = 16,
 };
 
 static cJSON *load_json_file(const char *path, const char *debugName)
@@ -106,11 +108,11 @@ static cJSON *load_json_file(const char *path, const char *debugName)
     return json;
 }
 
-void cfg_appSave(const Config_t *cfg, const char *dir, const char *fileName)
+void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
 {
     if (!cfg)
     {
-        logs_log(LOG_ERROR, "Config_t pointer was NULL in cfg_appSave()");
+        logs_log(LOG_ERROR, "AppConfig_t pointer was NULL in cfg_appSave()");
         return;
     }
 
@@ -168,11 +170,11 @@ void cfg_appSave(const Config_t *cfg, const char *dir, const char *fileName)
     cJSON_Delete(root);
 }
 
-void cfg_appLoad(Config_t *cfg, const char *dir, const char *fileName)
+void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
 {
     if (!cfg)
     {
-        logs_log(LOG_ERROR, "Config_t pointer was NULL in cfg_appLoad()");
+        logs_log(LOG_ERROR, "AppConfig_t pointer was NULL in cfg_appLoad()");
         return;
     }
 
@@ -243,7 +245,7 @@ void cfg_appLoad(Config_t *cfg, const char *dir, const char *fileName)
     cJSON_Delete(root);
 }
 
-Config_t cfg_loadOrCreate(void)
+AppConfig_t cfg_loadOrCreate(void)
 {
     const char *cfgFolder = "config";
     char fullDir[MAX_DIR_PATH_LENGTH];
@@ -274,7 +276,7 @@ void cfg_destroy(void)
     }
 }
 
-Config_t cfg_init(void)
+AppConfig_t cfg_init(void)
 {
     return cfg_loadOrCreate();
 }

@@ -66,7 +66,7 @@ void rend_create(State_t *state)
     // view for the atlas image
     atlasTextureViewImageCreate(state);
     // sampler used by descriptors
-    textureSamplerCreate(state);
+    tex_samplerCreate(state);
     // call the dynamic atlas region builder *after* you know width/height
     // fills renderer.pAtlasRegions[0..N)
     state->renderer.pAtlasRegions = atlasCreate(state->renderer.pAtlasRegions, state->renderer.atlasRegionCount,
@@ -101,9 +101,9 @@ void rend_destroy(State_t *state)
     // The GPU could be working on stuff for the renderer in parallel, meaning the renderer could be
     // destroyed while the GPU is still working. We should wait for the GPU to finish its current tasks.
     logs_logIfError(vkQueueWaitIdle(state->context.graphicsQueue),
-                    "Failed to wait for the Vulkan graphicsQueue to be idle.")
-        // Stop GPU use first
-        syncObjectsDestroy(state);
+                    "Failed to wait for the Vulkan graphicsQueue to be idle.");
+    // Stop GPU use first
+    syncObjectsDestroy(state);
 
     // Descriptors before destroying underlying resources
     descriptorSetsDestroy(state);
@@ -120,7 +120,7 @@ void rend_destroy(State_t *state)
     m3d_destroy(state);
 
     // Atlas GPU resources
-    textureSamplerDestroy(state);
+    tex_samplerDestroy(state);
     atlasTextureImageViewDestroy(&state->context, &state->renderer);
     atlasTextureImageDestroy(state);
     // frees pAtlasRegions (heap)

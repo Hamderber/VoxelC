@@ -47,8 +47,8 @@ typedef struct
 
     char assetPath[256];
     char shaderPath[256];
-} Config_t;
+} AppConfig_t;
 
 void cfg_destroy(void);
 
-Config_t cfg_init(void);
+AppConfig_t cfg_init(void);

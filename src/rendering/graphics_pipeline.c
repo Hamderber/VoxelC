@@ -22,33 +22,33 @@ void gp_create(State_t *state)
     };
     VkShaderModule vertexShaderModule;
     logs_logIfError(vkCreateShaderModule(state->context.device, &vertexShaderModuleCreateInfo, state->context.pAllocator, &vertexShaderModule),
-                    "Couldn't create the vertex shader module.")
+                    "Couldn't create the vertex shader module.");
 
-        VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .codeSize = shaderFragCodeSize,
-            .pCode = shaderFragCode,
-        };
+    VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = shaderFragCodeSize,
+        .pCode = shaderFragCode,
+    };
     VkShaderModule fragmentShaderModule;
     logs_logIfError(vkCreateShaderModule(state->context.device, &fragmentShaderModuleCreateInfo, state->context.pAllocator, &fragmentShaderModule),
-                    "Couldn't create the fragment shader module.")
+                    "Couldn't create the fragment shader module.");
 
-        // Because these indexes are hardcoded, they can be referenced by definitions (SHADER_STAGE_xxx)
-        VkPipelineShaderStageCreateInfo shaderStages[] = {
-            // Stage 0 (vertex)
-            (VkPipelineShaderStageCreateInfo){
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .module = vertexShaderModule,
-                .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                // The entry point of the actual shader code. Default is obviously keeping the function as "main"
-                .pName = shaderEntryFunctionName},
-            // Stage 1 (fragment)
-            (VkPipelineShaderStageCreateInfo){
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .module = fragmentShaderModule,
-                .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .pName = shaderEntryFunctionName},
-        };
+    // Because these indexes are hardcoded, they can be referenced by definitions (SHADER_STAGE_xxx)
+    VkPipelineShaderStageCreateInfo shaderStages[] = {
+        // Stage 0 (vertex)
+        (VkPipelineShaderStageCreateInfo){
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .module = vertexShaderModule,
+            .stage = VK_SHADER_STAGE_VERTEX_BIT,
+            // The entry point of the actual shader code. Default is obviously keeping the function as "main"
+            .pName = shaderEntryFunctionName},
+        // Stage 1 (fragment)
+        (VkPipelineShaderStageCreateInfo){
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .module = fragmentShaderModule,
+            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pName = shaderEntryFunctionName},
+    };
 
     // Dynamic states are the things that can be changed at runtime without requiring a recreation of the render pipeline (ex: window/viewport size)
     // https://registry.khronos.org/vulkan/specs/latest/man/html/VkDynamicState.html
@@ -189,12 +189,12 @@ void gp_create(State_t *state)
     // Don't care about pipeline cache right now and only need to create 1 pipeline
     logs_logIfError(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
                                               &state->renderer.graphicsPipeline),
-                    "Failed to create the graphics pipeline.")
+                    "Failed to create the graphics pipeline.");
 
-        // Once the render pipeline has been created, the shader information is stored within it. Thus, the shader modules can
-        // actually be destroyed now. Do note that this means that if the shaders need to be changed, everything done in this function
-        // must be re-performed.
-        vkDestroyShaderModule(state->context.device, fragmentShaderModule, state->context.pAllocator);
+    // Once the render pipeline has been created, the shader information is stored within it. Thus, the shader modules can
+    // actually be destroyed now. Do note that this means that if the shaders need to be changed, everything done in this function
+    // must be re-performed.
+    vkDestroyShaderModule(state->context.device, fragmentShaderModule, state->context.pAllocator);
     vkDestroyShaderModule(state->context.device, vertexShaderModule, state->context.pAllocator);
 }
 

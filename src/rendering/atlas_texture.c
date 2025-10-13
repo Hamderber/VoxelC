@@ -30,9 +30,9 @@ void atlasTextureImageCreate(State_t *state)
     logs_log(LOG_DEBUG, "The atlas texture has %u regions.", state->renderer.atlasRegionCount);
 
     logs_logIfError(pixels == NULL,
-                    "Failed to load texture %s!", imagePath)
+                    "Failed to load texture %s!", imagePath);
 
-        logs_log(LOG_DEBUG, "Loaded texture %s", imagePath);
+    logs_log(LOG_DEBUG, "Loaded texture %s", imagePath);
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -44,8 +44,8 @@ void atlasTextureImageCreate(State_t *state)
     // Map and copy the data into the staging buffer
     void *data;
     logs_logIfError(vkMapMemory(state->context.device, stagingBufferMemory, 0, imageSize, 0, &data),
-                    "Failed to map texture staging buffer memory.")
-        memcpy(data, pixels, (size_t)imageSize);
+                    "Failed to map texture staging buffer memory.");
+    memcpy(data, pixels, (size_t)imageSize);
     vkUnmapMemory(state->context.device, stagingBufferMemory);
     // free the image array that was loaded
     stbi_image_free(pixels);
@@ -101,9 +101,9 @@ AtlasRegion_t *atlasCreate(AtlasRegion_t *pAtlasRegions, uint32_t atlasRegionCou
 
     pAtlasRegions = malloc(sizeof(AtlasRegion_t) * atlasRegionCount);
     logs_logIfError(pAtlasRegions == NULL,
-                    "Failed to allocate memory for the atlas texture regions!")
+                    "Failed to allocate memory for the atlas texture regions!");
 
-        const float dU = 1.0f / (float)atlasWidthInTiles;
+    const float dU = 1.0f / (float)atlasWidthInTiles;
     const float dV = 1.0f / (float)atlasHeightInTiles;
 
     uint32_t regionIndex = 0U;

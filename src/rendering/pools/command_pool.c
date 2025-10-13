@@ -15,7 +15,7 @@ void commandPoolCreate(State_t *state)
     };
 
     logs_logIfError(vkCreateCommandPool(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.commandPool),
-                    "Failed to create command pool.")
+                    "Failed to create command pool.");
 }
 
 void commandPoolDestroy(State_t *state)
