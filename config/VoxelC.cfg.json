@@ -1,0 +1,11 @@
+{
+	"window":	{
+		"width":	720,
+		"height":	480,
+		"fullscreen":	false
+	},
+	"renderer":	{
+		"vsync":	false,
+		"anisotropy":	0
+	}
+}

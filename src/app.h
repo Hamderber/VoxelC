@@ -6,6 +6,7 @@
 #include "gui/window.h"
 #include "physics/physics.h"
 #include "main.h"
+#include "core/config.h"
 
 void app_init(State_t *state)
 {
@@ -61,6 +62,8 @@ void app_cleanup(State_t *state)
     state->window.swapchain.handle = NULL;
     state->context.instance = NULL;
     state->context.pAllocator = NULL;
+
+    cfg_destroy();
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

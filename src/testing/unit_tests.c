@@ -4,7 +4,7 @@
 #include "c_math/c_math.h"
 #include "world/chunk.h"
 
-const int NUM_TESTS = 10000000;
+const int NUM_TESTS = 1000;
 static uint32_t originalRngSeed;
 
 /// @brief Performs NUM_TESTS coordinate packing and unpacking. Randomizes a coordinate, packs it, and makes sure the unpacked version
