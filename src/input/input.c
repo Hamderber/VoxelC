@@ -282,12 +282,18 @@ void input_update(State_t *state)
             const char *keyName = input_keyNameGet(key);
             const char *actionName = INPUT_ACTION_MAPPING_NAMES[(int)k->inputMapping];
 
+            k->keyUp = false;
+            k->keyDown = true;
+
             logs_log(LOG_DEBUG, "Key %3d (%-12s) down-> Action: %s", key, keyName, actionName);
         }
         else if (!k->pressedThisFrame && k->pressedLastFrame)
         {
             const char *keyName = input_keyNameGet(key);
             const char *actionName = INPUT_ACTION_MAPPING_NAMES[(int)k->inputMapping];
+
+            k->keyDown = false;
+            k->keyUp = true;
 
             logs_log(LOG_DEBUG, "Key %3d (%-12s) up -> Action: %s", key, keyName, actionName);
         }
@@ -315,6 +321,8 @@ void input_init(State_t *state)
         // Assign a fully initialized key struct
         state->window.input.pInputKeys[key] = (InputKey_t){
             .key = key,
+            .keyDown = false,
+            .keyUp = false,
             .pressedLastFrame = false,
             .pressedThisFrame = false,
             .inputMapping = mapping,

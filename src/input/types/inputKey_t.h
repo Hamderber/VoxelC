@@ -6,6 +6,8 @@
 typedef struct
 {
     int key;
+    bool keyUp;
+    bool keyDown;
     bool pressedThisFrame;
     bool pressedLastFrame;
     InputActionMapping_t inputMapping;
