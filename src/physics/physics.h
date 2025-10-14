@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/core.h"
+#include "core/types/state_t.h"
 
 void physicsUpdate(State_t *state);
 

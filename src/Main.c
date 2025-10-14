@@ -1,8 +1,9 @@
-#include "core/core.h"
 #include "main.h"
 #include "app.h"
+#include "core/types/state_t.h"
 #include "testing/unit_tests.h"
 #include <time.h>
+#include "core/random.h"
 
 int main(void)
 {
