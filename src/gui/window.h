@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include "core/types/state_t.h"
 
 void win_pollEvents(void);
 
@@ -15,6 +16,6 @@ VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Wind
 
 VkPresentModeKHR win_surfacePresentModesSelect(const AppConfig_t *config, const Context_t *context, const Window_t *window);
 
-void win_create(void *state, Window_t *window, AppConfig_t *config);
+void win_create(State_t *state);
 
 void win_destroy(State_t *state);

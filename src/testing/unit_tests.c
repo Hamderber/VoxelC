@@ -139,7 +139,7 @@ static int ut_randSpecific64(int64_t (*func)(int), int range)
     tolerance = tolerance < 0.25 ? 0.25 : tolerance;
 
     logs_log(LOG_UNIT_TEST,
-             "Rand range %d:\tMean (5 std %.3le): %.3le\tVar: %.3le\tStd: %.3le\t\tMin: %lld\t\tMax: %lld",
+             "Rand range %d:\tMean (5 std %.3le): %.3le\tVar: %.3le\tStd: %.3le\tMin: %12lld\tMax: %12lld",
              range, tolerance, mean, var, std, (long long)min, (long long)max);
 
     if (fabsl(mean) > tolerance)

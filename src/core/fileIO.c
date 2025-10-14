@@ -15,6 +15,7 @@
 
 #ifdef _WIN32
 #include <direct.h>
+#include <io.h>
 #define MKDIR(path) _mkdir(path)
 #else
 #include <unistd.h>
@@ -84,6 +85,35 @@ bool file_dirExists(const char *dir, char *fullDir)
 
     struct stat st = {0};
     return stat(fullDir, &st) != -1;
+}
+
+bool file_exists(const char *dir, const char *fileName, char *fullPath)
+{
+    if (!dir || !fileName)
+    {
+        logs_log(LOG_ERROR, "file_fileExists() received invalid parameters (dir=%p, fileName=%p)", dir, fileName);
+        return false;
+    }
+
+    char fullDir[MAX_DIR_PATH_LENGTH];
+    if (!file_dirExists(dir, fullDir))
+    {
+        logs_log(LOG_WARN, "Directory '%s' not found at '%s' while checking '%s'", dir, fullDir, fileName);
+        return false;
+    }
+
+    // Build final path
+    snprintf(fullPath, MAX_DIR_PATH_LENGTH, "%s/%s", fullDir, fileName);
+    logs_log(LOG_DEBUG, "Checking if file '%s' exists at '%s'", fileName, fullPath);
+
+#ifdef _WIN32
+    // On Windows, use _access (or _waccess if wide chars)
+    return (_access(fullPath, 0) == 0);
+#else
+    // On POSIX systems, use access() or stat()
+    struct stat st = {0};
+    return (stat(fullPath, &st) == 0);
+#endif
 }
 
 /// @brief Creates the directory dir at ../dirPath/dir relative to bin/.exe

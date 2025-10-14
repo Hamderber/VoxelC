@@ -8,9 +8,15 @@
 #include <stdlib.h>
 #include "fileIO.h"
 #include <string.h>
+#include "input/types/inputActionMapping_t.h"
+#include "input/types/input_t.h"
+#include "input/types/defaulyKeyMapping_t.h"
 
+static FILE *pKeyCfg;
+const char *cfgFolder = "config";
 static FILE *pCfg;
 
+#define KEYBINDINGS_FILE_NAME "keybindings.json"
 #define APP_CONFIG_NAME PROGRAM_NAME ".cfg.json"
 
 static AppConfig_t appConfig = {
@@ -106,6 +112,171 @@ static cJSON *load_json_file(const char *path, const char *debugName)
 
     free(buffer);
     return json;
+}
+
+void cfg_keyBindingsSave(Input_t *input, const char *dir, const char *filename)
+{
+    char path[MAX_DIR_PATH_LENGTH];
+    snprintf(path, sizeof(path), "%s/%s", dir, filename);
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root)
+    {
+        logs_log(LOG_ERROR, "Failed to allocate JSON root for keybinding save");
+        return;
+    }
+
+    // Iterate over all GLFW keycodes
+    for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
+    {
+        InputActionMapping_t mapping = input->pInputKeys[key].inputMapping;
+
+        // Only save mapped keys
+        if (mapping != INPUT_ACTION_UNMAPPED)
+        {
+            const char *actionName = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
+            cJSON_AddNumberToObject(root, actionName, key);
+        }
+    }
+
+    char *jsonStr = cJSON_Print(root);
+    if (!jsonStr)
+    {
+        logs_log(LOG_ERROR, "Failed to serialize keybinding JSON");
+        cJSON_Delete(root);
+        return;
+    }
+
+    FILE *file = file_create(dir, filename);
+    if (!file)
+    {
+        logs_log(LOG_ERROR, "Failed to open keybindings file for writing: %s", path);
+        free(jsonStr);
+        cJSON_Delete(root);
+        return;
+    }
+
+    fputs(jsonStr, file);
+    file_close(file, filename);
+    free(jsonStr);
+    cJSON_Delete(root);
+
+    logs_log(LOG_INFO, "Saved keybindings to '%s'", path);
+}
+
+void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
+{
+    if (!input)
+    {
+        logs_log(LOG_ERROR, "Input_t pointer was NULL in cfg_keyBindingsLoad()");
+        return;
+    }
+
+    char fullDir[MAX_DIR_PATH_LENGTH];
+    if (!file_dirExists(dir, fullDir))
+    {
+        logs_log(LOG_WARN, "Directory '%s' not found at '%s'. Using default keybindings.", dir, fullDir);
+        return;
+    }
+
+    // Build final file path (../dir/fileName)
+    char fullPath[MAX_DIR_PATH_LENGTH];
+    snprintf(fullPath, MAX_DIR_PATH_LENGTH, "%s/%s", fullDir, fileName);
+    logs_log(LOG_DEBUG, "Attempting to load '%s' from '%s'", fileName, fullPath);
+
+    cJSON *root = load_json_file(fullPath, fileName);
+    if (!root)
+    {
+        logs_log(LOG_ERROR, "Failed to read or parse '%s' JSON at '%s'. Using defaults.", fileName, fullPath);
+
+        // Attempt to rename the bad file
+        char backupPath[MAX_DIR_PATH_LENGTH];
+        snprintf(backupPath, sizeof(backupPath), "%s.old", fullPath);
+
+        int renameResult = rename(fullPath, backupPath);
+        if (renameResult == 0)
+        {
+            logs_log(LOG_WARN, "Corrupted keybinding file '%s' renamed to '%s'", fullPath, backupPath);
+        }
+        else
+        {
+            logs_log(LOG_ERROR, "Failed to rename corrupted keybinding file '%s' to '%s' (error %d)", fullPath, backupPath, renameResult);
+        }
+
+        // Regenerate a fresh default keybinding file
+        logs_log(LOG_INFO, "Regenerating new default keybinding file '%s'", fileName);
+        cfg_keyBindingsSave(input, dir, fileName);
+        return;
+    }
+
+    // Parse the JSON contents
+    cJSON *bindings = root;
+    if (cJSON_IsObject(bindings))
+    {
+        for (int i = 0; i < INPUT_ACTION_MAPPING_LENGTH; i++)
+        {
+            const char *actionName = INPUT_ACTION_MAPPING_NAMES[i];
+            cJSON *keyItem = cJSON_GetObjectItemCaseSensitive(bindings, actionName);
+
+            if (cJSON_IsNumber(keyItem))
+            {
+                input->pInputKeys[i].key = keyItem->valueint;
+                input->pInputKeys[i].inputMapping = (InputActionMapping_t)i;
+            }
+        }
+    }
+
+    logs_log(LOG_INFO, "Loaded '%s' keybindings from '%s'", fileName, fullPath);
+    cJSON_Delete(root);
+}
+
+Input_t cfg_inputDefaults(void)
+{
+    Input_t input = {0};
+
+    // Apply defaults
+    for (size_t i = 0; i < DEFAULT_KEY_MAPPINGS_COUNT; i++)
+    {
+        InputActionMapping_t act = DEFAULT_KEY_MAPPINGS[i].action;
+        int key = DEFAULT_KEY_MAPPINGS[i].defaultKey;
+
+        input.pInputKeys[key].key = key;
+        input.pInputKeys[key].inputMapping = act;
+        input.pInputKeys[key].pressedLastFrame = false;
+        input.pInputKeys[key].pressedThisFrame = false;
+    }
+
+    return input;
+}
+
+Input_t cfg_keyBindingsLoadOrCreate(void)
+{
+    Input_t input = cfg_inputDefaults();
+
+    char fullDir[MAX_DIR_PATH_LENGTH];
+
+    if (file_exists(cfgFolder, KEYBINDINGS_FILE_NAME, fullDir))
+    {
+        logs_log(LOG_DEBUG, "Loading existing keybindings");
+        cfg_keyBindingsLoad(&input, cfgFolder, KEYBINDINGS_FILE_NAME);
+    }
+    else
+    {
+        logs_log(LOG_INFO, "Unable to locate keybinding file. Creating default.");
+
+        cfg_keyBindingsSave(&input, cfgFolder, KEYBINDINGS_FILE_NAME);
+    }
+
+    return input;
+}
+
+void cfg_keyBindingsDestroy(void)
+{
+    if (pKeyCfg)
+    {
+        file_close(pKeyCfg, KEYBINDINGS_FILE_NAME);
+        pKeyCfg = NULL;
+    }
 }
 
 void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
@@ -247,27 +418,23 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
 
 AppConfig_t cfg_loadOrCreate(void)
 {
-    const char *cfgFolder = "config";
     char fullDir[MAX_DIR_PATH_LENGTH];
 
-    FileIO_Result_t result = file_dirCreate(cfgFolder, fullDir);
-
-    switch (result)
+    if (file_exists(cfgFolder, APP_CONFIG_NAME, fullDir))
     {
-    case FILE_IO_RESULT_DIR_ALREADY_EXISTS:
         logs_log(LOG_DEBUG, "Loading existing cfg");
         cfg_appLoad(&appConfig, cfgFolder, APP_CONFIG_NAME);
-        break;
-    default:
+    }
+    else
+    {
         logs_log(LOG_WARN, "Unable to locate config file. Creating default.");
         cfg_appSave(&appConfig, cfgFolder, APP_CONFIG_NAME);
-        break;
     }
 
     return appConfig;
 }
 
-void cfg_destroy(void)
+void cfg_appDestroy(void)
 {
     if (pCfg)
     {
@@ -276,7 +443,18 @@ void cfg_destroy(void)
     }
 }
 
-AppConfig_t cfg_init(void)
+Input_t cfg_inputInit(void)
+{
+    return cfg_keyBindingsLoadOrCreate();
+}
+
+AppConfig_t cfg_appInit(void)
 {
     return cfg_loadOrCreate();
+}
+
+void cfg_init(void)
+{
+    char fullDir[MAX_DIR_PATH_LENGTH];
+    file_dirCreate(cfgFolder, fullDir);
 }
