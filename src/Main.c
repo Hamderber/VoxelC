@@ -3,7 +3,6 @@
 #include "app.h"
 #include "testing/unit_tests.h"
 #include <time.h>
-// #include <s
 
 int main(void)
 {
@@ -17,8 +16,10 @@ int main(void)
     ut_run();
 #endif
 
+    cfg_init();
+
     State_t state = {
-        .config = cfg_init(),
+        .config = cfg_appInit(),
     };
 
     app_init(&state);

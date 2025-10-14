@@ -6,6 +6,8 @@
 #include "gui/window.h"
 #include "physics/physics.h"
 #include "main.h"
+#include "core/config.h"
+#include "input/input.h"
 
 void app_init(State_t *state)
 {
@@ -14,7 +16,12 @@ void app_init(State_t *state)
     glfwi_init();
 
     vki_create(state);
-    win_create(state, &state->window, &state->config);
+
+    win_create(state);
+
+    // MUST be called AFTER win_create because the Window_t is assigned there
+    input_init(state);
+
     rend_create(state);
 
     time_init(&state->time);
@@ -24,6 +31,9 @@ void app_renderLoop(State_t *state)
 {
     // Handle the window events, including actually closing the window with the X
     win_pollEvents();
+
+    // Handle all inputs since the last frame displayed (GLFW)
+    input_update(state);
 
     // Must call this after the window poll events (glfwPollEvents(); specifically) because resizing the window and the
     // associated callback would be generated from that function. This will only hit AFTER the user has LET GO of the
@@ -61,6 +71,9 @@ void app_cleanup(State_t *state)
     state->window.swapchain.handle = NULL;
     state->context.instance = NULL;
     state->context.pAllocator = NULL;
+
+    cfg_appDestroy();
+    cfg_keyBindingsDestroy();
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

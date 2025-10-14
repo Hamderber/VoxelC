@@ -20,7 +20,7 @@ void uniformBuffersCreate(State_t *state)
 
         logs_logIfError(vkMapMemory(state->context.device, state->renderer.pUniformBufferMemories[i], 0, bufferSize, 0,
                                     &state->renderer.pUniformBuffersMapped[i]),
-                        "Failed to map memory for uniform buffer!")
+                        "Failed to map memory for uniform buffer!");
     }
 }
 

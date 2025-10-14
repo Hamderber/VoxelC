@@ -7,25 +7,10 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include "logs.h"
+#include "fileIO.h"
 
-// OS-specific inclusions for file/directory writing
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#ifdef _WIN32
-#include <direct.h>
-#define MKDIR(path) _mkdir(path)
-#define LOGS_FILE_SHORT \
-    (logs_pathAfterSrc(__FILE__)[0] == '\\' ? logs_pathAfterSrc(__FILE__) - 1 : logs_pathAfterSrc(__FILE__))
-#define LOGS_FILE_PREFIX ".\\"
-#else
-#include <unistd.h>
-#define MKDIR(path) mkdir(path, 0755)
-#define LOGS_FILE_SHORT logs_pathAfterSrc(__FILE__)
-#define LOGS_FILE_PREFIX "./"
-#endif
-
-static FILE *gpLogFile = NULL;
+static FILE *pLogFile = NULL;
+static char pLogName[MAX_FILE_NAME_LENGTH];
 
 /// @brief Returns pointer with chars starting at the slash before the last occurence of 'src' Ex: .\src\foo\bar
 /// @param fullPath
@@ -139,7 +124,7 @@ void logs_log(LogLevel_t level, const char *format, ...) // log() is built-in do
     va_start(args, format);
 
     // Print to file if open otherwise console
-    FILE *target = gpLogFile ? gpLogFile : stdout;
+    FILE *target = pLogFile ? pLogFile : stdout;
 
     fprintf(target, "[%s][%s] ", prefix, logs_timestampGet(false));
     vfprintf(target, format, args);
@@ -176,7 +161,7 @@ bool logs_logIfError_impl(const char *file, const char *func, int line, int erro
 {
     if (errorCode)
     {
-        char buffer[512];
+        char buffer[MAX_DIR_PATH_LENGTH];
 
         const char *shortFile = logs_pathAfterSrc(file);
 
@@ -215,41 +200,20 @@ bool logs_logIfError_impl(const char *file, const char *func, int line, int erro
 /// @param char* programName
 void logs_create(char *programName)
 {
-    const char *logDir = "../logs";
-    struct stat st = {0};
+    // char filename[MAX_FILE_NAME_LENGTH];
+    snprintf(pLogName, MAX_FILE_NAME_LENGTH, "%s_%s.log", programName, logs_timestampGet(true));
 
-    if (stat(logDir, &st) == -1)
+    pLogFile = file_create("logs", pLogName);
+
+    if (!pLogFile)
     {
-        if (MKDIR(logDir) != 0)
-        {
-            logs_log(LOG_ERROR, "Failed to create logs directory at '%s'", logDir);
-            return;
-        }
-    }
-
-    // Build file path inside logs folder
-    char filename[256];
-    snprintf(filename, sizeof(filename), "%s/%s_%s.log", logDir, programName, logs_timestampGet(true));
-
-#ifdef _WIN32
-    // Have to include this to prevent a compiler warning about fpoen being unsafe (Windows has a "safe" version)
-    if (fopen_s(&gpLogFile, filename, "w") != 0)
-    {
-        gpLogFile = NULL;
-    }
-#else
-    gpLogFile = fopen(filename, "w");
-#endif
-
-    if (!gpLogFile)
-    {
-        logs_log(LOG_ERROR, "Failed to open log file '%s'", filename);
+        logs_log(LOG_ERROR, "Failed to open log file '%s'", pLogName);
         return;
     }
 
-    logs_log(LOG_INFO, "Log file created: '%s'", filename);
+    logs_log(LOG_INFO, "Log file created: '%s'", pLogName);
 
-    fflush(gpLogFile);
+    fflush(pLogFile);
 
     logs_appCompileVersion();
 }
@@ -258,10 +222,9 @@ void logs_create(char *programName)
 /// @param  void
 void logs_destroy(void)
 {
-    if (gpLogFile)
+    if (pLogFile)
     {
-        logs_log(LOG_INFO, "Log file closed.");
-        fclose(gpLogFile);
-        gpLogFile = NULL;
+        file_close(pLogFile, pLogName);
+        pLogFile = NULL;
     }
 }

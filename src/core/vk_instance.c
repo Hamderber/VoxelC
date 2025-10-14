@@ -27,7 +27,7 @@ void vki_logCapabilities(VkPhysicalDeviceFeatures physicalDeviceFeatures, const 
     logs_log(LOG_DEBUG, "The physical device has the following features:");
     logs_log(LOG_DEBUG, "\t\tImage count range: [%d-%d]", capabilities.minImageCount, capabilities.maxImageCount);
     logs_log(LOG_DEBUG, "\t\tMax Image Array Layers: %d", capabilities.maxImageArrayLayers);
-    logs_log(LOG_DEBUG, "\t\tAnisotropic Filtering: %s", physicalDeviceFeatures.samplerAnisotropy ? "Enabled" : "Disabled");
+    logs_log(LOG_DEBUG, "\t\tAnisotropic Filtering: %s", physicalDeviceFeatures.samplerAnisotropy ? "Supported" : "Unsupported");
 }
 
 /// @brief Gets the first memory type (best) that matches the property flags for the state's physical device
@@ -54,9 +54,9 @@ uint32_t vki_physicalMemoryTypeGet(State_t *state, uint32_t memoryRequirements, 
     }
 
     logs_logIfError(memoryType == UINT32_MAX,
-                    "Failed to find suitable memory type!")
+                    "Failed to find suitable memory type!");
 
-        return memoryType;
+    return memoryType;
 }
 
 /// @brief Finds the first (best) format for the physical device that matches all criteria
@@ -106,12 +106,12 @@ VkBool32 vki_validationLayerSupportCheck(void)
 {
     uint32_t layerCount = 0;
     logs_logIfError(vkEnumerateInstanceLayerProperties(&layerCount, NULL),
-                    "Failed to get instance layer properties!")
-        VkLayerProperties *availableLayers = malloc(sizeof(VkLayerProperties) * layerCount);
+                    "Failed to get instance layer properties!");
+    VkLayerProperties *availableLayers = malloc(sizeof(VkLayerProperties) * layerCount);
     logs_logIfError(vkEnumerateInstanceLayerProperties(&layerCount, availableLayers),
-                    "Failed to enumerate instance layer properties!")
+                    "Failed to enumerate instance layer properties!");
 
-        VkBool32 layerFound = VK_FALSE;
+    VkBool32 layerFound = VK_FALSE;
     for (uint32_t i = 0; i < VALIDATION_LAYER_COUNT; ++i)
     {
         for (uint32_t j = 0; j < layerCount; ++j)
@@ -174,7 +174,7 @@ static void vki_instanceCreate(State_t *state)
     }
 
     logs_logIfError(vkCreateInstance(&createInfo, state->context.pAllocator, &state->context.instance),
-                    "Couldn't create Vulkan instance.")
+                    "Couldn't create Vulkan instance.");
 }
 
 /// @brief Assigns the anisotropic filtering options to the state's renderer struct
@@ -185,11 +185,11 @@ static void vki_anisotropicFilteringOptionsGet(State_t *state)
     vkGetPhysicalDeviceProperties(state->context.physicalDevice, &properties);
 
     float afMax = properties.limits.maxSamplerAnisotropy;
-    logs_log(LOG_DEBUG, "The selected physical device supports up to %.fx anisotropic filtering.", afMax);
+    logs_log(LOG_DEBUG, "The selected physical device supports up to %d x anisotropic filtering.", (int)afMax);
 
-    if (afMax <= 1.0f)
+    if (afMax <= 1.0F)
     {
-        logs_log(LOG_WARN, "Anisotropic filtering not supported (maxSamplerAnisotropy <= 1.0).");
+        logs_log(LOG_WARN, "Anisotropic filtering not supported (maxSamplerAnisotropy <= 1 x).");
         state->renderer.anisotropicFilteringOptionsCount = 0;
         state->renderer.anisotropicFilteringOptions = NULL;
         return;
@@ -201,17 +201,13 @@ static void vki_anisotropicFilteringOptionsGet(State_t *state)
     state->renderer.anisotropicFilteringOptions = malloc(sizeof(AnisotropicFilteringOptions_t) * size);
 
     logs_logIfError(state->renderer.anisotropicFilteringOptions == NULL,
-                    "Failed to allocate anisotropic filtering options!")
+                    "Failed to allocate anisotropic filtering options!");
 
-        // Fill the table (1x, 2x, 4x, 8x, 16x)
-        for (int i = 0; i < size; i++)
+    // Fill the table (1x, 2x, 4x, 8x, 16x)
+    for (int i = 0; i < size; i++)
     {
         // Binary shift increments in powers of 2
-        float level = (float)(1 << i);
-        if (level > afMax)
-            level = afMax;
-
-        state->renderer.anisotropicFilteringOptions[i] = level;
+        state->renderer.anisotropicFilteringOptions[i] = (AnisotropicFilteringOptions_t)(1 << i);
     }
 }
 
@@ -226,19 +222,19 @@ static void vki_physicalDeviceSelect(State_t *state)
     // available for use, then VK_INCOMPLETE will be returned to just signify that not all physical devices were
     // enumerated. (Ex: dual GPUs) https://registry.khronos.org/vulkan/specs/latest/man/html/vkEnumeratePhysicalDevices.html
     logs_logIfError(enumeratePhysicalDevicesResult != VK_INCOMPLETE && enumeratePhysicalDevicesResult != VK_SUCCESS,
-                    "Couldn't enumerate Vulkan-supported physical device count.")
-
-        if (count > 0)
+                    "Couldn't enumerate Vulkan-supported physical device count.");
+    ;
+    if (count > 0)
     {
         logs_log(LOG_DEBUG, "Found %d Vulkan-supported physical device(s):", count);
 
         VkPhysicalDevice *physicalDevices = malloc(sizeof(VkPhysicalDevice) * count);
         logs_logIfError(physicalDevices == NULL,
-                        "Unable to allocate memory for physical devices.")
-            logs_logIfError(vkEnumeratePhysicalDevices(state->context.instance, &count, physicalDevices),
-                            "Couldn't enumerate Vulkan-supported physical devices.")
+                        "Unable to allocate memory for physical devices.");
+        logs_logIfError(vkEnumeratePhysicalDevices(state->context.instance, &count, physicalDevices),
+                        "Couldn't enumerate Vulkan-supported physical devices.");
 
-                char *deviceType;
+        char *deviceType;
         char *preamble;
         for (uint32_t i = 0; i < count; i++)
         {
@@ -265,7 +261,7 @@ static void vki_physicalDeviceSelect(State_t *state)
                 break;
             }
 
-            preamble = i == 0 ? "(Selected)\t" : "\t\t";
+            preamble = i == 0 ? "\t--> " : "\t\t";
 
             logs_log(LOG_DEBUG, "%s%s (%d) %s", preamble, properties.deviceName, properties.deviceID, deviceType);
         }
@@ -278,7 +274,7 @@ static void vki_physicalDeviceSelect(State_t *state)
     {
         // True here just forces the error log
         logs_logIfError(true,
-                        "No Vulkan-supported physical devices found!")
+                        "No Vulkan-supported physical devices found!");
     }
 }
 
@@ -294,9 +290,9 @@ static void vki_queueFamilySelect(State_t *state)
 
     VkQueueFamilyProperties *queueFamilies = malloc((sizeof(VkQueueFamilyProperties) * count));
     logs_logIfError(queueFamilies == NULL,
-                    "Unable to allocate memory for GPU's queue families.")
+                    "Unable to allocate memory for GPU's queue families.");
 
-        vkGetPhysicalDeviceQueueFamilyProperties(state->context.physicalDevice, &count, queueFamilies);
+    vkGetPhysicalDeviceQueueFamilyProperties(state->context.physicalDevice, &count, queueFamilies);
 
     for (uint32_t queueFamilyIndex = 0; queueFamilyIndex < count; queueFamilyIndex++)
     {
@@ -316,9 +312,9 @@ static void vki_queueFamilySelect(State_t *state)
 
     // This only logs the error if the above iteration found no suitable queue family
     logs_logIfError(state->context.queueFamily == UINT32_MAX,
-                    "Unable to find a queue family with the supported Vulkan and GLFW flags.")
+                    "Unable to find a queue family with the supported Vulkan and GLFW flags.");
 
-        free(queueFamilies);
+    free(queueFamilies);
 }
 
 /// @brief Creates a physicial device and assigns it to the state
@@ -354,7 +350,7 @@ static void vki_deviceCreate(State_t *state)
     };
 
     logs_logIfError(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.pAllocator, &state->context.device),
-                    "Unable to create the Vulkan device.")
+                    "Unable to create the Vulkan device.");
 }
 
 /// @brief Creates the state's Vulkan instance and associated contexts

@@ -21,8 +21,8 @@ void vertexBufferCreateFromData(State_t *state, ShaderVertex_t *vertices, uint32
 
     void *data;
     logs_logIfError(vkMapMemory(state->context.device, stagingMemory, 0, bufferSize, 0, &data),
-                    "Failed to map vertex staging buffer memory.")
-        memcpy(data, vertices, (size_t)bufferSize);
+                    "Failed to map vertex staging buffer memory.");
+    memcpy(data, vertices, (size_t)bufferSize);
     vkUnmapMemory(state->context.device, stagingMemory);
 
     // Create actual GPU vertex buffer

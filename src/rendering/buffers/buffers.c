@@ -14,9 +14,9 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
     };
 
     logs_logIfError(vkCreateBuffer(state->context.device, &createInfo, state->context.pAllocator, buffer),
-                    "Failed to create buffer!")
+                    "Failed to create buffer!");
 
-        VkMemoryRequirements memoryRequirements;
+    VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(state->context.device, *buffer, &memoryRequirements);
 
     uint32_t memoryType = vki_physicalMemoryTypeGet(state, memoryRequirements.memoryTypeBits, propertyFlags);
@@ -28,11 +28,11 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
     };
 
     logs_logIfError(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, bufferMemory),
-                    "Failed to allocate buffer memory!")
+                    "Failed to allocate buffer memory!");
 
-        // No offset required. If there was an offset, it would have to be divisible by memoryRequirements.alignment
-        logs_logIfError(vkBindBufferMemory(state->context.device, *buffer, *bufferMemory, 0),
-                        "Failed to bind buffer memory!")
+    // No offset required. If there was an offset, it would have to be divisible by memoryRequirements.alignment
+    logs_logIfError(vkBindBufferMemory(state->context.device, *buffer, *bufferMemory, 0),
+                    "Failed to bind buffer memory!");
 }
 
 void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)

@@ -27,7 +27,7 @@ static void win_surfaceCreate(State_t *state)
     // surface is just a cross-platform abstraction of the window (helps with vulkan)
     logs_logIfError(glfwCreateWindowSurface(state->context.instance, state->window.pWindow, state->context.pAllocator,
                                             &state->window.surface),
-                    "Unable to create Vulkan window surface")
+                    "Unable to create Vulkan window surface");
 }
 
 /// @brief Destroys the Vulkan surface associated with the GLFW window
@@ -45,9 +45,9 @@ VkSurfaceCapabilitiesKHR win_surfaceCapabilitiesGet(const Context_t *context, co
 {
     VkSurfaceCapabilitiesKHR capabilities;
     logs_logIfError(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context->physicalDevice, window->surface, &capabilities),
-                    "Failed to query physical device surface capabilities.")
+                    "Failed to query physical device surface capabilities.");
 
-        return capabilities;
+    return capabilities;
 }
 
 /// @brief Selects the best surface format from the available options
@@ -59,14 +59,14 @@ VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Wind
     uint32_t formatCount;
     // null so that we just get the number of formats
     logs_logIfError(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, NULL),
-                    "Failed to query physical device surface format count.")
-        VkSurfaceFormatKHR *formats = malloc(sizeof(VkSurfaceFormatKHR) * formatCount);
+                    "Failed to query physical device surface format count.");
+    VkSurfaceFormatKHR *formats = malloc(sizeof(VkSurfaceFormatKHR) * formatCount);
     logs_logIfError(formats == NULL,
-                    "Unable to allocate memory for Vulkan surface formats")
-        logs_logIfError(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, formats),
-                        "Failed to query physical device surface formats.")
+                    "Unable to allocate memory for Vulkan surface formats");
+    logs_logIfError(vkGetPhysicalDeviceSurfaceFormatsKHR(context->physicalDevice, window->surface, &formatCount, formats),
+                    "Failed to query physical device surface formats.");
 
-            VkSurfaceFormatKHR format = formats[0]; // Default to the first format ...
+    VkSurfaceFormatKHR format = formats[0]; // Default to the first format ...
     for (uint32_t i = 0U; i < formatCount; i++)
     {
         // SRGB is the most commonly supported (and best) so we want that one if available
@@ -87,8 +87,15 @@ VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Wind
 /// @param context
 /// @param window
 /// @return VkPresentModeKHR
-VkPresentModeKHR win_surfacePresentModesSelect(const Context_t *context, const Window_t *window)
+VkPresentModeKHR win_surfacePresentModesSelect(const AppConfig_t *config, const Context_t *context, const Window_t *window)
 {
+    // If vsync is disabled, don't bother enumerating the available options. Immediate is always supported and will
+    // throw as many frames as possible despite monitor refresh rate. This WILL cause screen tearing.
+    if (!config->vsync)
+    {
+        return VK_PRESENT_MODE_IMMEDIATE_KHR;
+    }
+
     // See https://www.youtube.com/watch?v=nSzQcyQTtRY for the different present modes (visual examples)
     // Immedaite causes screen tearing (don't use) and I think Mailbox sounds the best. Unfortunately,
     // Mailbox isn't universally supported and is much more power-intensive (constant frame generation/discarding)
@@ -96,14 +103,14 @@ VkPresentModeKHR win_surfacePresentModesSelect(const Context_t *context, const W
     uint32_t presentModeCount;
     // null so that we just get the number of present modes
     logs_logIfError(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, NULL),
-                    "Failed to query physical device surface presentation modes.")
-        VkPresentModeKHR *presentModes = malloc(sizeof(VkPresentModeKHR) * presentModeCount);
+                    "Failed to query physical device surface presentation modes.");
+    VkPresentModeKHR *presentModes = malloc(sizeof(VkPresentModeKHR) * presentModeCount);
     logs_logIfError(presentModes == NULL,
-                    "Unable to allocate memory for Vulkan present modes.")
-        logs_logIfError(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, presentModes),
-                        "Failed to query physical device surface presentation modes.")
+                    "Unable to allocate memory for Vulkan present modes.");
+    logs_logIfError(vkGetPhysicalDeviceSurfacePresentModesKHR(context->physicalDevice, window->surface, &presentModeCount, presentModes),
+                    "Failed to query physical device surface presentation modes.");
 
-            VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // Default to FIFO ...
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // Default to FIFO ...
     for (uint32_t i = 0U; i < presentModeCount; i++)
     {
         if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -139,18 +146,18 @@ void win_waitForValidFramebuffer(Window_t *window)
 
 /// @brief Creates the GLFW window
 /// @param state
-void win_create(void *state, Window_t *window, Config_t *config)
+void win_create(State_t *state)
 {
     // Vulkan => no api. OpenGL would require the OpenGL api
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, config->windowResizable);
+    glfwWindowHint(GLFW_RESIZABLE, state->config.windowResizable);
 
-    int width = config->windowWidth;
-    int height = config->windowHeight;
+    int width = state->config.windowWidth;
+    int height = state->config.windowHeight;
     // There is no need to store the actual monitor reference. Just the window.
     GLFWmonitor *monitor = NULL;
 
-    if (config->windowFullscreen)
+    if (state->config.windowFullscreen)
     {
         monitor = glfwGetPrimaryMonitor();
         // If the window is fullscreen, set the window's resolution to the monitor's
@@ -160,25 +167,25 @@ void win_create(void *state, Window_t *window, Config_t *config)
     }
 
     // If not fullscreen, set window resolution to the default state values (set in main())
-    window->pWindow = glfwCreateWindow(width, height, config->pWindowTitle, monitor, NULL);
+    state->window.pWindow = glfwCreateWindow(width, height, state->config.pWindowTitle, monitor, NULL);
 
     int frameBufferWidth;
     int frameBufferHeight;
-    glfwGetFramebufferSize(window->pWindow, &frameBufferWidth, &frameBufferHeight);
-    window->frameBufferWidth = frameBufferWidth;
-    window->frameBufferHeight = frameBufferHeight;
+    glfwGetFramebufferSize(state->window.pWindow, &frameBufferWidth, &frameBufferHeight);
+    state->window.frameBufferWidth = frameBufferWidth;
+    state->window.frameBufferHeight = frameBufferHeight;
 
     // This allows for the glfw window to keep a reference to the state. Thus, we don't have to make state a global variable.
     // This is necessary for things such as callback functions (see below in this method) where the callback function
     // otherwise wouldn't have access to the state.
-    glfwSetWindowUserPointer(window->pWindow, state);
+    glfwSetWindowUserPointer(state->window.pWindow, state);
 
     // If the window changes size, call this function. There is a window-specific one, but the frame buffer one is better.
     // This allows for supporting retina displays and other screens that use subpixels (Vulkan sees subpixels as normal pixels).
     // For those types of displays, the window width/height and the frame buffer size would be different numbers. Also consider
     // that if the user has two monitors with only one being a retina display, they could drag the window from one screen to another
     // which would change the frame buffer size but NOT the actual window dimensions.
-    glfwSetFramebufferSizeCallback(window->pWindow, glfwi_framebufferSizeCallback);
+    glfwSetFramebufferSizeCallback(state->window.pWindow, glfwi_framebufferSizeCallback);
 
     win_surfaceCreate(state);
     sc_create(state);

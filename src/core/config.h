@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <vulkan/vulkan.h>
+#include "input/types/input_t.h"
 
 typedef enum
 {
@@ -33,6 +34,8 @@ typedef struct
     int windowHeight;
     bool windowResizable;
     bool windowFullscreen;
+    bool vsync;
+    int anisotropy;
     VkCullModeFlagBits cullModeMask;
     VkFrontFace vertexWindingDirection;
     // Do not allow this value to be changed at runtime. Will cause memory issues with the amount of semaphors and fences.
@@ -42,6 +45,14 @@ typedef struct
     bool vulkanValidation;
     // Size in pixels of each subtexture on the texture atlas. Minecraft is 16px
     uint32_t subtextureSize;
-} Config_t;
+} AppConfig_t;
 
-Config_t cfg_init(void);
+void cfg_keyBindingsDestroy(void);
+
+void cfg_appDestroy(void);
+
+Input_t cfg_inputInit(void);
+
+AppConfig_t cfg_appInit(void);
+
+void cfg_init(void);

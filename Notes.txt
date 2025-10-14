@@ -16,8 +16,6 @@ Conventions:
    forgotten. Just do whatever you needed to bewtween those two calls. Unless that allocation is handled
    elsewhere, obviously.
 8. All header files shall start with "#pragma once" to prevent any unintentional function/etc redefinitions.
-9. Don't include the semicolon after any C macro. Because macros are replaced as in-lines at compile, the
-   semicolon is just an unnecessary no-op that could be added.
 10. Follow each malloc with a LOG_IF_ERROR to verify that memory allocation was successful.
 11. Have the logged string of every LOG_IF_ERROR on a new line for code legibility.
 12. For legibility, when using malloc, use sizeof(...) * numberOfItems in that order.
@@ -48,6 +46,8 @@ References:
 4. https://github.com/nothings/stb
 5. https://github.com/jkuhlmann/cgltf
 6. To change cmake configuration: CTRL + SHIFT + P then "CMake: Select Variant"
+7. Collapse all with CTRL + K then CTRL + 0
+8. https://github.com/DaveGamble/cJSON
 
 TODO:
 1. At some point in the future, check EVERY entry of LOG_IF_ERROR to ensure that if anything allocates memory but fails,
@@ -73,3 +73,4 @@ TODO:
 15. Add an additional pipeline that uses the line rendering mode to draw connections between verticies (for showing voxel hitboxes and chunks)
     or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?
 16. Refactor functions that take the state to use only the necessary portions of the state and make them const when possible
+17. Vertex pooling

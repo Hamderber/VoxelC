@@ -26,7 +26,7 @@ bool logs_logIfError_impl(const char *file, const char *func, int line, int erro
 // If the recieved func returns something that casts to a 0 then it is 'success.'
 // Otherwise log the location the function was called and the passed formatted string for debugging context.
 // If compiled to DEBUG, raises an abort signal on ANY non-zero return function. This will force full debugging.
-#define logs_logIfError(errorCode, format, ...) logs_logIfError_impl(__FILE__, __func__, __LINE__, errorCode, format, ##__VA_ARGS__);
+#define logs_logIfError(errorCode, format, ...) logs_logIfError_impl(__FILE__, __func__, __LINE__, errorCode, format, ##__VA_ARGS__)
 
 void logs_create(char *programName);
 

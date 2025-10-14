@@ -58,6 +58,10 @@
         "string.h": "c",
         "syncobjects.h": "c",
         "graphics_pipeline.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "inputactionmapping_t.h": "c",
+        "inputkey_t.h": "c",
+        "defaulykeymapping_t.h": "c",
+        "xlocale": "c"
     }
 }
