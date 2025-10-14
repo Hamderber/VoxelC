@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <vulkan/vulkan.h>
+#include "input/types/input_t.h"
 
 typedef enum
 {
@@ -44,11 +45,14 @@ typedef struct
     bool vulkanValidation;
     // Size in pixels of each subtexture on the texture atlas. Minecraft is 16px
     uint32_t subtextureSize;
+} AppConfig_t;
 
-    char assetPath[256];
-    char shaderPath[256];
-} Config_t;
+void cfg_keyBindingsDestroy(void);
 
-void cfg_destroy(void);
+void cfg_appDestroy(void);
 
-Config_t cfg_init(void);
+Input_t cfg_inputInit(void);
+
+AppConfig_t cfg_appInit(void);
+
+void cfg_init(void);

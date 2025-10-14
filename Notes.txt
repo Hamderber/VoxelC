@@ -16,8 +16,6 @@ Conventions:
    forgotten. Just do whatever you needed to bewtween those two calls. Unless that allocation is handled
    elsewhere, obviously.
 8. All header files shall start with "#pragma once" to prevent any unintentional function/etc redefinitions.
-9. Don't include the semicolon after any C macro. Because macros are replaced as in-lines at compile, the
-   semicolon is just an unnecessary no-op that could be added.
 10. Follow each malloc with a LOG_IF_ERROR to verify that memory allocation was successful.
 11. Have the logged string of every LOG_IF_ERROR on a new line for code legibility.
 12. For legibility, when using malloc, use sizeof(...) * numberOfItems in that order.

@@ -2,9 +2,27 @@
 #include "core/logs.h"
 #include "core/types/state_t.h"
 
-void textureSamplerCreate(State_t *state)
+/// @brief Checks if the config's AF is available in the device options. Returns 0 if not.
+/// @param state
+/// @return float
+static float tex_AFGet(State_t *state)
 {
-    float af = (float)state->renderer.anisotropicFilteringOptions[state->renderer.anisotropicFilteringOptionsCount - 1];
+    for (size_t i = 0; i < state->renderer.anisotropicFilteringOptionsCount; i++)
+    {
+        if ((int)state->config.anisotropy == (int)state->renderer.anisotropicFilteringOptions[i])
+        {
+            logs_log(LOG_DEBUG, "Anisotropic filtering is set to %d x", (int)state->config.anisotropy);
+            return (float)state->renderer.anisotropicFilteringOptions[i];
+        }
+    }
+
+    logs_log(LOG_WARN, "Configured anisotropic filtering (%d) is not supported. Anisotropic filtering will be set to minimum (1 x)!",
+             (int)state->config.anisotropy);
+    return 1.0F;
+}
+
+void tex_samplerCreate(State_t *state)
+{
     VkSamplerCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
         // Filters specify how to interpolate texels that are magnified or minified
@@ -22,7 +40,7 @@ void textureSamplerCreate(State_t *state)
         .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
         .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
         .anisotropyEnable = VK_TRUE,
-        .maxAnisotropy = af,
+        .maxAnisotropy = tex_AFGet(state),
         // Which color is returned when sampling beyond the image with clamp to border addressing mode. It is possible to
         // return black, white or transparent in either float or int formats
         .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
@@ -40,13 +58,11 @@ void textureSamplerCreate(State_t *state)
         .maxLod = 0.0f,
     };
 
-    logs_log(LOG_WARN, "Anisotropy is hard-coded to select the highest available (%.fx) at this time.", af);
-
     logs_logIfError(vkCreateSampler(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.textureSampler),
-                    "Failed to create texture sampler!")
+                    "Failed to create texture sampler!");
 }
 
-void textureSamplerDestroy(State_t *state)
+void tex_samplerDestroy(State_t *state)
 {
     vkDestroySampler(state->context.device, state->renderer.textureSampler, state->context.pAllocator);
 }

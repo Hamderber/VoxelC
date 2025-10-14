@@ -23,9 +23,9 @@ VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkIm
 
     VkImageView imageView;
     logs_logIfError(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &imageView),
-                    "Failed to create image view!")
+                    "Failed to create image view!");
 
-        return imageView;
+    return imageView;
 }
 
 void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
@@ -73,7 +73,7 @@ void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkIma
     else
     {
         logs_logIfError(true,
-                        "Unsupported layout transition!")
+                        "Unsupported layout transition!");
     }
 
     vkCmdPipelineBarrier(commandBuffer,
@@ -117,9 +117,9 @@ void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat forma
     };
 
     logs_logIfError(vkCreateImage(state->context.device, &createInfo, state->context.pAllocator, image),
-                    "Failed to create image!")
+                    "Failed to create image!");
 
-        VkMemoryRequirements memoryRequirements;
+    VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(state->context.device, *image, &memoryRequirements);
 
     VkMemoryAllocateInfo allocateInfo = {
@@ -129,7 +129,7 @@ void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat forma
     };
 
     logs_logIfError(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, imageMemory),
-                    "Failed to allocate memory for texture images!")
+                    "Failed to allocate memory for texture images!");
 
-        vkBindImageMemory(state->context.device, *image, *imageMemory, 0);
+    vkBindImageMemory(state->context.device, *image, *imageMemory, 0);
 }

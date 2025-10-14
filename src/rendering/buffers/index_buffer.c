@@ -17,8 +17,8 @@ void indexBufferCreateFromData(State_t *state, uint16_t *indices, uint32_t index
 
     void *data;
     logs_logIfError(vkMapMemory(state->context.device, stagingMemory, 0, bufferSize, 0, &data),
-                    "Failed to map index staging buffer memory.")
-        memcpy(data, indices, (size_t)bufferSize);
+                    "Failed to map index staging buffer memory.");
+    memcpy(data, indices, (size_t)bufferSize);
     vkUnmapMemory(state->context.device, stagingMemory);
 
     bufferCreate(state, bufferSize,

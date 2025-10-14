@@ -33,7 +33,7 @@ void sc_imagePresent(State_t *state)
     else
     {
         logs_logIfError(result,
-                        "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.")
+                        "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.");
     }
 
     // Advance to the next frame-in-flight slot
@@ -71,7 +71,7 @@ void sc_imageAcquireNext(State_t *state)
     else
     {
         logs_logIfError(result,
-                        "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.")
+                        "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.");
     }
 }
 
@@ -103,16 +103,16 @@ static void sc_imagesGet(State_t *state)
     // null so that we just get the number of formats
     logs_logIfError(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
                                             &state->window.swapchain.imageCount, NULL),
-                    "Failed to query the number of images in the swapchain.")
-        logs_log(LOG_DEBUG, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
+                    "Failed to query the number of images in the swapchain.");
+    logs_log(LOG_DEBUG, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
 
     state->window.swapchain.pImages = malloc(sizeof(VkImage) * state->window.swapchain.imageCount);
     logs_logIfError(state->window.swapchain.pImages == NULL,
-                    "Unable to allocate memory for swapchain images.")
+                    "Unable to allocate memory for swapchain images.");
 
-        logs_logIfError(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
-                                                &state->window.swapchain.imageCount, state->window.swapchain.pImages),
-                        "Failed to get the images in the swapchain.")
+    logs_logIfError(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
+                                            &state->window.swapchain.imageCount, state->window.swapchain.pImages),
+                    "Failed to get the images in the swapchain.");
 }
 
 /// @brief Creates the image views for each swapchain image
@@ -121,14 +121,14 @@ static void sc_imageViewsCreate(State_t *state)
 {
     state->window.swapchain.pImageViews = malloc(sizeof(VkImageView) * state->window.swapchain.imageCount);
     logs_logIfError(state->window.swapchain.pImageViews == NULL,
-                    "Unable to allocate memory for swapchain image views.")
+                    "Unable to allocate memory for swapchain image views.");
 
-        // Allows for supporting multiple image view layers for the same image etc.
-        VkImageSubresourceRange subresourceRange = {
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .layerCount = 1,
-            .levelCount = 1,
-        };
+    // Allows for supporting multiple image view layers for the same image etc.
+    VkImageSubresourceRange subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .layerCount = 1,
+        .levelCount = 1,
+    };
 
     for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
     {
@@ -145,7 +145,7 @@ static void sc_imageViewsCreate(State_t *state)
         };
         // Pass the address of the specific spot in the array of swapchain image views
         logs_logIfError(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &state->window.swapchain.pImageViews[i]),
-                        "Failed to create swapchain image view %d", i)
+                        "Failed to create swapchain image view %d", i);
     }
 }
 
@@ -155,7 +155,7 @@ static void sc_imageViewsCreate(State_t *state)
 /// @param min
 /// @param max
 /// @return uint32_t
-static uint32_t sc_minImageCountGet(const Config_t *config, const VkPresentModeKHR presentMode, uint32_t min, uint32_t max)
+static uint32_t sc_minImageCountGet(const AppConfig_t *config, const VkPresentModeKHR presentMode, uint32_t min, uint32_t max)
 {
     // It is good to add 1 to the minimum image count when using Mailbox so that the pipeline isn't blocked while the image is
     // still being presented. Also have to make sure that the max image count isn't exceeded.
@@ -208,7 +208,7 @@ void sc_create(State_t *state)
 
     vki_logCapabilities(state->context.physicalDeviceFeatures, capabilities);
 
-    VkPresentModeKHR presentMode = win_surfacePresentModesSelect(&state->context, &state->window);
+    VkPresentModeKHR presentMode = win_surfacePresentModesSelect(&state->config, &state->context, &state->window);
 
     // Prevent the image extend from somehow exceeding what the physical device is capable of
     VkExtent2D imageExtent = {
@@ -263,10 +263,10 @@ void sc_create(State_t *state)
     VkSwapchainKHR swapchain;
 
     logs_logIfError(vkCreateSwapchainKHR(state->context.device, &createInfo, state->context.pAllocator, &swapchain),
-                    "Failed to create Vulkan swapchain!")
+                    "Failed to create Vulkan swapchain!");
 
-        // Even though the state's initial swapchain is obviously null, this sets us up to properly assign the new one (drivers/etc.)
-        vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
+    // Even though the state's initial swapchain is obviously null, this sets us up to properly assign the new one (drivers/etc.)
+    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
     state->window.swapchain.handle = swapchain;
 
     sc_imagesGet(state);
@@ -277,7 +277,8 @@ void sc_create(State_t *state)
     // Allocate the memory for the images in flight
     state->renderer.imagesInFlight = malloc(sizeof(VkFence) * state->window.swapchain.imageCount);
     logs_logIfError(state->renderer.imagesInFlight == NULL,
-                    "Failed to allocate memory for images in flight!") for (uint32_t i = 0; i < state->window.swapchain.imageCount; ++i)
+                    "Failed to allocate memory for images in flight!");
+    for (uint32_t i = 0; i < state->window.swapchain.imageCount; ++i)
     {
         state->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
     }

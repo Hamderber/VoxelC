@@ -8,7 +8,7 @@
 
 typedef struct
 {
-    Config_t config;
+    AppConfig_t config;
     Window_t window;
     Context_t context;
     Renderer_t renderer;

@@ -18,17 +18,17 @@ void commandBufferAllocate(State_t *state)
 
     state->renderer.pCommandBuffers = malloc(sizeof(VkCommandBuffer) * state->config.maxFramesInFlight);
     logs_logIfError(state->renderer.pCommandBuffers == NULL,
-                    "Failed to allocate memory for command buffers")
+                    "Failed to allocate memory for command buffers");
 
-        VkCommandBufferAllocateInfo allocateInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool = state->renderer.commandPool,
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = state->config.maxFramesInFlight,
-        };
+    VkCommandBufferAllocateInfo allocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = state->renderer.commandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = state->config.maxFramesInFlight,
+    };
 
     logs_logIfError(vkAllocateCommandBuffers(state->context.device, &allocateInfo, state->renderer.pCommandBuffers),
-                    "Failed to allocate command buffers")
+                    "Failed to allocate command buffers");
 }
 
 void commandBufferRecord(State_t *state)
@@ -133,7 +133,7 @@ void commandBufferRecord(State_t *state)
 
     // All errors generated from vkCmd functions will populate here. The vkCmd functions themselves are all void.
     logs_logIfError(vkEndCommandBuffer(cmd),
-                    "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex)
+                    "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex);
 }
 
 void commandBufferSubmit(State_t *state)
@@ -174,37 +174,37 @@ VkCommandBuffer commandBufferSingleTimeBegin(State_t *state)
 
     VkCommandBuffer commandBuffer;
     logs_logIfError(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &commandBuffer),
-                    "Failed to allocate command buffer!")
+                    "Failed to allocate command buffer!");
 
-        VkCommandBufferBeginInfo beginInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        };
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
 
     logs_logIfError(vkBeginCommandBuffer(commandBuffer, &beginInfo),
-                    "Failed to begin command buffer!")
+                    "Failed to begin command buffer!");
 
-        return commandBuffer;
+    return commandBuffer;
 }
 
 void commandBufferSingleTimeEnd(State_t *state, VkCommandBuffer commandBuffer)
 {
     logs_logIfError(vkEndCommandBuffer(commandBuffer),
-                    "Failed to end command buffer!")
+                    "Failed to end command buffer!");
 
-        VkSubmitInfo submitInfo = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &commandBuffer,
-        };
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+    };
 
     // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
     // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
     // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
     logs_logIfError(vkQueueSubmit(state->context.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE),
-                    "Failed to submit graphicsQueue!")
-        logs_logIfError(vkQueueWaitIdle(state->context.graphicsQueue),
-                        "Failed to wait for graphics queue to idle!")
+                    "Failed to submit graphicsQueue!");
+    logs_logIfError(vkQueueWaitIdle(state->context.graphicsQueue),
+                    "Failed to wait for graphics queue to idle!");
 
-            vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
 }

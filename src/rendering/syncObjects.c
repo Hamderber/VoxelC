@@ -47,23 +47,23 @@ void syncObjectsCreate(State_t *state)
 
     state->renderer.imageAcquiredSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
     logs_logIfError(state->renderer.imageAcquiredSemaphores == NULL,
-                    "Failed to allcoate memory for image acquired semaphors!")
+                    "Failed to allcoate memory for image acquired semaphors!");
 
-        state->renderer.renderFinishedSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
+    state->renderer.renderFinishedSemaphores = malloc(sizeof(VkSemaphore) * state->config.maxFramesInFlight);
     logs_logIfError(state->renderer.renderFinishedSemaphores == NULL,
-                    "Failed to allcoate memory for render finished semaphors!")
+                    "Failed to allcoate memory for render finished semaphors!");
 
-        state->renderer.inFlightFences = malloc(sizeof(VkFence) * state->config.maxFramesInFlight);
+    state->renderer.inFlightFences = malloc(sizeof(VkFence) * state->config.maxFramesInFlight);
     logs_logIfError(state->renderer.inFlightFences == NULL,
-                    "Failed to allcoate memory for in-flight fences!")
+                    "Failed to allcoate memory for in-flight fences!");
 
-        // GPU operations are async so sync is required to aid in parallel execution
-        // Semaphore: (syncronization) action signal for GPU processes. Cannot continue until the relavent semaphore is complete
-        // Fence: same above but for CPU
-        VkSemaphoreCreateInfo semaphoreCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            // Binary is just signaled/not signaled. Timeline is more states than 2 (0/1) basically.
-        };
+    // GPU operations are async so sync is required to aid in parallel execution
+    // Semaphore: (syncronization) action signal for GPU processes. Cannot continue until the relavent semaphore is complete
+    // Fence: same above but for CPU
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        // Binary is just signaled/not signaled. Timeline is more states than 2 (0/1) basically.
+    };
 
     // Must start with the fences signaled so something actually renders initially
     VkFenceCreateInfo fenceCreateInfo = {
@@ -75,15 +75,15 @@ void syncObjectsCreate(State_t *state)
     {
         logs_logIfError(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
                                           &state->renderer.imageAcquiredSemaphores[i]),
-                        "Failed to create image acquired semaphore")
+                        "Failed to create image acquired semaphore");
 
-            logs_logIfError(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
-                                              &state->renderer.renderFinishedSemaphores[i]),
-                            "Failed to create render finished semaphore")
+        logs_logIfError(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
+                                          &state->renderer.renderFinishedSemaphores[i]),
+                        "Failed to create render finished semaphore");
 
-                logs_logIfError(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
-                                              &state->renderer.inFlightFences[i]),
-                                "Failed to create in-flight fence")
+        logs_logIfError(vkCreateFence(state->context.device, &fenceCreateInfo, state->context.pAllocator,
+                                      &state->renderer.inFlightFences[i]),
+                        "Failed to create in-flight fence");
     }
 
     state->renderer.currentFrame = 0;

@@ -88,8 +88,8 @@ static void rp_create(State_t *state)
     };
 
     logs_logIfError(vkCreateRenderPass(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.pRenderPass),
-                    "Failed to create the render pass.")
-}
+                    "Failed to create the render pass.");
+};
 
 /// @brief Destroys the render pass
 /// @param state
