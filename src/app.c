@@ -11,6 +11,7 @@
 #include "input/input.h"
 #include "events/eventBus.h"
 #include "testing/event_tests.h"
+#include "rendering/camera/cameraController.h"
 
 void app_init(State_t *state)
 {
@@ -34,6 +35,8 @@ void app_init(State_t *state)
 #ifdef DEBUG
     eventTests_run(state);
 #endif
+
+    camera_init(state);
 }
 
 void app_renderLoop(State_t *state)

@@ -161,7 +161,7 @@ void cfg_keyBindingsSave(Input_t *input, const char *dir, const char *filename)
     free(jsonStr);
     cJSON_Delete(root);
 
-    logs_log(LOG_INFO, "Saved keybindings to '%s'", path);
+    logs_log(LOG_DEBUG, "Saved keybindings to '%s'", path);
 }
 
 void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
@@ -204,7 +204,7 @@ void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
         }
 
         // Regenerate a fresh default keybinding file
-        logs_log(LOG_INFO, "Regenerating new default keybinding file '%s'", fileName);
+        logs_log(LOG_DEBUG, "Regenerating new default keybinding file '%s'", fileName);
         cfg_keyBindingsSave(input, dir, fileName);
         return;
     }
@@ -226,7 +226,7 @@ void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
         }
     }
 
-    logs_log(LOG_INFO, "Loaded '%s' keybindings from '%s'", fileName, fullPath);
+    logs_log(LOG_DEBUG, "Loaded '%s' keybindings from '%s'", fileName, fullPath);
     cJSON_Delete(root);
 }
 
@@ -262,7 +262,7 @@ Input_t cfg_keyBindingsLoadOrCreate(void)
     }
     else
     {
-        logs_log(LOG_INFO, "Unable to locate keybinding file. Creating default.");
+        logs_log(LOG_WARN, "Unable to locate keybinding file. Creating default.");
 
         cfg_keyBindingsSave(&input, cfgFolder, KEYBINDINGS_FILE_NAME);
     }
@@ -333,7 +333,7 @@ void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
     }
 
     fputs(json_str, file);
-    logs_log(LOG_INFO, "Saved '%s' to '%s/%s'", APP_CONFIG_NAME, fullDir, fileName);
+    logs_log(LOG_DEBUG, "Saved '%s' to '%s/%s'", APP_CONFIG_NAME, fullDir, fileName);
 
     file_close(file, APP_CONFIG_NAME);
 
@@ -381,7 +381,7 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
         }
 
         // Regenerate a fresh default config
-        logs_log(LOG_INFO, "Regenerating new default config '%s'", fileName);
+        logs_log(LOG_DEBUG, "Regenerating new default config '%s'", fileName);
         cfg_appSave(cfg, dir, fileName);
         return;
     }
@@ -412,7 +412,7 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
             cfg->anisotropy = aniso->valueint;
     }
 
-    logs_log(LOG_INFO, "Loaded '%s' configuration from '%s'", APP_CONFIG_NAME, fullPath);
+    logs_log(LOG_DEBUG, "Loaded '%s' configuration from '%s'", APP_CONFIG_NAME, fullPath);
     cJSON_Delete(root);
 }
 

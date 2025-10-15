@@ -130,7 +130,7 @@ FileIO_Result_t file_dirCreate(const char *dir, char *fullDir)
             return FILE_IO_RESULT_FAILURE;
         }
 
-        logs_log(LOG_INFO, "Created directory: '%s'", fullDir);
+        logs_log(LOG_DEBUG, "Created directory: '%s'", fullDir);
         return FILE_IO_RESULT_SUCCESS;
     }
 

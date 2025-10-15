@@ -302,7 +302,7 @@ void input_update(State_t *state)
 
 void input_init(State_t *state)
 {
-    logs_log(LOG_INFO, "Initializing input system...");
+    logs_log(LOG_DEBUG, "Initializing input system...");
 
     state->window.input = cfg_inputInit();
 
