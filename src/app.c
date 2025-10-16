@@ -12,6 +12,7 @@
 #include "events/eventBus.h"
 #include "testing/event_tests.h"
 #include "rendering/camera/cameraController.h"
+#include "entity/entityManager.h"
 
 void app_init(State_t *state)
 {
@@ -35,6 +36,8 @@ void app_init(State_t *state)
 #ifdef DEBUG
     eventTests_run(state);
 #endif
+
+    em_init(state);
 
     camera_init(state);
 }
@@ -86,6 +89,8 @@ void app_cleanup(State_t *state)
 
     cfg_appDestroy();
     cfg_keyBindingsDestroy();
+
+    em_destroy(state);
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

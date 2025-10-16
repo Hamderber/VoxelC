@@ -19,7 +19,7 @@ EventSubscribeResult_t events_listenerIndexFirst(EventSystem_t *sys, int *index)
 }
 
 // Prevents duplicates (default desired behaviour)
-EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCallbackFn fn, int *index)
+EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCallbackFn fn, size_t *index)
 {
     bool indexFound = false;
 
@@ -37,7 +37,7 @@ EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCa
         // Assign the value of the first available index found
         if (!indexFound && sys->eventListeners[i].fn == NULL)
         {
-            *index = (int)i;
+            *index = i;
             indexFound = true;
         }
     }
@@ -71,7 +71,7 @@ EventSubscribeResult_t events_subscribe(EventBus_t *bus, EventChannelID_t id, Ev
     }
 
     EventSystem_t *sys = &bus->channels[id].eventSystem;
-    int index;
+    size_t index;
     if (events_listenerIndexSingleton(sys, fn, &index) == EVENT_SUBSCRIBE_RESULT_PASS)
     {
         sys->eventListeners[index].fn = fn;

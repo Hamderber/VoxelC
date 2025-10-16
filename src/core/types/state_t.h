@@ -7,6 +7,7 @@
 #include "core/types/renderer_t.h"
 #include "events/eventTypes.h"
 #include "rendering/camera/camera_t.h"
+#include "entity/entityManager.h"
 
 typedef struct State_t
 {
@@ -16,5 +17,5 @@ typedef struct State_t
     Renderer_t renderer;
     Time_t time;
     EventBus_t eventBus;
-    Camera_t camera;
+    EntityManger_t entityManager;
 } State_t;

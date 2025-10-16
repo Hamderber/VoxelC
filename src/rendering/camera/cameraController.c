@@ -4,6 +4,9 @@
 #include "events/eventTypes.h"
 #include "events/eventBus.h"
 #include "events/context/CtxInputMapped_t.h"
+#include "entity/entityManager.h"
+#include <stdlib.h>
+#include <string.h>
 
 EventResult_t camera_onInput(struct State_t *state, Event_t *event, void *ctx)
 {
@@ -54,14 +57,28 @@ void camera_eventsSubscribe(State_t *state)
     events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, camera_onInput, false, false, NULL);
 }
 
+Camera_t *camera_dataCreate(Entity_t *cameraEntity)
+{
+    cameraEntity->data.cameraData = calloc(1, sizeof(Camera_t));
+
+    float randRange = 10.0F;
+    Vec3f_t pos = rand_vec3f(-randRange, randRange, -randRange, randRange, -randRange, randRange);
+    cameraEntity->data.cameraData->pos = pos;
+    logs_log(LOG_DEBUG, "Camera is at random position (%lf, %lf, %lf)", pos.x, pos.y, pos.z);
+
+    return cameraEntity->data.cameraData;
+}
+
 void camera_init(State_t *state)
 {
     logs_log(LOG_DEBUG, "Initializing camera...");
 
+    Entity_t *cameraEntity = em_entityCreateHeap();
+    cameraEntity->type = ENTITY_TYPE_CAMERA;
+
+    em_entityAddToCollection(&state->entityManager.entityCollections[ENTITY_COLLECTION_MOVABLE], cameraEntity);
+
+    state->context.pCamera = camera_dataCreate(cameraEntity);
+
     camera_eventsSubscribe(state);
-
-    float randRange = 10.0F;
-    state->camera.pos = rand_vec3f(-randRange, randRange, -randRange, randRange, -randRange, randRange);
-
-    logs_log(LOG_DEBUG, "Camera is at random position (%lf, %lf, %lf)", state->camera.pos.x, state->camera.pos.y, state->camera.pos.z);
 }
