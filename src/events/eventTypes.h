@@ -1,19 +1,30 @@
 #pragma once
 
 #include <stdbool.h>
+#include "events/context/CtxInputRaw_t.h"
+#include "events/context/CtxInputMapped_t.h"
 
 #define MAX_EVENT_LISTENERS 128
 
 typedef enum
 {
-    EVENT_TYPE_INPUT,
+    EVENT_TYPE_NONE,
+    EVENT_TYPE_INPUT_RAW,
+    EVENT_TYPE_INPUT_MAPPED,
     EVENT_TYPE_PHYSICS_COLLISION,
 } EventType_t;
+
+typedef union
+{
+    CtxInputRaw_t *inputRaw;
+    CtxInputMapped_t *inputMapped;
+    void *generic;
+} EventData_t;
 
 typedef struct
 {
     EventType_t type;
-    void *data;
+    EventData_t data;
 } Event_t;
 
 typedef enum

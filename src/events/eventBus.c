@@ -55,7 +55,7 @@ EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCa
 }
 
 EventSubscribeResult_t events_subscribe(EventBus_t *bus, EventChannelID_t id, EventCallbackFn fn, bool consumeListener,
-                                        bool consumeEvent, void *context)
+                                        bool consumeEvent, void *subCtx)
 {
     if (!bus)
     {
@@ -77,7 +77,7 @@ EventSubscribeResult_t events_subscribe(EventBus_t *bus, EventChannelID_t id, Ev
         sys->eventListeners[index].fn = fn;
         sys->eventListeners[index].consumeListener = consumeListener;
         sys->eventListeners[index].consumeEvent = consumeEvent;
-        sys->eventListeners[index].subscribeContext = context;
+        sys->eventListeners[index].subscribeContext = subCtx;
 
         return EVENT_SUBSCRIBE_RESULT_PASS;
     }

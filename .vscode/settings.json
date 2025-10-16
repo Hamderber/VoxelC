@@ -63,6 +63,7 @@
         "inputkey_t.h": "c",
         "defaulykeymapping_t.h": "c",
         "xlocale": "c",
-        "eventsubscriberesult_t.h": "c"
+        "eventsubscriberesult_t.h": "c",
+        "ctxdescriptor_t.h": "c"
     }
 }
