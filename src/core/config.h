@@ -37,6 +37,7 @@ typedef struct
     float cameraFOV;
     bool vsync;
     int anisotropy;
+    bool resetCursorOnMenuExit;
     VkCullModeFlagBits cullModeMask;
     VkFrontFace vertexWindingDirection;
     // Do not allow this value to be changed at runtime. Will cause memory issues with the amount of semaphors and fences.

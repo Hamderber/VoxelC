@@ -54,6 +54,7 @@ static AppConfig_t appConfig = {
     .vsync = true,
     .anisotropy = 16,
     .cameraFOV = 45.0F,
+    .resetCursorOnMenuExit = true,
 };
 
 static cJSON *load_json_file(const char *path, const char *debugName)
@@ -310,6 +311,7 @@ void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
     cJSON_AddNumberToObject(window, "width", cfg->windowWidth);
     cJSON_AddNumberToObject(window, "height", cfg->windowHeight);
     cJSON_AddBoolToObject(window, "fullscreen", cfg->windowFullscreen);
+    cJSON_AddBoolToObject(window, "resetCursorOnMenuExit", cfg->resetCursorOnMenuExit);
 
     cJSON *renderer = cJSON_AddObjectToObject(root, "renderer");
     cJSON_AddBoolToObject(renderer, "vsync", cfg->vsync);
@@ -394,6 +396,7 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
         cJSON *w = cJSON_GetObjectItem(window, "width");
         cJSON *h = cJSON_GetObjectItem(window, "height");
         cJSON *fs = cJSON_GetObjectItem(window, "fullscreen");
+        cJSON *cR = cJSON_GetObjectItem(window, "resetCursorOnMenuExit");
 
         if (cJSON_IsNumber(w))
             cfg->windowWidth = w->valueint;
@@ -401,6 +404,8 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
             cfg->windowHeight = h->valueint;
         if (cJSON_IsBool(fs))
             cfg->windowFullscreen = cJSON_IsTrue(fs);
+        if (cJSON_IsBool(cR))
+            cfg->resetCursorOnMenuExit = cJSON_IsTrue(cR);
     }
 
     cJSON *renderer = cJSON_GetObjectItemCaseSensitive(root, "renderer");

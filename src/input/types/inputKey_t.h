@@ -2,7 +2,6 @@
 
 #include "input/types/inputActionMapping_t.h"
 
-// Keybindings configurable via json (todo)
 typedef struct
 {
     int key;

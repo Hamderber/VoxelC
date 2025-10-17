@@ -144,7 +144,7 @@ void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_
             logs_log(LOG_ERROR, "Error during event listener %d in channel %s! The listener and event will be consumed.",
                      (int)i, EVENT_CHANNEL_NAMES[(int)id]);
             listener->consumeListener = true;
-            listener->consumeEvent = true;
+            result = EVENT_RESULT_CONSUME;
         }
 
         if (listener->consumeListener)
@@ -153,7 +153,7 @@ void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_
             numUnsubEvents++;
         }
 
-        if (listener->consumeEvent)
+        if (result == EVENT_RESULT_CONSUME)
             break;
     }
 

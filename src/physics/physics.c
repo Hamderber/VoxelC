@@ -46,8 +46,9 @@ void phys_integrate(EntityDataPhysics_t *p, float dt)
     // Update velocity
     p->velocity = cm_vec3fSum(p->velocity, cm_vec3fMultScalar(p->transientAcceleration, dt));
 
-    // Apply drag
-    p->velocity = cm_vec3fMultScalar(p->velocity, 1.0F - p->drag * dt);
+    // Apply drag. Don't let a huge drag result in going the opposite direction. Normally drag would be
+    // Just 1F - drag * dt but bigger numbers help for things like snappy flight controls etc
+    p->velocity = cm_vec3fMultScalar(p->velocity, cm_clampf(1.0F - p->drag * dt, 0.0F, FLT_MAX));
 
     // Update position
     p->pos = cm_vec3fSum(p->pos, cm_vec3fMultScalar(p->velocity, dt));

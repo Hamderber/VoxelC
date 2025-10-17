@@ -4,6 +4,7 @@
 #include "core/vk_instance.h"
 #include "core/glfw_instance.h"
 #include "gui/swapchain.h"
+#include "gui/mouse.h"
 
 // todo add mouse capture and subscribe event for mouse captured / uncaptured etc (menu?) and then incorporate mouse
 // movement to the camera quaternion
@@ -182,6 +183,9 @@ void win_create(State_t *state)
     // This is necessary for things such as callback functions (see below in this method) where the callback function
     // otherwise wouldn't have access to the state.
     glfwSetWindowUserPointer(state->window.pWindow, state);
+
+    // Must be after the window user pointer is set so that the mouse callback can access state
+    mouse_init(state);
 
     // If the window changes size, call this function. There is a window-specific one, but the frame buffer one is better.
     // This allows for supporting retina displays and other screens that use subpixels (Vulkan sees subpixels as normal pixels).

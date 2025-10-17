@@ -13,6 +13,7 @@
 #include "testing/event_tests.h"
 #include "rendering/camera/cameraController.h"
 #include "entity/entityManager.h"
+#include "gui/guiController.h"
 
 void app_init(State_t *state)
 {
@@ -38,6 +39,8 @@ void app_init(State_t *state)
 #endif
 
     em_init(state);
+
+    gui_init(state);
 
     camera_init(state);
 }

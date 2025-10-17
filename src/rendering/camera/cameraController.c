@@ -90,8 +90,8 @@ EventResult_t camera_onInput(struct State_t *state, Event_t *event, void *ctx)
                 }
             }
 
-            logs_log(LOG_DEBUG, "Accumulated axial input: %lf, %lf, %lf",
-                     state->input.axialInput.x, state->input.axialInput.y, state->input.axialInput.z);
+            // logs_log(LOG_DEBUG, "Accumulated axial input: %lf, %lf, %lf",
+            //          state->input.axialInput.x, state->input.axialInput.y, state->input.axialInput.z);
         }
 
         // Protect against faulty input events
@@ -134,7 +134,8 @@ void camera_dataCreate(AppConfig_t *cfg, Entity_t *cameraEntity)
     float uniformSpeed = 8.0F;
     cameraEntity->components[1].data->physicsData->uniformSpeed = uniformSpeed;
     cameraEntity->components[1].data->physicsData->pos = pos;
-    cameraEntity->components[1].data->physicsData->drag = 1.0F;
+    // Adjust the drag to get the right "floatiness" while in flying
+    cameraEntity->components[1].data->physicsData->drag = 2.0F;
     // Verbose here to make sure the values are actually in the entity data
     logs_log(LOG_DEBUG, "Camera is at random position (%lf, %lf, %lf) with FOV %lf and uniformSpeed %lfm/s",
              cameraEntity->components[1].data->physicsData->pos.x,
