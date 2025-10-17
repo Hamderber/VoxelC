@@ -37,13 +37,6 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
 
 void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)
 {
-    VkCommandBufferAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = state->renderer.commandPool,
-        .commandBufferCount = 1U,
-    };
-
     VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
 
     VkBufferCopy copyRegion = {

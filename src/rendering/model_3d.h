@@ -187,4 +187,5 @@ void m3d_load(State_t *state)
 void m3d_destroy(State_t *state)
 {
     // Placeholder. Model destruction currently handled by buffer destruction
+    state;
 }

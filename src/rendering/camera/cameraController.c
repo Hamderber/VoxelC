@@ -11,6 +11,7 @@
 
 EventResult_t camera_onInput(struct State_t *state, Event_t *event, void *ctx)
 {
+    ctx = NULL;
     if (event == NULL)
     {
         // Null event? This should never happen
@@ -118,7 +119,7 @@ void camera_dataCreate(AppConfig_t *cfg, Entity_t *cameraEntity)
     };
     cameraEntity->components[0].data->cameraData = calloc(1, sizeof(EntityDataCamera_t));
 
-    float randRange = 10.0F;
+    // float randRange = 10.0F;
     // Vec3f_t pos = rand_vec3f(-randRange, randRange, -randRange, randRange, -randRange, randRange);
     Vec3f_t pos = (Vec3f_t){-3.0F, -3.0F, 15.0F};
     cameraEntity->components[1] = (EntityComponent_t){

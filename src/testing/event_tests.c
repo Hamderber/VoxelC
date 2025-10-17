@@ -14,6 +14,10 @@ typedef struct
 
 static EventResult_t onGenericPass(struct State_t *state, Event_t *event, void *ctx)
 {
+    // Unused
+    state;
+    ctx;
+
     EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
     logs_log(LOG_UNIT_TEST, "onGenericPass received value = %d", payload->testValue);
     payload->testValue += 1;
@@ -22,6 +26,10 @@ static EventResult_t onGenericPass(struct State_t *state, Event_t *event, void *
 
 static EventResult_t onConsumeListener(struct State_t *state, Event_t *event, void *ctx)
 {
+    // Unused
+    state;
+    ctx;
+
     EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
     logs_log(LOG_UNIT_TEST, "onConsumeListener fired value = %d", payload->testValue);
     payload->testValue += 10;
@@ -30,6 +38,10 @@ static EventResult_t onConsumeListener(struct State_t *state, Event_t *event, vo
 
 static EventResult_t onConsumeEvent(struct State_t *state, Event_t *event, void *ctx)
 {
+    // Unused
+    state;
+    ctx;
+
     EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
     logs_log(LOG_UNIT_TEST, "onConsumeEvent fired value = %d will stop propagation", payload->testValue);
     payload->testValue += 100;
@@ -38,6 +50,11 @@ static EventResult_t onConsumeEvent(struct State_t *state, Event_t *event, void 
 
 static EventResult_t onIntentionalError(struct State_t *state, Event_t *event, void *ctx)
 {
+    // Unused
+    state;
+    event;
+    ctx;
+
     return EVENT_RESULT_ERROR;
 }
 

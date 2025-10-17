@@ -35,6 +35,7 @@ typedef enum
     EVENT_RESULT_ERROR
 } EventResult_t;
 
+struct State_t;
 typedef EventResult_t (*EventCallbackFn)(struct State_t *state, Event_t *event, void *context);
 
 typedef struct

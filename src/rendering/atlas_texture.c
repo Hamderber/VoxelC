@@ -56,13 +56,13 @@ void atlasTextureImageCreate(State_t *state)
 
     // Transition the image for copy
     // Undefined because don't care about original contents of the image before the copy operation
-    imageLayoutTransition(state, state->renderer.atlasTextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+    imageLayoutTransition(state, state->renderer.atlasTextureImage, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     bufferCopyToImage(state, stagingBuffer, state->renderer.atlasTextureImage, (uint32_t)width, (uint32_t)height);
 
     // Transition the image for sampling
-    imageLayoutTransition(state, state->renderer.atlasTextureImage, VK_FORMAT_R8G8B8A8_SRGB,
+    imageLayoutTransition(state, state->renderer.atlasTextureImage,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(state->context.device, stagingBuffer, state->context.pAllocator);

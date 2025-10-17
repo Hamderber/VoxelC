@@ -5,6 +5,9 @@
 #include "core/glfw_instance.h"
 #include "gui/swapchain.h"
 
+// todo add mouse capture and subscribe event for mouse captured / uncaptured etc (menu?) and then incorporate mouse
+// movement to the camera quaternion
+
 /// @brief Wrapper for polling GLFW events
 /// @param void
 void win_pollEvents(void)

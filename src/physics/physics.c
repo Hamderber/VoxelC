@@ -60,11 +60,6 @@ void phys_entityPhysicsApply(State_t *state, float dt)
 {
     Entity_t **entities = state->entityManager.entityCollections[ENTITY_COLLECTION_PHYSICS].entities;
 
-    Vec3f_t directionNormalized = {
-        .x = 1,
-        .y = 0,
-        .z = 0.};
-
     EntityComponentData_t *componentData;
     for (size_t i = 0; i < ENTITIES_MAX_IN_COLLECTION; i++)
     {

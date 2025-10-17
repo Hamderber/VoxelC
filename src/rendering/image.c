@@ -28,7 +28,7 @@ VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkIm
     return imageView;
 }
 
-void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+void imageLayoutTransition(State_t *state, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
     VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
 
@@ -51,8 +51,8 @@ void imageLayoutTransition(State_t *state, VkImage image, VkFormat format, VkIma
         .dstAccessMask = 0, // TODO
     };
 
-    VkPipelineStageFlags sourceStage;
-    VkPipelineStageFlags destinationStage;
+    VkPipelineStageFlags sourceStage = {0};
+    VkPipelineStageFlags destinationStage = {0};
 
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {

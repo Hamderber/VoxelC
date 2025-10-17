@@ -72,6 +72,7 @@
         "system_error": "c",
         "xhash": "c",
         "xlocnum": "c",
-        "xstring": "c"
+        "xstring": "c",
+        "xiosbase": "c"
     }
 }
