@@ -2,4 +2,6 @@
 
 #include "core/types/state_t.h"
 
+void camera_physicsIntentUpdate(State_t *state);
+
 void camera_init(State_t *state);

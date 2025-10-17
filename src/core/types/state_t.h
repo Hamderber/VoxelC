@@ -8,6 +8,7 @@
 #include "events/eventTypes.h"
 #include "rendering/camera/camera_t.h"
 #include "entity/entityManager.h"
+#include "input/types/input_t.h"
 
 typedef struct State_t
 {
@@ -18,4 +19,5 @@ typedef struct State_t
     Time_t time;
     EventBus_t eventBus;
     EntityManger_t entityManager;
+    Input_t input;
 } State_t;

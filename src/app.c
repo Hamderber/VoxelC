@@ -68,7 +68,7 @@ void app_loop(State_t *state)
 {
     while (!win_shouldClose(&state->window))
     {
-        physicsLoop(state);
+        phys_loop(state);
         app_renderLoop(state);
         // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
     }

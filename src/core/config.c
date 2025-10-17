@@ -53,6 +53,7 @@ static AppConfig_t appConfig = {
     .subtextureSize = 16,
     .vsync = true,
     .anisotropy = 16,
+    .cameraFOV = 45.0F,
 };
 
 static cJSON *load_json_file(const char *path, const char *debugName)
@@ -313,6 +314,7 @@ void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
     cJSON *renderer = cJSON_AddObjectToObject(root, "renderer");
     cJSON_AddBoolToObject(renderer, "vsync", cfg->vsync);
     cJSON_AddNumberToObject(renderer, "anisotropy", cfg->anisotropy);
+    cJSON_AddNumberToObject(renderer, "fov", cfg->cameraFOV);
 
     // Serialize JSON
     char *json_str = cJSON_Print(root);
@@ -406,10 +408,14 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
     {
         cJSON *vsync = cJSON_GetObjectItem(renderer, "vsync");
         cJSON *aniso = cJSON_GetObjectItem(renderer, "anisotropy");
+        cJSON *fov = cJSON_GetObjectItem(renderer, "fov");
+
         if (cJSON_IsBool(vsync))
             cfg->vsync = cJSON_IsTrue(vsync);
         if (cJSON_IsNumber(aniso))
             cfg->anisotropy = aniso->valueint;
+        if (cJSON_IsNumber(fov))
+            cfg->cameraFOV = (float)fov->valuedouble;
     }
 
     logs_log(LOG_DEBUG, "Loaded '%s' configuration from '%s'", APP_CONFIG_NAME, fullPath);

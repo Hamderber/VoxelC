@@ -4,5 +4,5 @@
 
 typedef struct
 {
-    Vec3f_t pos;
-} Camera_t;
+    float fov;
+} EntityDataCamera_t;

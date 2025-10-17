@@ -266,7 +266,7 @@ const char *input_keyNameGet(int key)
 
 InputActionMapping_t input_keyActionGet(State_t *state, int key)
 {
-    return state->window.input.pInputKeys[key].inputMapping;
+    return state->input.pInputKeys[key].inputMapping;
 }
 
 /// @brief Checks if the keycode is mapped to INPUT_ACTION_UNMAPPED within the state
@@ -275,13 +275,13 @@ InputActionMapping_t input_keyActionGet(State_t *state, int key)
 /// @return bool
 bool input_keyHasInputAction(State_t *state, int key)
 {
-    return state->window.input.pInputKeys[key].inputMapping != INPUT_ACTION_UNMAPPED;
+    return state->input.pInputKeys[key].inputMapping != INPUT_ACTION_UNMAPPED;
 }
 
 void input_update(State_t *state)
 {
     GLFWwindow *window = state->window.pWindow;
-    Input_t *input = &state->window.input;
+    Input_t *input = &state->input;
 
     // Track all keys pressed for this frame. There are 104 keys on a US keyboard so 120 is safe for special keys too.
     // Honestly pressing all keys at once deserves a crash anyway imo.
@@ -399,7 +399,7 @@ void input_init(State_t *state)
 {
     logs_log(LOG_DEBUG, "Initializing input system...");
 
-    state->window.input = cfg_inputInit();
+    state->input = cfg_inputInit();
 
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
@@ -410,11 +410,11 @@ void input_init(State_t *state)
             continue;
 
         // Pull the configured mapping for this key
-        InputActionMapping_t mapping = state->window.input.pInputKeys[key].inputMapping;
+        InputActionMapping_t mapping = state->input.pInputKeys[key].inputMapping;
         const char *mappingName = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
 
         // Assign a fully initialized key struct
-        state->window.input.pInputKeys[key] = (InputKey_t){
+        state->input.pInputKeys[key] = (InputKey_t){
             .key = key,
             .keyDown = false,
             .keyUp = false,

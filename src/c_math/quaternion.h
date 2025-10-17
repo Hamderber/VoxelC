@@ -155,7 +155,7 @@ static inline Quaternion_t cm_quatAngleAxis(float radians, Vec3f_t axis)
 /// @return Quaternion_t
 static inline Quaternion_t cm_quatSlerp(Quaternion_t a, Quaternion_t b, float t)
 {
-    t = cm_clampF(t, 0.0F, 1.0F);
+    t = cm_clampf(t, 0.0F, 1.0F);
 
     // Cosine of the angle between the two quaternions
     float dot = a.qx * b.qx + a.qy * b.qy + a.qz * b.qz + a.qw * b.qw;

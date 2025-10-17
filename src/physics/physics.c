@@ -1,11 +1,97 @@
 #include "physics.h"
+#include "core/random.h"
+#include "c_math/c_math.h"
+#include "rendering/camera/cameraController.h"
 
-void physicsUpdate(State_t *state)
+void phys_applyForce(EntityDataPhysics_t *p, Vec3f_t force, float mass)
 {
-    // logs_log(LOG_PHYSICS, "Physics loop. Fixed delta time = %lf", state->time.fixedTimeAccumulated);
+    // f=ma
+    Vec3f_t a = cm_vec3fMultScalar(force, 1.0F / mass);
+    p->transientAcceleration = cm_vec3fSum(p->transientAcceleration, a);
 }
 
-void physicsLoop(State_t *state)
+void phys_applyImpulse(EntityDataPhysics_t *p, Vec3f_t impulse)
+{
+    // impulse in m/s add directly to velocity
+    p->velocity = cm_vec3fSum(p->velocity, impulse);
+}
+
+// Uses the physics data's uniformSpeed
+void phys_applyImpulseUniform(EntityDataPhysics_t *p, Vec3f_t direction, bool isNormalized)
+{
+    if (isNormalized)
+    {
+        p->velocity = cm_vec3fSum(p->velocity,
+                                  cm_vec3fMultScalar(direction, p->uniformSpeed));
+    }
+    else
+    {
+        p->velocity = cm_vec3fSum(p->velocity,
+                                  cm_vec3fMultScalar(cm_vec3fNormalize(direction), p->uniformSpeed));
+    }
+}
+
+void phys_applyMoveIntention(EntityDataPhysics_t *p, float dt)
+{
+    Vec3f_t dir = cm_vec3fNormalize(p->moveIntention);
+
+    // Scale by dt because uniformSpeed is in m/s and we're applying every tick
+    Vec3f_t scaledDir = cm_vec3fMultScalar(dir, dt);
+
+    phys_applyImpulseUniform(p, scaledDir, true);
+}
+
+void phys_integrate(EntityDataPhysics_t *p, float dt)
+{
+    // Update velocity
+    p->velocity = cm_vec3fSum(p->velocity, cm_vec3fMultScalar(p->transientAcceleration, dt));
+
+    // Apply drag
+    p->velocity = cm_vec3fMultScalar(p->velocity, 1.0F - p->drag * dt);
+
+    // Update position
+    p->pos = cm_vec3fSum(p->pos, cm_vec3fMultScalar(p->velocity, dt));
+
+    // Reset acceleration
+    p->transientAcceleration = VEC3_ZERO;
+}
+
+void phys_entityPhysicsApply(State_t *state, float dt)
+{
+    Entity_t **entities = state->entityManager.entityCollections[ENTITY_COLLECTION_PHYSICS].entities;
+
+    Vec3f_t directionNormalized = {
+        .x = 1,
+        .y = 0,
+        .z = 0.};
+
+    EntityComponentData_t *componentData;
+    for (size_t i = 0; i < ENTITIES_MAX_IN_COLLECTION; i++)
+    {
+        if (entities[i] == NULL || entities[i]->componentCount == 0 || entities[i]->components == NULL)
+            continue;
+
+        if (em_entityDataGet(entities[i], ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
+        {
+            phys_applyMoveIntention(componentData->physicsData, dt);
+            phys_integrate(componentData->physicsData, dt);
+        }
+
+        componentData = NULL;
+    }
+}
+
+void phys_update(State_t *state)
+{
+    float dt = (float)state->config.fixedTimeStep;
+
+    // Update the camera here
+    camera_physicsIntentUpdate(state);
+
+    phys_entityPhysicsApply(state, dt);
+}
+
+void phys_loop(State_t *state)
 {
     double numPhysicsFrames = state->time.fixedTimeAccumulated / state->config.fixedTimeStep;
 
@@ -21,7 +107,7 @@ this is expected behaviour.",
 
     while (state->time.fixedTimeAccumulated >= state->config.fixedTimeStep)
     {
-        physicsUpdate(state);
+        phys_update(state);
         state->time.fixedTimeAccumulated -= state->config.fixedTimeStep;
     }
 }

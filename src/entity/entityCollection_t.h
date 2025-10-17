@@ -8,7 +8,7 @@
 typedef enum
 {
     ENTITY_COLLECTION_GENERIC = 0,
-    ENTITY_COLLECTION_MOVABLE,
+    ENTITY_COLLECTION_PHYSICS,
     ENTITY_COLLECTION_COUNT,
 } EntityCollectionCategory_t;
 

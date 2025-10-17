@@ -37,7 +37,7 @@ typedef struct
 /// @param min
 /// @param max
 /// @return min <= f <= max
-static inline float cm_clampF(float f, float min, float max)
+static inline float cm_clampf(float f, float min, float max)
 {
     if (f < min)
         return min;

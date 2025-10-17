@@ -2,12 +2,15 @@
 
 #include "core/types/state_t.h"
 #include "entity/entityCollection_t.h"
+#include "entity/entity_t.h"
 
 typedef struct
 {
     size_t collectionCount;
     EntityCollection_t entityCollections[ENTITY_COLLECTION_COUNT];
 } EntityManger_t;
+
+bool em_entityDataGet(Entity_t *e, EntityComponentType_t type, EntityComponentData_t **outData);
 
 bool em_entityIndexSingleton(EntityCollection_t *collection, Entity_t *e, size_t *index);
 

@@ -5,6 +5,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+bool em_entityDataGet(Entity_t *e, EntityComponentType_t type, EntityComponentData_t **outData)
+{
+    if (!e || !outData || e->componentCount == 0)
+        return false;
+
+    for (size_t i = 0; i < e->componentCount; i++)
+    {
+        if (e->components[i].type == type)
+        {
+            *outData = e->components[i].data;
+            // logs_log(LOG_DEBUG, "Found data type %d for entity %p at component address %p",
+            //          (int)type, (void *)e, (void *)*outData);
+            return true;
+        }
+    }
+
+    logs_log(LOG_WARN, "Failed to find datatype %d for entity %p!", (int)type, (void *)e);
+    return false;
+}
+
 bool em_entityIndexSingleton(EntityCollection_t *collection, Entity_t *e, size_t *index)
 {
     // Implementation is similar to eventBus listerner singleton add
@@ -156,12 +176,19 @@ void em_entityDestroy(State_t *state, Entity_t **e)
 
     em_entityPurgeFromCollections(&state->entityManager, entity);
 
-    // Free internal data if present
-    if (entity->data.genericData)
+    // Free internal components if present
+    for (size_t i = 0; i < entity->componentCount; i++)
     {
-        free(entity->data.genericData);
-        entity->data.genericData = NULL;
+        if (entity->components[i].data != NULL)
+        {
+            free((void *)entity->components[i].data->genericData);
+            free(entity->components[i].data);
+            entity->components[i].data = NULL;
+        }
     }
+
+    free(entity->components);
+    entity->components = NULL;
 
     // Only free the struct itself if it was heap-allocated
     if (entity->heapAllocated)

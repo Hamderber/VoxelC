@@ -34,6 +34,7 @@ typedef struct
     int windowHeight;
     bool windowResizable;
     bool windowFullscreen;
+    float cameraFOV;
     bool vsync;
     int anisotropy;
     VkCullModeFlagBits cullModeMask;
