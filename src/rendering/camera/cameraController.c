@@ -18,8 +18,6 @@ EventResult_t camera_onInput(struct State_t *state, Event_t *event, void *ctx)
         return EVENT_RESULT_ERROR;
     }
 
-    // Consider accumulating motion into a normalized 3d vector at some point
-
     if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
     {
         for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
@@ -136,6 +134,7 @@ void camera_dataCreate(AppConfig_t *cfg, Entity_t *cameraEntity)
     cameraEntity->components[1].data->physicsData->pos = pos;
     // Adjust the drag to get the right "floatiness" while in flying
     cameraEntity->components[1].data->physicsData->drag = 2.0F;
+    cameraEntity->components[1].data->physicsData->useLocalAxes = true;
     // Verbose here to make sure the values are actually in the entity data
     logs_log(LOG_DEBUG, "Camera is at random position (%lf, %lf, %lf) with FOV %lf and uniformSpeed %lfm/s",
              cameraEntity->components[1].data->physicsData->pos.x,
@@ -148,12 +147,28 @@ void camera_dataCreate(AppConfig_t *cfg, Entity_t *cameraEntity)
 void camera_physicsIntentUpdate(State_t *state)
 {
     EntityComponentData_t *componentData;
-    if (em_entityDataGet(state->context.pCameraEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
-    {
-        componentData->physicsData->moveIntention = state->input.axialInput;
-        // logs_log(LOG_DEBUG, "Camera pos: %lf, %lf, %lf",
-        //          componentData->physicsData->pos.x, componentData->physicsData->pos.y, componentData->physicsData->pos.z);
-    }
+    if (!em_entityDataGet(state->context.pCameraEntity,
+                          ENTITY_COMPONENT_TYPE_PHYSICS,
+                          &componentData))
+        return;
+
+    EntityDataPhysics_t *phys = componentData->physicsData;
+    phys->moveIntention = state->input.axialInput;
+
+    // const float radPerPixel = 0.02f * (float)state->config.mouseSensitivity;
+    // const float dx = -(float)state->gui.mouse.dx * radPerPixel; // yaw
+    // const float dy = (float)state->gui.mouse.dy * radPerPixel;  // pitch
+
+    // // TODO implement rotation of camera
+
+    // state->gui.mouse.dx = 0.0;
+    // state->gui.mouse.dy = 0.0;
+
+    logs_log(LOG_DEBUG,
+             "Camera pos: %.6f, %.6f, %.6f Quaternion: (%.5f, %.5f, %.5f, %.5f)",
+             phys->pos.x, phys->pos.y, phys->pos.z,
+             phys->rotation.qx, phys->rotation.qy,
+             phys->rotation.qz, phys->rotation.qw);
 }
 
 void camera_init(State_t *state)

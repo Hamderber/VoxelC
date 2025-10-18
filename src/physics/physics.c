@@ -31,9 +31,47 @@ void phys_applyImpulseUniform(EntityDataPhysics_t *p, Vec3f_t direction, bool is
     }
 }
 
+void phys_applyRotationIntention(EntityDataPhysics_t *p, float dt)
+{
+    // Convert angular velocity (rad/s) → quaternion delta
+    if (!cm_vec3fIsZero(p->rotationIntentionEulerRad))
+    {
+        Vec3f_t delta = cm_vec3fMultScalar(p->rotationIntentionEulerRad, dt);
+        float angle = cm_vec3fMagnitude(delta);
+
+        if (angle > 1e-8f)
+        {
+            Vec3f_t axis = cm_vec3fMultScalar(delta, 1.0f / angle);
+            Quaternion_t dq = cm_quatFromAxisAngle(angle, axis);
+
+            if (p->useLocalAxes)
+                p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotation, dq)); // local rotation
+            else
+                p->rotation = cm_quatNormalize(cm_quatMultiply(dq, p->rotation)); // world rotation
+        }
+
+        p->rotationIntentionEulerRad = VEC3_ZERO;
+    }
+
+    // Per-frame quaternion delta (already time-scaled)
+    if (!cm_quatIsIdentity(p->rotationIntentionQuat))
+    {
+        if (p->useLocalAxes)
+            p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotation, p->rotationIntentionQuat));
+        else
+            p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotationIntentionQuat, p->rotation));
+
+        p->rotationIntentionQuat = QUATERNION_IDENTITY;
+    }
+}
+
 void phys_applyMoveIntention(EntityDataPhysics_t *p, float dt)
 {
-    Vec3f_t dir = cm_vec3fNormalize(p->moveIntention);
+    Vec3f_t dir = p->moveIntention;
+    if (p->useLocalAxes)
+        dir = cm_quatRotateVec3(p->rotation, dir);
+
+    dir = cm_vec3fNormalize(dir);
 
     // Scale by dt because uniformSpeed is in m/s and we're applying every tick
     Vec3f_t scaledDir = cm_vec3fMultScalar(dir, dt);
@@ -69,6 +107,7 @@ void phys_entityPhysicsApply(State_t *state, float dt)
 
         if (em_entityDataGet(entities[i], ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
         {
+            phys_applyRotationIntention(componentData->physicsData, dt);
             phys_applyMoveIntention(componentData->physicsData, dt);
             phys_integrate(componentData->physicsData, dt);
         }

@@ -6,75 +6,10 @@
 /// @brief The Identity Quaternion representing no rotation and no shear
 static const Quaternion_t QUATERNION_IDENTITY = {0.0F, 0.0F, 0.0F, 1.0F};
 
-/// @brief Converts a 4x4 column-major matrix into a quaternion
-/// @param m
-/// @return Quaternion_t
-static inline Quaternion_t cm_mat2quat(Mat4c_t m)
+static inline bool cm_quatIsIdentity(Quaternion_t q)
 {
-    Quaternion_t q;
-    // Trace is the sum of the diagonal upper 3x3. trace = R00 + R11 + R22
-    // Indicates how much the rotation is aligned with the identity
-    float trace = m.m[0].x + m.m[1].y + m.m[2].z;
-
-    // Rotation is not near 180* so can compute scalar (qw) directly
-    if (trace > 0.0F)
-    {
-        // s = 4 * qw
-        // qw = (1/2)sqrt(1 + R00 + R11 + R22)
-        float s = sqrtf(trace + 1.0F) * 2.0F;
-        q.qw = 0.25F * s;
-        // qx = (R21 - R12) / s
-        q.qx = (m.m[2].y - m.m[1].z) / s;
-        // qy = (R02 - R20) / s
-        q.qy = (m.m[0].z - m.m[2].x) / s;
-        // qz = (R10 - R01) / s
-        q.qz = (m.m[1].x - m.m[0].y) / s;
-    }
-    // If trace is <= 0 then one of the axes dominates and must be accounted for when converting
-    // X dominant
-    else if ((m.m[0].x > m.m[1].y) && (m.m[0].x > m.m[2].z))
-    {
-        // qx = (1/2)sqrt(1 + R00 - R11 - R22)
-        float s = sqrtf(1.0F + m.m[0].x - m.m[1].y - m.m[2].z) * 2.0F;
-        // s = 4 * qx
-        q.qx = 0.25F * s;
-        // qw = (R21 - R12) / s
-        q.qw = (m.m[2].y - m.m[1].z) / s;
-        // qy = (R01 - R10) / s
-        q.qy = (m.m[0].y + m.m[1].x) / s;
-        // qz = (R02 - R20) / s
-        q.qz = (m.m[0].z + m.m[2].x) / s;
-    }
-    // Y dominant
-    else if (m.m[1].y > m.m[2].z)
-    {
-        // qy = (1/2)sqrt(1 + R11 - R00 - R22)
-        float s = sqrtf(1.0F + m.m[1].y - m.m[0].x - m.m[2].z) * 2.0F;
-        // s = 4 * qy
-        q.qy = 0.25F * s;
-        // qw = (R02 - R20) / s
-        q.qw = (m.m[0].z - m.m[2].x) / s;
-        // qx = (R01 + R10) / s
-        q.qx = (m.m[0].y + m.m[1].x) / s;
-        // qz = (R12 + R21) / s
-        q.qz = (m.m[1].z + m.m[2].y) / s;
-    }
-    // Z dominant
-    else
-    {
-        // qz = (1/2)sqrt(1 + R22 - R00 - R11)
-        float s = sqrtf(1.0F + m.m[2].z - m.m[0].x - m.m[1].y) * 2.0F;
-        // s = 4 * qz
-        q.qz = 0.25F * s;
-        // qw = (R10 - R01) / s
-        q.qw = (m.m[1].x - m.m[0].y) / s;
-        // qx = (R02 + R20) / s
-        q.qx = (m.m[0].z + m.m[2].x) / s;
-        // qy = (R12 + R21) / s
-        q.qy = (m.m[1].z + m.m[2].y) / s;
-    }
-
-    return q;
+    // qw = -1 also is identity
+    return fabs(q.qx) < FLT_EPSILON && fabs(q.qy) < FLT_EPSILON && fabs(q.qz) < FLT_EPSILON && fabs(1.0F - fabs(q.qw)) < FLT_EPSILON;
 }
 
 /// @brief Scales the quaternion to have a normalized magnitude of 1 (necessary for rotation representations)
@@ -106,6 +41,55 @@ static inline Quaternion_t cm_quatNormalize(Quaternion_t quat)
     }
 }
 
+/// @brief Converts a 4x4 column-major matrix into a quaternion
+/// @param m
+/// @return Quaternion_t
+static inline Quaternion_t cm_mat2quat(Mat4c_t m)
+{
+    Quaternion_t q;
+    float trace = m.m[0].x + m.m[1].y + m.m[2].z;
+
+    if (trace > 0.0F)
+    {
+        float s = sqrtf(trace + 1.0F) * 2.0F;
+        q.qw = 0.25F * s;
+        q.qx = (m.m[2].y - m.m[1].z) / s;
+        q.qy = (m.m[0].z - m.m[2].x) / s;
+        q.qz = (m.m[1].x - m.m[0].y) / s;
+    }
+    else if ((m.m[0].x > m.m[1].y) && (m.m[0].x > m.m[2].z))
+    {
+        float s = sqrtf(1.0F + m.m[0].x - m.m[1].y - m.m[2].z) * 2.0F;
+        q.qx = 0.25F * s;
+        q.qw = (m.m[2].y - m.m[1].z) / s;
+        q.qy = (m.m[1].x + m.m[0].y) / s; // swapped order
+        q.qz = (m.m[2].x + m.m[0].z) / s; // swapped order
+    }
+    else if (m.m[1].y > m.m[2].z)
+    {
+        float s = sqrtf(1.0F + m.m[1].y - m.m[0].x - m.m[2].z) * 2.0F;
+        q.qy = 0.25F * s;
+        q.qw = (m.m[0].z - m.m[2].x) / s;
+        q.qx = (m.m[1].x + m.m[0].y) / s;
+        q.qz = (m.m[2].y + m.m[1].z) / s;
+    }
+    else
+    {
+        float s = sqrtf(1.0F + m.m[2].z - m.m[0].x - m.m[1].y) * 2.0F;
+        q.qz = 0.25f * s;
+        q.qw = (m.m[1].x - m.m[0].y) / s;
+        q.qx = (m.m[2].x + m.m[0].z) / s;
+        q.qy = (m.m[2].y + m.m[1].z) / s;
+    }
+
+    // Adjust for column-major basis (invert rotation direction)
+    q.qx = -q.qx;
+    q.qy = -q.qy;
+    q.qz = -q.qz;
+
+    return cm_quatNormalize(q);
+}
+
 /// @brief Multiply two quaternions (rotation composition). Order matters: q = q1 * q2 means "apply q2, then q1"
 /// @param a
 /// @param b
@@ -120,11 +104,11 @@ static inline Quaternion_t cm_quatMultiply(Quaternion_t a, Quaternion_t b)
     };
 }
 
-/// @brief Create a new quaternion representing euler rotation about an arbitrary axis
+/// @brief Create a new quaternion representing euler rotation about an arbitrary axis radians
 /// @param radians
 /// @param axis
 /// @return Quaternion_t
-static inline Quaternion_t cm_quatAngleAxis(float radians, Vec3f_t axis)
+static inline Quaternion_t cm_quatFromAxisAngle(float radians, Vec3f_t axis)
 {
     float len = sqrtf(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
     if (len < 1E-6F)
@@ -203,7 +187,62 @@ static inline Quaternion_t cm_quatSlerp(Quaternion_t a, Quaternion_t b, float t)
     return cm_quatNormalize(result);
 }
 
-/// @brief Convert quaternion to euler (axis-angle) representation
+/// @brief Convert euler (axis-angle) to quaternion in yaw/pitch/roll order
+/// @param pitch (X)
+/// @param yaw (Y)
+/// @param roll (Z)
+/// @return Quaternion_t
+static inline Quaternion_t cm_quatFromEuler(Vec3f_t euler)
+{
+    // half-angles
+    float halfX = euler.x * 0.5F;
+    float halfY = euler.y * 0.5F;
+    float halfZ = euler.z * 0.5F;
+
+    // sin/cos
+    float sx = sinf(halfX), cx = cosf(halfX);
+    float sy = sinf(halfY), cy = cosf(halfY);
+    float sz = sinf(halfZ), cz = cosf(halfZ);
+
+    // Order: Yaw (Y), Pitch (X), Roll (Z)
+    Quaternion_t q = {
+        .qx = sx * cy * cz + cx * sy * sz,
+        .qy = cx * sy * cz - sx * cy * sz,
+        .qz = cx * cy * sz + sx * sy * cz,
+        .qw = cx * cy * cz - sx * sy * sz};
+
+    return cm_quatNormalize(q);
+}
+
+/// @brief Convert quaternion to euler (radians) in pitch/yaw/roll order
+/// @param q
+/// @return
+static inline Vec3f_t cm_quatToEulerAngles(Quaternion_t q)
+{
+    q = cm_quatNormalize(q);
+    Vec3f_t angles;
+
+    // Pitch (X)
+    float sinr_cosp = 2.0F * (q.qw * q.qx + q.qy * q.qz);
+    float cosr_cosp = 1.0F - 2.0F * (q.qx * q.qx + q.qy * q.qy);
+    angles.x = atan2f(sinr_cosp, cosr_cosp);
+
+    // Yaw (Y)
+    float sinp = 2.0F * (q.qw * q.qy - q.qz * q.qx);
+    if (fabsf(sinp) >= 1.0F)
+        angles.y = copysignf(PI_F / 2.0F, sinp);
+    else
+        angles.y = asinf(sinp);
+
+    // Roll (Z)
+    float siny_cosp = 2.0F * (q.qw * q.qz + q.qx * q.qy);
+    float cosy_cosp = 1.0F - 2.0F * (q.qy * q.qy + q.qz * q.qz);
+    angles.z = atan2f(siny_cosp, cosy_cosp);
+
+    return angles;
+}
+
+/// @brief Convert quaternion to euler (axis-angle radians) representation
 /// @param q
 /// @param axis
 /// @param angle
@@ -212,10 +251,10 @@ static inline void cm_quatToAxisAngle(Quaternion_t q, Vec3f_t *axis, float *angl
     q = cm_quatNormalize(q);
     float sinHalfAngle = sqrtf(1.0F - q.qw * q.qw);
 
-    if (sinHalfAngle < 1E-6F)
+    if (sinHalfAngle < FLT_EPSILON)
     {
         // Angle is zero so arbitrary axis
-        *axis = (Vec3f_t){1.0F, 0.0F, 0.0F};
+        *axis = RIGHT;
         *angle = 0.0F;
     }
     else
@@ -242,4 +281,17 @@ static inline Vec3f_t cm_quatRotateVec3(Quaternion_t q, Vec3f_t v)
     Quaternion_t qResult = cm_quatMultiply(qvRot, qConj);
 
     return (Vec3f_t){qResult.qx, qResult.qy, qResult.qz};
+}
+
+/// @brief Apply euler rotation (radians) to existing quaternion
+/// @param q
+/// @param euler euler radians
+/// @return Quaternion_t
+static inline Quaternion_t cm_quatApplyEuler(Quaternion_t q, Vec3f_t euler)
+{
+    Quaternion_t delta = cm_quatFromEuler(euler);
+
+    Quaternion_t result = cm_quatMultiply(delta, q);
+
+    return cm_quatNormalize(result);
 }

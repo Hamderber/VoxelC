@@ -12,6 +12,8 @@ typedef enum
 
 typedef struct
 {
+    // Use local axes for intention application (move/rotation)
+    bool useLocalAxes;
     // Use this to determine velocity using an external normalized direction. (m/s)
     float uniformSpeed;
     // AI entities fill this from pathing (todo very future) or player-controlled inputs
@@ -24,6 +26,10 @@ typedef struct
     // 0 = no drag 1 = stop immediately
     float drag;
     Quaternion_t rotation;
+    // Euler is way easier to use (obviously) and uses dt in physics
+    Vec3f_t rotationIntentionEulerRad;
+    // Does NOT use dt in physics. Use for instant rotation or time-domain inputs like player controlled input
+    Quaternion_t rotationIntentionQuat;
 } EntityDataPhysics_t;
 
 // Pointers only

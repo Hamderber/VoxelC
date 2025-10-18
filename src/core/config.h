@@ -47,6 +47,7 @@ typedef struct
     bool vulkanValidation;
     // Size in pixels of each subtexture on the texture atlas. Minecraft is 16px
     uint32_t subtextureSize;
+    double mouseSensitivity;
 } AppConfig_t;
 
 void cfg_keyBindingsDestroy(void);

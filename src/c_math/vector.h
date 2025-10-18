@@ -53,9 +53,14 @@ static inline Vec3f_t cm_vec3fSum(Vec3f_t left, Vec3f_t right)
     };
 }
 
+static inline float cm_vec3fMagnitude(Vec3f_t vec3)
+{
+    return sqrtf(vec3.x * vec3.x + vec3.y * vec3.y + vec3.z * vec3.z);
+}
+
 static inline Vec3f_t cm_vec3fNormalize(Vec3f_t vec3)
 {
-    float length = sqrtf(vec3.x * vec3.x + vec3.y * vec3.y + vec3.z * vec3.z);
+    float length = cm_vec3fMagnitude(vec3);
 
     if (length < FLT_EPSILON)
         return VEC3_ZERO;

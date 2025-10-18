@@ -45,14 +45,14 @@ void updateUniformBuffer(State_t *state)
     // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
     // instead of having stutter with frames.
 
-    float rotateDegreesY = 45.0F;
-    float rotateDegreesX = 45.0F;
-    float rotateDegreesZ = 45.0F;
+    float rotateDegreesY = 0.0F;
+    float rotateDegreesX = 0.0F;
+    float rotateDegreesZ = 0.0F;
     float farClippingPlane = 50.0F;
 
-    Quaternion_t qYaw = cm_quatAngleAxis(cm_deg2radf(rotateDegreesY) * (float)state->time.frameTimeTotal, Y_AXIS);
-    Quaternion_t qPitch = cm_quatAngleAxis(cm_deg2radf(rotateDegreesX) * (float)state->time.frameTimeTotal, X_AXIS);
-    Quaternion_t qRoll = cm_quatAngleAxis(cm_deg2radf(rotateDegreesZ) * (float)state->time.frameTimeTotal, Z_AXIS);
+    Quaternion_t qYaw = cm_quatFromAxisAngle(cm_deg2radf(rotateDegreesY) * (float)state->time.frameTimeTotal, Y_AXIS);
+    Quaternion_t qPitch = cm_quatFromAxisAngle(cm_deg2radf(rotateDegreesX) * (float)state->time.frameTimeTotal, X_AXIS);
+    Quaternion_t qRoll = cm_quatFromAxisAngle(cm_deg2radf(rotateDegreesZ) * (float)state->time.frameTimeTotal, Z_AXIS);
     Quaternion_t qTemp = cm_quatMultiply(qYaw, qPitch);
     Quaternion_t qCombined = cm_quatMultiply(qTemp, qRoll);
     Mat4c_t model = cm_quat2mat(qCombined);

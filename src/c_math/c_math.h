@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct
 {
@@ -45,6 +46,21 @@ static inline float cm_clampf(float f, float min, float max)
         return max;
     else
         return f;
+}
+
+/// @brief Clamps d between min and max
+/// @param d
+/// @param min
+/// @param max
+/// @return min <= d <= max
+static inline double cm_clampd(double d, double min, double max)
+{
+    if (d < min)
+        return min;
+    else if (d > max)
+        return max;
+    else
+        return d;
 }
 
 /// @brief Clamps u between min and max
