@@ -18,6 +18,8 @@ typedef struct
     float uniformSpeed;
     // AI entities fill this from pathing (todo very future) or player-controlled inputs
     Vec3f_t moveIntention;
+    // Use this for interpolation
+    Vec3f_t posOld;
     Vec3f_t pos;
     Vec3f_t velocity;
     // This is where impulse is applied. Once acceleration impacts velocity in physics update it is set to 0 again

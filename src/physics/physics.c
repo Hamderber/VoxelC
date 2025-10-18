@@ -89,6 +89,7 @@ void phys_integrate(EntityDataPhysics_t *p, float dt)
     p->velocity = cm_vec3fMultScalar(p->velocity, cm_clampf(1.0F - p->drag * dt, 0.0F, FLT_MAX));
 
     // Update position
+    p->posOld = p->pos;
     p->pos = cm_vec3fSum(p->pos, cm_vec3fMultScalar(p->velocity, dt));
 
     // Reset acceleration

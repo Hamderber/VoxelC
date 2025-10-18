@@ -72,6 +72,22 @@ static inline Vec3f_t cm_vec3fNormalize(Vec3f_t vec3)
     };
 }
 
+/// @brief Linearly interpolates between two Vec3f_t values
+/// @param a Starting vector
+/// @param b Ending vector
+/// @param t Interpolation factor [0, 1]
+/// @return a * (1 - t) + b * t
+static inline Vec3f_t cm_vec3fLerp(Vec3f_t a, Vec3f_t b, float t)
+{
+    t = cm_clampf(t, 0.0F, 1.0F);
+
+    return (Vec3f_t){
+        .x = a.x + (b.x - a.x) * t,
+        .y = a.y + (b.y - a.y) * t,
+        .z = a.z + (b.z - a.z) * t,
+    };
+}
+
 static inline bool cm_vec3fIsZero(Vec3f_t vec3)
 {
     return fabs(vec3.x) < FLT_EPSILON && fabs(vec3.y) < FLT_EPSILON && fabs(vec3.z) < FLT_EPSILON;

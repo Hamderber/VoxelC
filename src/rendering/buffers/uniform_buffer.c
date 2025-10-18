@@ -70,7 +70,13 @@ void updateUniformBuffer(State_t *state)
     EntityComponentData_t *cameraPhysicsData;
     if (em_entityDataGet(state->context.pCameraEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &cameraPhysicsData))
     {
-        pos = cameraPhysicsData->physicsData->pos;
+        // Blend position for camera because its updated in physics but not required for rotation at this time
+        float alpha = (float)(state->time.fixedTimeAccumulated / state->config.fixedTimeStep);
+        alpha = cm_clampf(alpha, 0.0f, 1.0f);
+
+        Vec3f_t posPrev = cameraPhysicsData->physicsData->posOld;
+        Vec3f_t posCurr = cameraPhysicsData->physicsData->pos;
+        pos = cm_vec3fLerp(posPrev, posCurr, alpha);
         rot = cameraPhysicsData->physicsData->rotation;
     }
 
