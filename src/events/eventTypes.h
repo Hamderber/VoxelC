@@ -1,29 +1,47 @@
 #pragma once
 
 #include <stdbool.h>
+#include "events/context/CtxInputRaw_t.h"
+#include "events/context/CtxInputMapped_t.h"
+#include "events/context/CtxGUI_t.h"
 
 #define MAX_EVENT_LISTENERS 128
 
 typedef enum
 {
-    EVENT_TYPE_INPUT,
+    EVENT_TYPE_NONE,
+    EVENT_TYPE_INPUT_RAW,
+    EVENT_TYPE_INPUT_MAPPED,
     EVENT_TYPE_PHYSICS_COLLISION,
+    EVENT_TYPE_GUI,
 } EventType_t;
+
+// Must be pointers
+typedef union
+{
+    CtxInputRaw_t *inputRaw;
+    CtxInputMapped_t *inputMapped;
+    CtxGUI_t *gui;
+    void *generic;
+} EventData_t;
 
 typedef struct
 {
     EventType_t type;
-    void *data;
+    EventData_t data;
 } Event_t;
 
 typedef enum
 {
     // Normal
     EVENT_RESULT_PASS,
+    // Consume the event
+    EVENT_RESULT_CONSUME,
     // Caught an error
     EVENT_RESULT_ERROR
 } EventResult_t;
 
+struct State_t;
 typedef EventResult_t (*EventCallbackFn)(struct State_t *state, Event_t *event, void *context);
 
 typedef struct
@@ -31,6 +49,7 @@ typedef struct
     EventCallbackFn fn;
     // Unsubscribe once invoked
     bool consumeListener;
+    // Use this to decide if the event should return EVENT_RESULT_CONSUME
     bool consumeEvent;
     void *subscribeContext;
 } EventListener_t;
@@ -59,6 +78,8 @@ typedef enum
     EVENT_CHANNEL_PHYSICS,
     // spawn, death, transform changes
     EVENT_CHANNEL_ENTITY,
+    // menu events
+    EVENT_CHANNEL_GUI,
     // Keep this last so it represents the enum quantity
     EVENT_CHANNEL_COUNT,
 } EventChannelID_t;
@@ -69,6 +90,7 @@ static const char *EVENT_CHANNEL_NAMES[] = {
     "EVENT_CHANNEL_GRAPHICS",
     "EVENT_CHANNEL_PHYSICS",
     "EVENT_CHANNEL_ENTITY",
+    "EVENT_CHANNEL_GUI",
 };
 
 typedef struct

@@ -11,6 +11,9 @@
 #include "input/input.h"
 #include "events/eventBus.h"
 #include "testing/event_tests.h"
+#include "rendering/camera/cameraController.h"
+#include "entity/entityManager.h"
+#include "gui/guiController.h"
 
 void app_init(State_t *state)
 {
@@ -34,6 +37,12 @@ void app_init(State_t *state)
 #ifdef DEBUG
     eventTests_run(state);
 #endif
+
+    em_init(state);
+
+    gui_init(state);
+
+    camera_init(state);
 }
 
 void app_renderLoop(State_t *state)
@@ -62,7 +71,7 @@ void app_loop(State_t *state)
 {
     while (!win_shouldClose(&state->window))
     {
-        physicsLoop(state);
+        phys_loop(state);
         app_renderLoop(state);
         // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
     }
@@ -83,6 +92,8 @@ void app_cleanup(State_t *state)
 
     cfg_appDestroy();
     cfg_keyBindingsDestroy();
+
+    em_destroy(state);
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

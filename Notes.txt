@@ -74,3 +74,4 @@ TODO:
     or empty polygon mode maybe. Maybe polygon for mesh and line for chunks?
 16. Refactor functions that take the state to use only the necessary portions of the state and make them const when possible
 17. Vertex pooling
+18. Normalize input into a 3d vector for the camera controller. Basically combine wasd or whatever movement and then normalize it

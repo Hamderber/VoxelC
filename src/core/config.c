@@ -1,13 +1,14 @@
-#include <vulkan/vulkan.h>
-#include "core/config.h"
 #include <stdbool.h>
-#include "main.h"
-#include "core/logs.h"
-#include "cJSON.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "fileIO.h"
 #include <string.h>
+#include <vulkan/vulkan.h>
+#include "core/config.h"
+#include "main.h"
+#include "core/logs.h"
+#include "c_math/c_math.h"
+#include "cJSON.h"
+#include "fileIO.h"
 #include "input/types/inputActionMapping_t.h"
 #include "input/types/input_t.h"
 #include "input/types/defaulyKeyMapping_t.h"
@@ -53,6 +54,9 @@ static AppConfig_t appConfig = {
     .subtextureSize = 16,
     .vsync = true,
     .anisotropy = 16,
+    .cameraFOV = 45.0F,
+    .resetCursorOnMenuExit = true,
+    .mouseSensitivity = 1.0,
 };
 
 static cJSON *load_json_file(const char *path, const char *debugName)
@@ -161,7 +165,7 @@ void cfg_keyBindingsSave(Input_t *input, const char *dir, const char *filename)
     free(jsonStr);
     cJSON_Delete(root);
 
-    logs_log(LOG_INFO, "Saved keybindings to '%s'", path);
+    logs_log(LOG_DEBUG, "Saved keybindings to '%s'", path);
 }
 
 void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
@@ -204,7 +208,7 @@ void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
         }
 
         // Regenerate a fresh default keybinding file
-        logs_log(LOG_INFO, "Regenerating new default keybinding file '%s'", fileName);
+        logs_log(LOG_DEBUG, "Regenerating new default keybinding file '%s'", fileName);
         cfg_keyBindingsSave(input, dir, fileName);
         return;
     }
@@ -226,7 +230,7 @@ void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
         }
     }
 
-    logs_log(LOG_INFO, "Loaded '%s' keybindings from '%s'", fileName, fullPath);
+    logs_log(LOG_DEBUG, "Loaded '%s' keybindings from '%s'", fileName, fullPath);
     cJSON_Delete(root);
 }
 
@@ -262,7 +266,7 @@ Input_t cfg_keyBindingsLoadOrCreate(void)
     }
     else
     {
-        logs_log(LOG_INFO, "Unable to locate keybinding file. Creating default.");
+        logs_log(LOG_WARN, "Unable to locate keybinding file. Creating default.");
 
         cfg_keyBindingsSave(&input, cfgFolder, KEYBINDINGS_FILE_NAME);
     }
@@ -310,9 +314,17 @@ void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
     cJSON_AddNumberToObject(window, "height", cfg->windowHeight);
     cJSON_AddBoolToObject(window, "fullscreen", cfg->windowFullscreen);
 
+    cJSON *mouse = cJSON_AddObjectToObject(root, "mouse");
+    cJSON_AddStringToObject(mouse, "comment", "Reset the mouse cursor to the center of the screen when entering/exiting");
+    cJSON_AddStringToObject(mouse, "comment", "the first opened menu that causes the cursor to appear.");
+    cJSON_AddBoolToObject(mouse, "resetCursorOnMenuExit", cfg->resetCursorOnMenuExit);
+    cJSON_AddStringToObject(mouse, "comment", "Mouse sensitivity multiplier 0.01 to 2.0 where normal is 1.0");
+    cJSON_AddNumberToObject(mouse, "mouseSensitivity", cfg->mouseSensitivity);
+
     cJSON *renderer = cJSON_AddObjectToObject(root, "renderer");
     cJSON_AddBoolToObject(renderer, "vsync", cfg->vsync);
     cJSON_AddNumberToObject(renderer, "anisotropy", cfg->anisotropy);
+    cJSON_AddNumberToObject(renderer, "fov", cfg->cameraFOV);
 
     // Serialize JSON
     char *json_str = cJSON_Print(root);
@@ -333,7 +345,7 @@ void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
     }
 
     fputs(json_str, file);
-    logs_log(LOG_INFO, "Saved '%s' to '%s/%s'", APP_CONFIG_NAME, fullDir, fileName);
+    logs_log(LOG_DEBUG, "Saved '%s' to '%s/%s'", APP_CONFIG_NAME, fullDir, fileName);
 
     file_close(file, APP_CONFIG_NAME);
 
@@ -381,7 +393,7 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
         }
 
         // Regenerate a fresh default config
-        logs_log(LOG_INFO, "Regenerating new default config '%s'", fileName);
+        logs_log(LOG_DEBUG, "Regenerating new default config '%s'", fileName);
         cfg_appSave(cfg, dir, fileName);
         return;
     }
@@ -401,18 +413,34 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
             cfg->windowFullscreen = cJSON_IsTrue(fs);
     }
 
+    cJSON *mouse = cJSON_GetObjectItemCaseSensitive(root, "mouse");
+    if (cJSON_IsObject(mouse))
+    {
+        cJSON *cR = cJSON_GetObjectItem(mouse, "resetCursorOnMenuExit");
+        cJSON *cS = cJSON_GetObjectItem(mouse, "mouseSensitivity");
+
+        if (cJSON_IsBool(cR))
+            cfg->resetCursorOnMenuExit = cJSON_IsTrue(cR);
+        if (cJSON_IsNumber(cS))
+            cfg->mouseSensitivity = cm_clampd(cS->valuedouble, 0.01, 2.0);
+    }
+
     cJSON *renderer = cJSON_GetObjectItemCaseSensitive(root, "renderer");
     if (cJSON_IsObject(renderer))
     {
         cJSON *vsync = cJSON_GetObjectItem(renderer, "vsync");
         cJSON *aniso = cJSON_GetObjectItem(renderer, "anisotropy");
+        cJSON *fov = cJSON_GetObjectItem(renderer, "fov");
+
         if (cJSON_IsBool(vsync))
             cfg->vsync = cJSON_IsTrue(vsync);
         if (cJSON_IsNumber(aniso))
             cfg->anisotropy = aniso->valueint;
+        if (cJSON_IsNumber(fov))
+            cfg->cameraFOV = (float)fov->valuedouble;
     }
 
-    logs_log(LOG_INFO, "Loaded '%s' configuration from '%s'", APP_CONFIG_NAME, fullPath);
+    logs_log(LOG_DEBUG, "Loaded '%s' configuration from '%s'", APP_CONFIG_NAME, fullPath);
     cJSON_Delete(root);
 }
 

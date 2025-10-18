@@ -2,6 +2,7 @@
 #include "app.h"
 #include "core/types/state_t.h"
 #include "testing/unit_tests.h"
+#include "testing/math_tests.h"
 #include <time.h>
 #include "core/random.h"
 
@@ -15,6 +16,7 @@ int main(void)
 #ifdef DEBUG
     // Run unit tests if this is a debug build
     ut_run();
+    mathTests_run();
 #endif
 
     cfg_init();

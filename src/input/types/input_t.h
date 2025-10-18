@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include "input/types/inputKey_t.h"
+#include "c_math/c_math.h"
 
 typedef struct
 {
@@ -11,4 +12,5 @@ typedef struct
     double mouseX, mouseY;
     double mouseDeltaX, mouseDeltaY;
     double scrollDelta;
+    Vec3f_t axialInput;
 } Input_t;

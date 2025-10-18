@@ -1,11 +1,133 @@
 #include "physics.h"
+#include "core/random.h"
+#include "c_math/c_math.h"
+#include "rendering/camera/cameraController.h"
 
-void physicsUpdate(State_t *state)
+void phys_applyForce(EntityDataPhysics_t *p, Vec3f_t force, float mass)
 {
-    // logs_log(LOG_PHYSICS, "Physics loop. Fixed delta time = %lf", state->time.fixedTimeAccumulated);
+    // f=ma
+    Vec3f_t a = cm_vec3fMultScalar(force, 1.0F / mass);
+    p->transientAcceleration = cm_vec3fSum(p->transientAcceleration, a);
 }
 
-void physicsLoop(State_t *state)
+void phys_applyImpulse(EntityDataPhysics_t *p, Vec3f_t impulse)
+{
+    // impulse in m/s add directly to velocity
+    p->velocity = cm_vec3fSum(p->velocity, impulse);
+}
+
+// Uses the physics data's uniformSpeed
+void phys_applyImpulseUniform(EntityDataPhysics_t *p, Vec3f_t direction, bool isNormalized)
+{
+    if (isNormalized)
+    {
+        p->velocity = cm_vec3fSum(p->velocity,
+                                  cm_vec3fMultScalar(direction, p->uniformSpeed));
+    }
+    else
+    {
+        p->velocity = cm_vec3fSum(p->velocity,
+                                  cm_vec3fMultScalar(cm_vec3fNormalize(direction), p->uniformSpeed));
+    }
+}
+
+void phys_applyRotationIntention(EntityDataPhysics_t *p, float dt)
+{
+    // Convert angular velocity (rad/s) → quaternion delta
+    if (!cm_vec3fIsZero(p->rotationIntentionEulerRad))
+    {
+        Vec3f_t delta = cm_vec3fMultScalar(p->rotationIntentionEulerRad, dt);
+        float angle = cm_vec3fMagnitude(delta);
+
+        if (angle > 1e-8f)
+        {
+            Vec3f_t axis = cm_vec3fMultScalar(delta, 1.0f / angle);
+            Quaternion_t dq = cm_quatFromAxisAngle(angle, axis);
+
+            if (p->useLocalAxes)
+                p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotation, dq)); // local rotation
+            else
+                p->rotation = cm_quatNormalize(cm_quatMultiply(dq, p->rotation)); // world rotation
+        }
+
+        p->rotationIntentionEulerRad = VEC3_ZERO;
+    }
+
+    // Per-frame quaternion delta (already time-scaled)
+    if (!cm_quatIsIdentity(p->rotationIntentionQuat))
+    {
+        if (p->useLocalAxes)
+            p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotation, p->rotationIntentionQuat));
+        else
+            p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotationIntentionQuat, p->rotation));
+
+        p->rotationIntentionQuat = QUATERNION_IDENTITY;
+    }
+}
+
+void phys_applyMoveIntention(EntityDataPhysics_t *p, float dt)
+{
+    Vec3f_t dir = p->moveIntention;
+    if (p->useLocalAxes)
+        dir = cm_quatRotateVec3(p->rotation, dir);
+
+    dir = cm_vec3fNormalize(dir);
+
+    // Scale by dt because uniformSpeed is in m/s and we're applying every tick
+    Vec3f_t scaledDir = cm_vec3fMultScalar(dir, dt);
+
+    phys_applyImpulseUniform(p, scaledDir, true);
+}
+
+void phys_integrate(EntityDataPhysics_t *p, float dt)
+{
+    // Update velocity
+    p->velocity = cm_vec3fSum(p->velocity, cm_vec3fMultScalar(p->transientAcceleration, dt));
+
+    // Apply drag. Don't let a huge drag result in going the opposite direction. Normally drag would be
+    // Just 1F - drag * dt but bigger numbers help for things like snappy flight controls etc
+    p->velocity = cm_vec3fMultScalar(p->velocity, cm_clampf(1.0F - p->drag * dt, 0.0F, FLT_MAX));
+
+    // Update position
+    p->posOld = p->pos;
+    p->pos = cm_vec3fSum(p->pos, cm_vec3fMultScalar(p->velocity, dt));
+
+    // Reset acceleration
+    p->transientAcceleration = VEC3_ZERO;
+}
+
+void phys_entityPhysicsApply(State_t *state, float dt)
+{
+    Entity_t **entities = state->entityManager.entityCollections[ENTITY_COLLECTION_PHYSICS].entities;
+
+    EntityComponentData_t *componentData;
+    for (size_t i = 0; i < ENTITIES_MAX_IN_COLLECTION; i++)
+    {
+        if (entities[i] == NULL || entities[i]->componentCount == 0 || entities[i]->components == NULL)
+            continue;
+
+        if (em_entityDataGet(entities[i], ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
+        {
+            phys_applyRotationIntention(componentData->physicsData, dt);
+            phys_applyMoveIntention(componentData->physicsData, dt);
+            phys_integrate(componentData->physicsData, dt);
+        }
+
+        componentData = NULL;
+    }
+}
+
+void phys_update(State_t *state)
+{
+    float dt = (float)state->config.fixedTimeStep;
+
+    // Update the camera here
+    camera_physicsIntentUpdate(state);
+
+    phys_entityPhysicsApply(state, dt);
+}
+
+void phys_loop(State_t *state)
 {
     double numPhysicsFrames = state->time.fixedTimeAccumulated / state->config.fixedTimeStep;
 
@@ -21,7 +143,7 @@ this is expected behaviour.",
 
     while (state->time.fixedTimeAccumulated >= state->config.fixedTimeStep)
     {
-        physicsUpdate(state);
+        phys_update(state);
         state->time.fixedTimeAccumulated -= state->config.fixedTimeStep;
     }
 }

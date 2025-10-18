@@ -69,3 +69,10 @@ target_compile_definitions(VoxelC PRIVATE
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
 )
+
+# Super strict compiling for better code in the long run
+if(MSVC)
+    target_compile_options(VoxelC PRIVATE /W4 /WX) # W4 = high warning level
+else()
+    target_compile_options(VoxelC PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()

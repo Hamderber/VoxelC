@@ -14,7 +14,11 @@ typedef struct
 
 static EventResult_t onGenericPass(struct State_t *state, Event_t *event, void *ctx)
 {
-    EventTestPayload_t *payload = (EventTestPayload_t *)event->data;
+    // Unused
+    state;
+    ctx;
+
+    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
     logs_log(LOG_UNIT_TEST, "onGenericPass received value = %d", payload->testValue);
     payload->testValue += 1;
     return EVENT_RESULT_PASS;
@@ -22,7 +26,11 @@ static EventResult_t onGenericPass(struct State_t *state, Event_t *event, void *
 
 static EventResult_t onConsumeListener(struct State_t *state, Event_t *event, void *ctx)
 {
-    EventTestPayload_t *payload = (EventTestPayload_t *)event->data;
+    // Unused
+    state;
+    ctx;
+
+    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
     logs_log(LOG_UNIT_TEST, "onConsumeListener fired value = %d", payload->testValue);
     payload->testValue += 10;
     return EVENT_RESULT_PASS;
@@ -30,7 +38,11 @@ static EventResult_t onConsumeListener(struct State_t *state, Event_t *event, vo
 
 static EventResult_t onConsumeEvent(struct State_t *state, Event_t *event, void *ctx)
 {
-    EventTestPayload_t *payload = (EventTestPayload_t *)event->data;
+    // Unused
+    state;
+    ctx;
+
+    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
     logs_log(LOG_UNIT_TEST, "onConsumeEvent fired value = %d will stop propagation", payload->testValue);
     payload->testValue += 100;
     return EVENT_RESULT_PASS;
@@ -38,6 +50,11 @@ static EventResult_t onConsumeEvent(struct State_t *state, Event_t *event, void 
 
 static EventResult_t onIntentionalError(struct State_t *state, Event_t *event, void *ctx)
 {
+    // Unused
+    state;
+    event;
+    ctx;
+
     return EVENT_RESULT_ERROR;
 }
 
@@ -72,7 +89,7 @@ static int eventTests_subscribe(State_t *state, EventBus_t *bus)
     }
 
     payload.testValue = 1;
-    evt = (Event_t){.type = EVENT_TYPE_INPUT, .data = &payload};
+    evt = (Event_t){.type = EVENT_TYPE_INPUT_RAW, .data.generic = &payload};
 
     logs_log(LOG_UNIT_TEST, "Publish event to INPUT channel...");
     events_publish(state, bus, EVENT_CHANNEL_INPUT, evt);
@@ -88,7 +105,7 @@ static int eventTests_subscribe(State_t *state, EventBus_t *bus)
 
     // The consumeListener function should have been unsubscribed automatically.
     payload.testValue = 5;
-    evt.data = &payload;
+    evt.data.generic = &payload;
     logs_log(LOG_UNIT_TEST, "Publish again after consumeListener unsubscribe...");
     events_publish(state, bus, EVENT_CHANNEL_INPUT, evt);
 

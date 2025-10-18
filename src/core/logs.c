@@ -91,7 +91,7 @@ static char *logs_timestampGet(bool isForFileName)
 /// @param ...
 void logs_log(LogLevel_t level, const char *format, ...) // log() is built-in don't use it
 {
-    const char *prefix;
+    const char *prefix = "Info";
     switch (level)
     {
     case LOG_INFO:

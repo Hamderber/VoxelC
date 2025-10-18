@@ -4,6 +4,10 @@
 #include "input/types/inputActionMapping_t.h"
 #include "input/types/inputKey_t.h"
 #include <string.h>
+#include "events/eventBus.h"
+#include "events/context/CtxInputMapped_t.h"
+#include "events/context/CtxInputRaw_t.h"
+#include "events/context/CtxDescriptor_t.h"
 
 const char *input_keyNameGet(int key)
 {
@@ -260,10 +264,35 @@ const char *input_keyNameGet(int key)
     }
 }
 
+InputActionMapping_t input_keyActionGet(State_t *state, int key)
+{
+    return state->input.pInputKeys[key].inputMapping;
+}
+
+/// @brief Checks if the keycode is mapped to INPUT_ACTION_UNMAPPED within the state
+/// @param state
+/// @param key
+/// @return bool
+bool input_keyHasInputAction(State_t *state, int key)
+{
+    return state->input.pInputKeys[key].inputMapping != INPUT_ACTION_UNMAPPED;
+}
+
 void input_update(State_t *state)
 {
     GLFWwindow *window = state->window.pWindow;
-    Input_t *input = &state->window.input;
+    Input_t *input = &state->input;
+
+    // Track all keys pressed for this frame. There are 104 keys on a US keyboard so 120 is safe for special keys too.
+    // Honestly pressing all keys at once deserves a crash anyway imo.
+    static int strokeIndex = 0;
+    static int strokeCount = 0;
+    static Keystroke_t keystrokes[120];
+
+    static int actionIndex = 0;
+    static int actionCount = 0;
+    // This size is arbitrary right now. We'll see what happens. Since this is per-frame, the value can be relatively small
+    static InputAction_t inputActions[32];
 
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
@@ -276,7 +305,7 @@ void input_update(State_t *state)
         k->pressedLastFrame = k->pressedThisFrame;
         k->pressedThisFrame = isPressed;
 
-        // Only log transitions
+        // Only act on transitions
         if (k->pressedThisFrame && !k->pressedLastFrame)
         {
             const char *keyName = input_keyNameGet(key);
@@ -286,6 +315,21 @@ void input_update(State_t *state)
             k->keyDown = true;
 
             logs_log(LOG_DEBUG, "Key %3d (%-12s) down-> Action: %s", key, keyName, actionName);
+
+            keystrokes[strokeIndex++] = (Keystroke_t){
+                .direction = CTX_KEYSTROKE_DOWN,
+                .keyCode = key,
+            };
+            strokeCount++;
+
+            if (input_keyHasInputAction(state, key))
+            {
+                inputActions[actionIndex++] = (InputAction_t){
+                    .action = k->inputMapping,
+                    .actionState = CTX_INPUT_ACTION_START,
+                };
+            }
+            actionCount++;
         }
         else if (!k->pressedThisFrame && k->pressedLastFrame)
         {
@@ -296,15 +340,66 @@ void input_update(State_t *state)
             k->keyUp = true;
 
             logs_log(LOG_DEBUG, "Key %3d (%-12s) up -> Action: %s", key, keyName, actionName);
+
+            keystrokes[strokeIndex++] = (Keystroke_t){
+                .direction = CTX_KEYSTROKE_UP,
+                .keyCode = key,
+            };
+            strokeCount++;
+
+            if (input_keyHasInputAction(state, key))
+            {
+                inputActions[actionIndex++] = (InputAction_t){
+                    .action = k->inputMapping,
+                    .actionState = CTX_INPUT_ACTION_END,
+                };
+            }
+            actionCount++;
         }
+    }
+
+    if (strokeIndex > 0)
+    {
+        CtxInputRaw_t ctxRaw = {
+            .keyCount = strokeCount,
+            .keystrokes = keystrokes,
+        };
+
+        events_publish(state, &state->eventBus, EVENT_CHANNEL_INPUT,
+                       (Event_t){
+                           .type = EVENT_TYPE_INPUT_RAW,
+                           .data.inputRaw = &ctxRaw,
+                       });
+
+        strokeIndex = 0;
+        strokeCount = 0;
+        memset(keystrokes, 0, sizeof(keystrokes));
+    }
+
+    if (actionIndex > 0)
+    {
+        CtxInputMapped_t ctxMapped = {
+            .actionCount = actionCount,
+            .inputActions = inputActions,
+        };
+
+        events_publish(state, &state->eventBus, EVENT_CHANNEL_INPUT,
+                       (Event_t){
+                           .type = EVENT_TYPE_INPUT_MAPPED,
+                           .data.inputMapped = &ctxMapped,
+                       });
+
+        actionIndex = 0;
+        actionCount = 0;
+        memset(inputActions, 0, sizeof(inputActions));
     }
 }
 
 void input_init(State_t *state)
 {
-    logs_log(LOG_INFO, "Initializing input system...");
+    logs_log(LOG_DEBUG, "Initializing input system...");
 
-    state->window.input = cfg_inputInit();
+    state->input = cfg_inputInit();
 
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
@@ -315,11 +410,11 @@ void input_init(State_t *state)
             continue;
 
         // Pull the configured mapping for this key
-        InputActionMapping_t mapping = state->window.input.pInputKeys[key].inputMapping;
+        InputActionMapping_t mapping = state->input.pInputKeys[key].inputMapping;
         const char *mappingName = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
 
         // Assign a fully initialized key struct
-        state->window.input.pInputKeys[key] = (InputKey_t){
+        state->input.pInputKeys[key] = (InputKey_t){
             .key = key,
             .keyDown = false,
             .keyUp = false,

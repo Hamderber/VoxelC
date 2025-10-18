@@ -19,7 +19,7 @@ EventSubscribeResult_t events_listenerIndexFirst(EventSystem_t *sys, int *index)
 }
 
 // Prevents duplicates (default desired behaviour)
-EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCallbackFn fn, int *index)
+EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCallbackFn fn, size_t *index)
 {
     bool indexFound = false;
 
@@ -37,7 +37,7 @@ EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCa
         // Assign the value of the first available index found
         if (!indexFound && sys->eventListeners[i].fn == NULL)
         {
-            *index = (int)i;
+            *index = i;
             indexFound = true;
         }
     }
@@ -55,7 +55,7 @@ EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCa
 }
 
 EventSubscribeResult_t events_subscribe(EventBus_t *bus, EventChannelID_t id, EventCallbackFn fn, bool consumeListener,
-                                        bool consumeEvent, void *context)
+                                        bool consumeEvent, void *subCtx)
 {
     if (!bus)
     {
@@ -71,13 +71,13 @@ EventSubscribeResult_t events_subscribe(EventBus_t *bus, EventChannelID_t id, Ev
     }
 
     EventSystem_t *sys = &bus->channels[id].eventSystem;
-    int index;
+    size_t index;
     if (events_listenerIndexSingleton(sys, fn, &index) == EVENT_SUBSCRIBE_RESULT_PASS)
     {
         sys->eventListeners[index].fn = fn;
         sys->eventListeners[index].consumeListener = consumeListener;
         sys->eventListeners[index].consumeEvent = consumeEvent;
-        sys->eventListeners[index].subscribeContext = context;
+        sys->eventListeners[index].subscribeContext = subCtx;
 
         return EVENT_SUBSCRIBE_RESULT_PASS;
     }
@@ -144,7 +144,7 @@ void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_
             logs_log(LOG_ERROR, "Error during event listener %d in channel %s! The listener and event will be consumed.",
                      (int)i, EVENT_CHANNEL_NAMES[(int)id]);
             listener->consumeListener = true;
-            listener->consumeEvent = true;
+            result = EVENT_RESULT_CONSUME;
         }
 
         if (listener->consumeListener)
@@ -153,7 +153,7 @@ void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_
             numUnsubEvents++;
         }
 
-        if (listener->consumeEvent)
+        if (result == EVENT_RESULT_CONSUME)
             break;
     }
 
