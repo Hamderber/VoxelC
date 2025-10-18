@@ -36,34 +36,31 @@ else()
     target_compile_options(cJSON PRIVATE -w)
 endif()
 
-# Create executable
-add_executable(VoxelC ${SOURCES})
-
-# Add stb lib
-target_include_directories(VoxelC PRIVATE
+add_library(VoxelC_Core INTERFACE)
+target_include_directories(VoxelC_Core INTERFACE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/lib
 )
 
-# Include headers from src/ (so #include "Logger.h" works)
-target_include_directories(VoxelC PRIVATE ${CMAKE_SOURCE_DIR}/src)
-
-target_link_libraries(VoxelC PRIVATE
-    stbimg
-    cgltf
-    cJSON
-)
-
 # --- Find Vulkan ---
 find_package(Vulkan REQUIRED)
-target_link_libraries(VoxelC PRIVATE Vulkan::Vulkan)
+target_link_libraries(VoxelC_Core INTERFACE Vulkan::Vulkan)
 
 # --- Add static GLFW manually ---
 set(GLFW_INCLUDE_DIR "C:/vcpkg/installed/x64-windows-static/include")
 set(GLFW_LIBRARY "C:/vcpkg/installed/x64-windows-static/lib/glfw3.lib")
 
-target_include_directories(VoxelC PRIVATE ${GLFW_INCLUDE_DIR})
-target_link_libraries(VoxelC PRIVATE ${GLFW_LIBRARY})
+target_include_directories(VoxelC_Core INTERFACE ${GLFW_INCLUDE_DIR})
+target_link_libraries(VoxelC_Core INTERFACE ${GLFW_LIBRARY})
+
+add_executable(VoxelC ${SOURCES})
+
+target_link_libraries(VoxelC PRIVATE
+    VoxelC_Core
+    stbimg
+    cgltf
+    cJSON
+)
 
 target_compile_definitions(VoxelC PRIVATE
     $<$<CONFIG:Debug>:DEBUG>
@@ -72,7 +69,48 @@ target_compile_definitions(VoxelC PRIVATE
 
 # Super strict compiling for better code in the long run
 if(MSVC)
-    target_compile_options(VoxelC PRIVATE /W4 /WX) # W4 = high warning level
+    target_compile_options(VoxelC PRIVATE /W4 /WX)
 else()
     target_compile_options(VoxelC PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+include(CTest)
+enable_testing()
+
+file(GLOB TEST_SOURCES "${CMAKE_SOURCE_DIR}/tests/*.c")
+add_executable(VoxelC_Tests ${TEST_SOURCES})
+
+target_link_libraries(VoxelC_Tests PRIVATE
+    VoxelC_Core
+    stbimg
+    cgltf
+    cJSON
+)
+
+add_dependencies(VoxelC_Tests VoxelC)
+add_test(NAME VoxelC_UnitTests COMMAND VoxelC_Tests)
+
+# On Windows we don’t link m.lib; only on Unix
+if(NOT WIN32)
+    target_link_libraries(VoxelC_Tests PRIVATE m)
+endif()
+
+# Run tests automatically after build only in Debug mode
+if(CMAKE_CONFIGURATION_TYPES)
+    add_custom_command(
+        TARGET VoxelC_Tests
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Running tests only in Debug mode..."
+        COMMAND ${CMAKE_CTEST_COMMAND} -C Debug --output-on-failure --verbose
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running unit tests (Debug mode)..."
+    )
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_custom_command(
+        TARGET VoxelC_Tests
+        POST_BUILD
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running unit tests (Debug mode)..."
+    )
 endif()
