@@ -129,7 +129,7 @@ void camera_dataCreate(AppConfig_t *cfg, Entity_t *cameraEntity)
     float fov = cfg->cameraFOV;
     cameraEntity->components[0].data->cameraData->fov = fov;
 
-    float uniformSpeed = 8.0F;
+    float uniformSpeed = 12.0F;
     cameraEntity->components[1].data->physicsData->uniformSpeed = uniformSpeed;
     cameraEntity->components[1].data->physicsData->pos = pos;
     // Adjust the drag to get the right "floatiness" while in flying
@@ -143,6 +143,51 @@ void camera_dataCreate(AppConfig_t *cfg, Entity_t *cameraEntity)
              fov, cameraEntity->components[1].data->physicsData->uniformSpeed);
 }
 
+void camera_rotationUpdateNow(State_t *state)
+{
+    float dx = (float)state->gui.mouse.dx;
+    float dy = (float)state->gui.mouse.dy;
+
+    EntityComponentData_t *cd;
+    if (em_entityDataGet(state->context.pCameraEntity,
+                         ENTITY_COMPONENT_TYPE_PHYSICS, &cd))
+    {
+        EntityDataPhysics_t *phys = cd->physicsData;
+
+        const float radPerPixel = 0.0025F * (float)state->config.mouseSensitivity;
+        // yaw left/right (neg for natural feel)
+        float yawDelta = -dx * radPerPixel;
+        // pitch up/down
+        float pitchDelta = dy * radPerPixel;
+
+        // Apply yaw in WORLD space
+        Quaternion_t qYaw = cm_quatFromAxisAngle(yawDelta, UP);
+        phys->rotation = cm_quatNormalize(cm_quatMultiply(qYaw, phys->rotation));
+
+        // Apply pitch in LOCAL space
+        Vec3f_t right = cm_quatRotateVec3(phys->rotation, RIGHT);
+        Quaternion_t qPitch = cm_quatFromAxisAngle(pitchDelta, right);
+        phys->rotation = cm_quatNormalize(cm_quatMultiply(qPitch, phys->rotation));
+
+        // Clamp pitc
+        Vec3f_t fwd = cm_quatRotateVec3(phys->rotation, FORWARD);
+        float pitch = asinf(fwd.y); // camera look direction vs horizon
+        const float maxPitch = (PI_F * 0.5f) - 0.001f;
+        if (pitch > maxPitch || pitch < -maxPitch)
+        {
+            // undo the last pitch if it exceeded clamp
+            float correction = pitch > 0 ? (pitch - maxPitch) : (pitch + maxPitch);
+            Quaternion_t qUndo = cm_quatFromAxisAngle(-correction, right);
+            phys->rotation = cm_quatNormalize(cm_quatMultiply(qUndo, phys->rotation));
+        }
+
+        // logs_log(LOG_DEBUG,
+        //          "Camera quat (%.4f, %.4f, %.4f, %.4f)",
+        //          phys->rotation.qx, phys->rotation.qy,
+        //          phys->rotation.qz, phys->rotation.qw);
+    }
+}
+
 // Update the camera's physics entity component with the move intention accumulated by input monitoring
 void camera_physicsIntentUpdate(State_t *state)
 {
@@ -154,15 +199,6 @@ void camera_physicsIntentUpdate(State_t *state)
 
     EntityDataPhysics_t *phys = componentData->physicsData;
     phys->moveIntention = state->input.axialInput;
-
-    // const float radPerPixel = 0.02f * (float)state->config.mouseSensitivity;
-    // const float dx = -(float)state->gui.mouse.dx * radPerPixel; // yaw
-    // const float dy = (float)state->gui.mouse.dy * radPerPixel;  // pitch
-
-    // // TODO implement rotation of camera
-
-    // state->gui.mouse.dx = 0.0;
-    // state->gui.mouse.dy = 0.0;
 
     logs_log(LOG_DEBUG,
              "Camera pos: %.6f, %.6f, %.6f Quaternion: (%.5f, %.5f, %.5f, %.5f)",
