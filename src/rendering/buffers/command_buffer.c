@@ -1,5 +1,4 @@
-#pragma once
-
+#include "core/logs.h"
 #include <stdlib.h>
 #include <string.h>
 #include <vulkan/vulkan.h>

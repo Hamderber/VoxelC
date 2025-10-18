@@ -212,8 +212,8 @@ void sc_create(State_t *state)
 
     // Prevent the image extend from somehow exceeding what the physical device is capable of
     VkExtent2D imageExtent = {
-        .width = cm_clampu32t(capabilities.currentExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-        .height = cm_clampu32t(capabilities.currentExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
+        .width = cmath_clampU32t(capabilities.currentExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+        .height = cmath_clampU32t(capabilities.currentExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height),
     };
 
     if (imageExtent.width == 0 || imageExtent.height == 0)

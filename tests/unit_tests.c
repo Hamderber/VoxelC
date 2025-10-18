@@ -1,17 +1,25 @@
 #include "unit_tests.h"
-#include "../src/c_math/c_math.h"
+#include "../src/cmath/cmath.h"
+#include "modules/math_tests.h"
+#include "modules/random_tests.h"
+#include "modules/event_tests.h"
+#include "modules/chunk_tests.h"
 
 int unitTests_run(void)
 {
     int fails = 0;
 
-    ut_section("Math Tests");
-    fails += ut_assert(cm_vec3fMagnitude((Vec3f_t){1, 0, 0}) == 1.0f, "Vec3 length (1,0,0)");
-    fails += ut_assert(cm_vec3fMagnitude((Vec3f_t){0, 3, 4}) == 5.0f, "Vec3 length (0,3,4)");
+    ut_section("CMath Tests");
+    fails += math_tests_run();
 
-    ut_section("Quaternion Tests");
-    Quaternion_t q = cm_quatFromAxisAngle(0, (Vec3f_t){1, 0, 0});
-    fails += ut_assert(q.qw == 1.0f, "Identity quaternion from 0 deg");
+    ut_section("Deterministic Random Tests");
+    fails += random_tests_run();
+
+    ut_section("Event Tests");
+    fails += event_tests_run();
+
+    ut_section("Chunk Tests");
+    fails += chunk_tests_run();
 
     if (fails == 0)
         printf("\nAll tests passed!\n");

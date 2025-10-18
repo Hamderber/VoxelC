@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <float.h>
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 
 static uint32_t state;
 static uint32_t rand_seed;
@@ -34,7 +34,7 @@ uint32_t rand_nextU32t(void)
 
 int64_t rand_rangeNbit(int numBits)
 {
-    numBits = cm_clampu32t(numBits, 1, 31);
+    numBits = cmath_clampU32t(numBits, 1, 31);
 
     // Fix always getting 0 because of the shifting correction from larger numbers
     if (numBits == 1)

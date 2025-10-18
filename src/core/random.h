@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 
 uint32_t rand_stateGet(void);
 

@@ -73,6 +73,10 @@
         "xhash": "c",
         "xlocnum": "c",
         "xstring": "c",
-        "xiosbase": "c"
+        "xiosbase": "c",
+        "vk_instance.h": "c",
+        "cmath": "c",
+        "eventtypes.h": "c",
+        "cameracontroller.h": "c"
     }
 }

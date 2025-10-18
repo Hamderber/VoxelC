@@ -1,8 +1,10 @@
+#include "core/logs.h"
 #include "core/types/state_t.h"
 #include "gui/guiState_t.h"
 #include "gui/gui_t.h"
 #include "events/eventBus.h"
 #include "gui/mouse.h"
+#include "gui/window.h"
 
 void gui_toggleCursorCapture(State_t *state, bool isCaptured)
 {
@@ -126,4 +128,11 @@ void gui_init(State_t *state)
     events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, gui_onMenuTogglePress, false, false, NULL);
 
     gui_toggleCursorCapture(state, true);
+
+    // Test that focus to correctly assign initial mouse capture. Initially the cursor is captured but if the window has lost focus before
+    // program init got to this point, free the cursor. Don't reset the cursor position during this and preserve the original setting
+    bool recenterCursor = state->config.resetCursorOnMenuExit;
+    state->config.resetCursorOnMenuExit = false;
+    win_focusToggleCallback(state->window.pWindow, glfwGetWindowAttrib(state->window.pWindow, GLFW_FOCUSED));
+    state->config.resetCursorOnMenuExit = recenterCursor;
 }

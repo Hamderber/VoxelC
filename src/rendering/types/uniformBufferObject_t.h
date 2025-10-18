@@ -1,4 +1,4 @@
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include <stdalign.h>
 
 // https://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/

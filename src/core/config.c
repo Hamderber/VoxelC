@@ -6,7 +6,7 @@
 #include "core/config.h"
 #include "main.h"
 #include "core/logs.h"
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include "cJSON.h"
 #include "fileIO.h"
 #include "input/types/inputActionMapping_t.h"
@@ -422,7 +422,7 @@ void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
         if (cJSON_IsBool(cR))
             cfg->resetCursorOnMenuExit = cJSON_IsTrue(cR);
         if (cJSON_IsNumber(cS))
-            cfg->mouseSensitivity = cm_clampd(cS->valuedouble, 0.01, 2.0);
+            cfg->mouseSensitivity = cmath_clampD(cS->valuedouble, 0.01, 2.0);
     }
 
     cJSON *renderer = cJSON_GetObjectItemCaseSensitive(root, "renderer");

@@ -1,6 +1,7 @@
 #include <vulkan/vulkan.h>
 #include <stdlib.h>
 #include <string.h>
+#include "core/logs.h"
 #include "core/types/state_t.h"
 #include "rendering/types/uniformBufferObject_t.h"
 #include "rendering/buffers/buffers.h"
@@ -50,16 +51,16 @@ void updateUniformBuffer(State_t *state)
     float rotateDegreesZ = 0.0F;
     float farClippingPlane = 50.0F;
 
-    Quaternion_t qYaw = cm_quatFromAxisAngle(cm_deg2radf(rotateDegreesY) * (float)state->time.frameTimeTotal, Y_AXIS);
-    Quaternion_t qPitch = cm_quatFromAxisAngle(cm_deg2radf(rotateDegreesX) * (float)state->time.frameTimeTotal, X_AXIS);
-    Quaternion_t qRoll = cm_quatFromAxisAngle(cm_deg2radf(rotateDegreesZ) * (float)state->time.frameTimeTotal, Z_AXIS);
-    Quaternion_t qTemp = cm_quatMultiply(qYaw, qPitch);
-    Quaternion_t qCombined = cm_quatMultiply(qTemp, qRoll);
-    Mat4c_t model = cm_quat2mat(qCombined);
+    Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesY) * (float)state->time.frameTimeTotal, VEC3_Y_AXIS);
+    Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesX) * (float)state->time.frameTimeTotal, VEC3_X_AXIS);
+    Quaternionf_t qRoll = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesZ) * (float)state->time.frameTimeTotal, VEC3_Z_AXIS);
+    Quaternionf_t qTemp = cmath_quat_mult_quat(qYaw, qPitch);
+    Quaternionf_t qCombined = cmath_quat_mult_quat(qTemp, qRoll);
+    Mat4c_t model = cmath_quat2mat(qCombined);
 
     float fov = 0.0F;
     Vec3f_t pos = VEC3_ZERO;
-    Quaternion_t rot = QUATERNION_IDENTITY;
+    Quaternionf_t rot = QUATERNION_IDENTITY;
 
     EntityComponentData_t *cameraData;
     if (em_entityDataGet(state->context.pCameraEntity, ENTITY_COMPONENT_TYPE_CAMERA, &cameraData))
@@ -72,26 +73,26 @@ void updateUniformBuffer(State_t *state)
     {
         // Blend position for camera because its updated in physics but not required for rotation at this time
         float alpha = (float)(state->time.fixedTimeAccumulated / state->config.fixedTimeStep);
-        alpha = cm_clampf(alpha, 0.0f, 1.0f);
+        alpha = cmath_clampF(alpha, 0.0f, 1.0f);
 
         Vec3f_t posPrev = cameraPhysicsData->physicsData->posOld;
         Vec3f_t posCurr = cameraPhysicsData->physicsData->pos;
-        pos = cm_vec3fLerp(posPrev, posCurr, alpha);
+        pos = cmath_vec3f_lerpF(posPrev, posCurr, alpha);
         rot = cameraPhysicsData->physicsData->rotation;
     }
 
     // Derive forward/up vectors from quaternion orientation
-    Vec3f_t forward = cm_quatRotateVec3(rot, FORWARD);
-    Vec3f_t up = cm_quatRotateVec3(rot, UP);
+    Vec3f_t forward = cmath_quat_rotateVec3(rot, VEC3_FORWARD);
+    Vec3f_t up = cmath_quat_rotateVec3(rot, VEC3_UP);
 
-    Mat4c_t view = cm_lookAt(pos, cm_vec3fSum(pos, forward), up);
+    Mat4c_t view = cmath_lookAt(pos, cmath_vec3f_add_vec3f(pos, forward), up);
 
     UniformBufferObject_t ubo = {
         .model = model,
         .view = view,
-        .projection = cm_perspective(cm_deg2radf(fov),
-                                     state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
-                                     0.1F, farClippingPlane),
+        .projection = cmath_perspective(cmath_deg2radF(fov),
+                                        state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
+                                        0.1F, farClippingPlane),
     };
 
     memcpy(state->renderer.pUniformBuffersMapped[state->renderer.currentFrame], &ubo, sizeof(ubo));

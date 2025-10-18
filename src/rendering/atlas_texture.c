@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "core/logs.h"
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include "rendering/atlas_texture.h"
 #include "rendering/image.h"
 #include "core/types/context_t.h"

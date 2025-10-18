@@ -1,10 +1,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include "core/logs.h"
 #include "core/types/state_t.h"
 #include "core/vk_instance.h"
 #include "core/glfw_instance.h"
 #include "gui/swapchain.h"
 #include "gui/mouse.h"
+#include "events/eventBus.h"
+#include "input/input.h"
 
 // todo add mouse capture and subscribe event for mouse captured / uncaptured etc (menu?) and then incorporate mouse
 // movement to the camera quaternion
@@ -148,6 +151,25 @@ void win_waitForValidFramebuffer(Window_t *window)
     window->frameBufferHeight = height;
 }
 
+/// @brief Callback function for when the window gains or loses focus
+void win_focusToggleCallback(GLFWwindow *window, int focused)
+{
+    if (focused == GLFW_FOCUSED)
+    {
+        logs_log(LOG_INFO, "Window gained focus");
+    }
+    else
+    {
+        // Simulate pressing pause if there isn't a menu open and the window loses focus
+        logs_log(LOG_INFO, "Window lost focus");
+        State_t *state = glfwGetWindowUserPointer(window);
+        if (state->gui.menuDepth == 0)
+        {
+            input_inputActionSimulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
+        }
+    }
+}
+
 /// @brief Creates the GLFW window
 /// @param state
 void win_create(State_t *state)
@@ -186,6 +208,10 @@ void win_create(State_t *state)
 
     // Must be after the window user pointer is set so that the mouse callback can access state
     mouse_init(state);
+
+    // Must be after mouse so that mouse capture can be adequately set during program launch. This is because the program could be launched
+    // and then immediately lose focus causing the mouse to be "stolen" from whatever actually does have focus
+    glfwSetWindowFocusCallback(state->window.pWindow, win_focusToggleCallback);
 
     // If the window changes size, call this function. There is a window-specific one, but the frame buffer one is better.
     // This allows for supporting retina displays and other screens that use subpixels (Vulkan sees subpixels as normal pixels).

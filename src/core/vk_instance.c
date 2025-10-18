@@ -1,3 +1,4 @@
+#include "core/logs.h"
 #include "core/types/state_t.h"
 #include <vulkan/vulkan.h>
 #include <string.h>

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <vulkan/vulkan.h>
+#include "core/logs.h"
 #include "core/types/state_t.h"
 
 void syncObjectsDestroy(State_t *state)

@@ -1,19 +1,20 @@
+#include "core/logs.h"
 #include "physics.h"
 #include "core/random.h"
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include "rendering/camera/cameraController.h"
 
 void phys_applyForce(EntityDataPhysics_t *p, Vec3f_t force, float mass)
 {
     // f=ma
-    Vec3f_t a = cm_vec3fMultScalar(force, 1.0F / mass);
-    p->transientAcceleration = cm_vec3fSum(p->transientAcceleration, a);
+    Vec3f_t a = cmath_vec3f_mult_scalarF(force, 1.0F / mass);
+    p->transientAcceleration = cmath_vec3f_add_vec3f(p->transientAcceleration, a);
 }
 
 void phys_applyImpulse(EntityDataPhysics_t *p, Vec3f_t impulse)
 {
     // impulse in m/s add directly to velocity
-    p->velocity = cm_vec3fSum(p->velocity, impulse);
+    p->velocity = cmath_vec3f_add_vec3f(p->velocity, impulse);
 }
 
 // Uses the physics data's uniformSpeed
@@ -21,45 +22,45 @@ void phys_applyImpulseUniform(EntityDataPhysics_t *p, Vec3f_t direction, bool is
 {
     if (isNormalized)
     {
-        p->velocity = cm_vec3fSum(p->velocity,
-                                  cm_vec3fMultScalar(direction, p->uniformSpeed));
+        p->velocity = cmath_vec3f_add_vec3f(p->velocity,
+                                            cmath_vec3f_mult_scalarF(direction, p->uniformSpeed));
     }
     else
     {
-        p->velocity = cm_vec3fSum(p->velocity,
-                                  cm_vec3fMultScalar(cm_vec3fNormalize(direction), p->uniformSpeed));
+        p->velocity = cmath_vec3f_add_vec3f(p->velocity,
+                                            cmath_vec3f_mult_scalarF(cmath_vec3f_normalize(direction), p->uniformSpeed));
     }
 }
 
 void phys_applyRotationIntention(EntityDataPhysics_t *p, float dt)
 {
     // Convert angular velocity (rad/s) → quaternion delta
-    if (!cm_vec3fIsZero(p->rotationIntentionEulerRad))
+    if (!cmath_vec3f_isZero(p->rotationIntentionEulerRad))
     {
-        Vec3f_t delta = cm_vec3fMultScalar(p->rotationIntentionEulerRad, dt);
-        float angle = cm_vec3fMagnitude(delta);
+        Vec3f_t delta = cmath_vec3f_mult_scalarF(p->rotationIntentionEulerRad, dt);
+        float angle = cmath_vec3f_magnitudeF(delta);
 
         if (angle > 1e-8f)
         {
-            Vec3f_t axis = cm_vec3fMultScalar(delta, 1.0f / angle);
-            Quaternion_t dq = cm_quatFromAxisAngle(angle, axis);
+            Vec3f_t axis = cmath_vec3f_mult_scalarF(delta, 1.0f / angle);
+            Quaternionf_t dq = cmath_quat_fromAxisAngle(angle, axis);
 
             if (p->useLocalAxes)
-                p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotation, dq)); // local rotation
+                p->rotation = cmath_quat_normalize(cmath_quat_mult_quat(p->rotation, dq)); // local rotation
             else
-                p->rotation = cm_quatNormalize(cm_quatMultiply(dq, p->rotation)); // world rotation
+                p->rotation = cmath_quat_normalize(cmath_quat_mult_quat(dq, p->rotation)); // world rotation
         }
 
         p->rotationIntentionEulerRad = VEC3_ZERO;
     }
 
     // Per-frame quaternion delta (already time-scaled)
-    if (!cm_quatIsIdentity(p->rotationIntentionQuat))
+    if (!cmath_quat_isIdentity(p->rotationIntentionQuat))
     {
         if (p->useLocalAxes)
-            p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotation, p->rotationIntentionQuat));
+            p->rotation = cmath_quat_normalize(cmath_quat_mult_quat(p->rotation, p->rotationIntentionQuat));
         else
-            p->rotation = cm_quatNormalize(cm_quatMultiply(p->rotationIntentionQuat, p->rotation));
+            p->rotation = cmath_quat_normalize(cmath_quat_mult_quat(p->rotationIntentionQuat, p->rotation));
 
         p->rotationIntentionQuat = QUATERNION_IDENTITY;
     }
@@ -69,12 +70,12 @@ void phys_applyMoveIntention(EntityDataPhysics_t *p, float dt)
 {
     Vec3f_t dir = p->moveIntention;
     if (p->useLocalAxes)
-        dir = cm_quatRotateVec3(p->rotation, dir);
+        dir = cmath_quat_rotateVec3(p->rotation, dir);
 
-    dir = cm_vec3fNormalize(dir);
+    dir = cmath_vec3f_normalize(dir);
 
     // Scale by dt because uniformSpeed is in m/s and we're applying every tick
-    Vec3f_t scaledDir = cm_vec3fMultScalar(dir, dt);
+    Vec3f_t scaledDir = cmath_vec3f_mult_scalarF(dir, dt);
 
     phys_applyImpulseUniform(p, scaledDir, true);
 }
@@ -82,15 +83,15 @@ void phys_applyMoveIntention(EntityDataPhysics_t *p, float dt)
 void phys_integrate(EntityDataPhysics_t *p, float dt)
 {
     // Update velocity
-    p->velocity = cm_vec3fSum(p->velocity, cm_vec3fMultScalar(p->transientAcceleration, dt));
+    p->velocity = cmath_vec3f_add_vec3f(p->velocity, cmath_vec3f_mult_scalarF(p->transientAcceleration, dt));
 
     // Apply drag. Don't let a huge drag result in going the opposite direction. Normally drag would be
     // Just 1F - drag * dt but bigger numbers help for things like snappy flight controls etc
-    p->velocity = cm_vec3fMultScalar(p->velocity, cm_clampf(1.0F - p->drag * dt, 0.0F, FLT_MAX));
+    p->velocity = cmath_vec3f_mult_scalarF(p->velocity, cmath_clampF(1.0F - p->drag * dt, 0.0F, CMATH_MAX_F));
 
     // Update position
     p->posOld = p->pos;
-    p->pos = cm_vec3fSum(p->pos, cm_vec3fMultScalar(p->velocity, dt));
+    p->pos = cmath_vec3f_add_vec3f(p->pos, cmath_vec3f_mult_scalarF(p->velocity, dt));
 
     // Reset acceleration
     p->transientAcceleration = VEC3_ZERO;

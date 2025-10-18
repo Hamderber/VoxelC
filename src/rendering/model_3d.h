@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdalign.h>
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include "rendering/uvs.h"
 #include "rendering/texture.h"
 #include "rendering/voxel.h"
@@ -117,7 +117,7 @@ void m3d_load(State_t *state)
         }
 
         // Default white color for now (can be replaced if color attributes are added)
-        vertices[v].color = WHITE;
+        vertices[v].color = COLOR_WHITE;
     }
 
     // Load indices if they exist

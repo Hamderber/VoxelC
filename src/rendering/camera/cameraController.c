@@ -5,7 +5,7 @@
 #include "events/eventBus.h"
 #include "events/context/CtxInputMapped_t.h"
 #include "entity/entityManager.h"
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -93,9 +93,9 @@ EventResult_t camera_onInput(struct State_t *state, Event_t *event, void *ctx)
         }
 
         // Protect against faulty input events
-        state->input.axialInput.x = cm_clampf(state->input.axialInput.x, -1.0F, 1.0F);
-        state->input.axialInput.y = cm_clampf(state->input.axialInput.y, -1.0F, 1.0F);
-        state->input.axialInput.z = cm_clampf(state->input.axialInput.z, -1.0F, 1.0F);
+        state->input.axialInput.x = cmath_clampF(state->input.axialInput.x, -1.0F, 1.0F);
+        state->input.axialInput.y = cmath_clampF(state->input.axialInput.y, -1.0F, 1.0F);
+        state->input.axialInput.z = cmath_clampF(state->input.axialInput.z, -1.0F, 1.0F);
     }
 
     return EVENT_RESULT_PASS;
@@ -161,24 +161,24 @@ void camera_rotationUpdateNow(State_t *state)
         float pitchDelta = dy * radPerPixel;
 
         // Apply yaw in WORLD space
-        Quaternion_t qYaw = cm_quatFromAxisAngle(yawDelta, UP);
-        phys->rotation = cm_quatNormalize(cm_quatMultiply(qYaw, phys->rotation));
+        Quaternionf_t qYaw = cmath_quat_fromAxisAngle(yawDelta, VEC3_UP);
+        phys->rotation = cmath_quat_normalize(cmath_quat_mult_quat(qYaw, phys->rotation));
 
         // Apply pitch in LOCAL space
-        Vec3f_t right = cm_quatRotateVec3(phys->rotation, RIGHT);
-        Quaternion_t qPitch = cm_quatFromAxisAngle(pitchDelta, right);
-        phys->rotation = cm_quatNormalize(cm_quatMultiply(qPitch, phys->rotation));
+        Vec3f_t right = cmath_quat_rotateVec3(phys->rotation, VEC3_RIGHT);
+        Quaternionf_t qPitch = cmath_quat_fromAxisAngle(pitchDelta, right);
+        phys->rotation = cmath_quat_normalize(cmath_quat_mult_quat(qPitch, phys->rotation));
 
         // Clamp pitc
-        Vec3f_t fwd = cm_quatRotateVec3(phys->rotation, FORWARD);
+        Vec3f_t fwd = cmath_quat_rotateVec3(phys->rotation, VEC3_FORWARD);
         float pitch = asinf(fwd.y); // camera look direction vs horizon
         const float maxPitch = (PI_F * 0.5f) - 0.001f;
         if (pitch > maxPitch || pitch < -maxPitch)
         {
             // undo the last pitch if it exceeded clamp
             float correction = pitch > 0 ? (pitch - maxPitch) : (pitch + maxPitch);
-            Quaternion_t qUndo = cm_quatFromAxisAngle(-correction, right);
-            phys->rotation = cm_quatNormalize(cm_quatMultiply(qUndo, phys->rotation));
+            Quaternionf_t qUndo = cmath_quat_fromAxisAngle(-correction, right);
+            phys->rotation = cmath_quat_normalize(cmath_quat_mult_quat(qUndo, phys->rotation));
         }
 
         // logs_log(LOG_DEBUG,
@@ -200,11 +200,11 @@ void camera_physicsIntentUpdate(State_t *state)
     EntityDataPhysics_t *phys = componentData->physicsData;
     phys->moveIntention = state->input.axialInput;
 
-    logs_log(LOG_DEBUG,
-             "Camera pos: %.6f, %.6f, %.6f Quaternion: (%.5f, %.5f, %.5f, %.5f)",
-             phys->pos.x, phys->pos.y, phys->pos.z,
-             phys->rotation.qx, phys->rotation.qy,
-             phys->rotation.qz, phys->rotation.qw);
+    // logs_log(LOG_DEBUG,
+    //          "Camera pos: %.6f, %.6f, %.6f Quaternion: (%.5f, %.5f, %.5f, %.5f)",
+    //          phys->pos.x, phys->pos.y, phys->pos.z,
+    //          phys->rotation.qx, phys->rotation.qy,
+    //          phys->rotation.qz, phys->rotation.qw);
 }
 
 void camera_init(State_t *state)

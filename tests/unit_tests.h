@@ -3,22 +3,17 @@
 
 static inline int ut_assert(int condition, const char *testName)
 {
-    if (condition)
-    {
-        printf("[PASS] %s\n", testName);
-        return 0;
-    }
-    else
+    if (!condition)
     {
         printf("[FAIL] %s\n", testName);
-        return 1;
     }
+
+    return !condition;
 }
 
-static inline int ut_section(const char *name)
+static inline void ut_section(const char *name)
 {
-    printf("\n== %s ==\n", name);
-    return 0;
+    printf("== %s ==\n", name);
 }
 
 int unitTests_run(void);

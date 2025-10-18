@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/logs.h"
 #include "core/glfw_instance.h"
 #include "core/vk_instance.h"
 #include "rendering/shaders.h"
@@ -10,7 +11,6 @@
 #include "core/config.h"
 #include "input/input.h"
 #include "events/eventBus.h"
-#include "testing/event_tests.h"
 #include "rendering/camera/cameraController.h"
 #include "entity/entityManager.h"
 #include "gui/guiController.h"
@@ -33,10 +33,6 @@ void app_init(State_t *state)
     time_init(&state->time);
 
     events_init(&state->eventBus);
-
-#ifdef DEBUG
-    eventTests_run(state);
-#endif
 
     em_init(state);
 

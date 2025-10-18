@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 
 typedef struct
 {
