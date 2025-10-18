@@ -11,6 +11,6 @@ EventSubscribeResult_t events_unsubscribe(EventBus_t *bus, EventChannelID_t id, 
 
 EventSubscribeResult_t events_unsubscribeCollection(EventBus_t *bus, EventChannelID_t id, EventCallbackFn *fns, size_t count);
 
-void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_t event);
+void events_publish(struct State_t *state, EventBus_t *bus, EventChannelID_t id, Event_t event);
 
 void events_init(EventBus_t *bus);

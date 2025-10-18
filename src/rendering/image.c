@@ -1,6 +1,7 @@
 
 #include <stdint.h>
 #include <vulkan/vulkan.h>
+#include "core/logs.h"
 #include "core/types/state_t.h"
 #include "rendering/buffers/command_buffer.h"
 #include "core/vk_instance.h"

@@ -16,6 +16,8 @@ VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Wind
 
 VkPresentModeKHR win_surfacePresentModesSelect(const AppConfig_t *config, const Context_t *context, const Window_t *window);
 
+void win_focusToggleCallback(GLFWwindow *window, int focused);
+
 void win_create(State_t *state);
 
 void win_destroy(State_t *state);

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "core/logs.h"
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include "rendering/shaders.h"
 #include "core/types/atlasRegion_t.h"
 #include "core/types/atlasFace_t.h"

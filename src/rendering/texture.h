@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string.h>
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include "rendering/types/textureRotation_t.h"
 #include "core/types/state_t.h"
 

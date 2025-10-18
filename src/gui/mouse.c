@@ -1,7 +1,7 @@
 #include <stdbool.h>
 #include <GLFW/glfw3.h>
 #include "core/types/state_t.h"
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 #include "rendering/camera/cameraController.h"
 
 static bool firstRecord = true;

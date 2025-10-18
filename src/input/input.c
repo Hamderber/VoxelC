@@ -278,6 +278,28 @@ bool input_keyHasInputAction(State_t *state, int key)
     return state->input.pInputKeys[key].inputMapping != INPUT_ACTION_UNMAPPED;
 }
 
+void input_inputActionSimulate(State_t *state, InputActionMapping_t inputActionMapped, CtxDescriptor_t actionState)
+{
+    InputAction_t inputAction = (InputAction_t){
+        .action = inputActionMapped,
+        .actionState = actionState,
+    };
+
+    CtxInputMapped_t data = {
+        .actionCount = 1,
+        .inputActions = &inputAction,
+    };
+
+    Event_t event = {
+        .type = EVENT_TYPE_INPUT_MAPPED,
+        .data.inputMapped = &data,
+    };
+
+    logs_log(LOG_DEBUG, "Simulating the input action %s -> %s",
+             INPUT_ACTION_MAPPING_NAMES[(int)inputActionMapped], actionState == CTX_INPUT_ACTION_START ? "pressed" : "released");
+    events_publish(state, &state->eventBus, EVENT_CHANNEL_INPUT, event);
+}
+
 void input_update(State_t *state)
 {
     GLFWwindow *window = state->window.pWindow;

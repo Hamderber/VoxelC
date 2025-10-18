@@ -1,4 +1,5 @@
 #include <vulkan/vulkan.h>
+#include "core/logs.h"
 #include "core/vk_instance.h"
 #include "rendering/buffers/command_buffer.h"
 

@@ -1,4 +1,5 @@
 #include <vulkan/vulkan.h>
+#include "core/logs.h"
 #include "core/types/state_t.h"
 
 void commandPoolCreate(State_t *state)

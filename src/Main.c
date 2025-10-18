@@ -1,8 +1,7 @@
 #include "main.h"
 #include "app.h"
+#include "core/logs.h"
 #include "core/types/state_t.h"
-#include "testing/unit_tests.h"
-#include "testing/math_tests.h"
 #include <time.h>
 #include "core/random.h"
 
@@ -12,12 +11,6 @@ int main(void)
 
     // Init the deterministic random with a random (if 0) seed
     rand_init(0);
-
-#ifdef DEBUG
-    // Run unit tests if this is a debug build
-    ut_run();
-    mathTests_run();
-#endif
 
     cfg_init();
 

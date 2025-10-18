@@ -1,6 +1,6 @@
 #pragma once
 
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 
 // A region represents the subtexture located on the atlas
 typedef struct

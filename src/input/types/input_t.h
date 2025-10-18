@@ -2,7 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include "input/types/inputKey_t.h"
-#include "c_math/c_math.h"
+#include "cmath/cmath.h"
 
 typedef struct
 {
