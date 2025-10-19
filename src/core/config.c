@@ -217,7 +217,7 @@ void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
     cJSON *bindings = root;
     if (cJSON_IsObject(bindings))
     {
-        for (int i = 0; i < INPUT_ACTION_MAPPING_LENGTH; i++)
+        for (int i = 0; i < INPUT_ACTION_COUNT; i++)
         {
             const char *actionName = INPUT_ACTION_MAPPING_NAMES[i];
             cJSON *keyItem = cJSON_GetObjectItemCaseSensitive(bindings, actionName);
@@ -312,6 +312,7 @@ void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
     cJSON *window = cJSON_AddObjectToObject(root, "window");
     cJSON_AddNumberToObject(window, "width", cfg->windowWidth);
     cJSON_AddNumberToObject(window, "height", cfg->windowHeight);
+    cJSON_AddStringToObject(window, "comment", "Should " PROGRAM_NAME " start in fullscreen mode?");
     cJSON_AddBoolToObject(window, "fullscreen", cfg->windowFullscreen);
 
     cJSON *mouse = cJSON_AddObjectToObject(root, "mouse");

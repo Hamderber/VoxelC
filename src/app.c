@@ -11,9 +11,9 @@
 #include "core/config.h"
 #include "input/input.h"
 #include "events/eventBus.h"
-#include "rendering/camera/cameraController.h"
 #include "entity/entityManager.h"
 #include "gui/guiController.h"
+#include "world/world.h"
 
 void app_init(State_t *state)
 {
@@ -38,7 +38,7 @@ void app_init(State_t *state)
 
     gui_init(state);
 
-    camera_init(state);
+    world_load(state);
 }
 
 void app_renderLoop(State_t *state)

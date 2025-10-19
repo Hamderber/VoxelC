@@ -10,6 +10,7 @@
 #include "entity/entityManager.h"
 #include "input/types/input_t.h"
 #include "gui/guiState_t.h"
+#include "world/worldState_t.h"
 
 typedef struct State_t
 {
@@ -22,4 +23,6 @@ typedef struct State_t
     EntityManger_t entityManager;
     Input_t input;
     GUI_State_t gui;
+
+    WorldState_t *worldState;
 } State_t;

@@ -5,11 +5,20 @@
 #include <vulkan/vulkan.h>
 #include "core/config.h"
 #include "core/types/atlasRegion_t.h"
+#include "rendering/types/graphicsPipeline_t.h"
 
 typedef struct
 {
-    VkPipeline graphicsPipeline;
-    VkPipelineLayout pipelineLayout;
+    // Normal rendering
+    VkPipeline graphicsPipelineFill;
+    VkPipelineLayout pipelineLayoutFill;
+
+    // Vertex wireframe rendering
+    VkPipeline graphicsPipelineWireframe;
+    VkPipelineLayout pipelineLayoutWireframe;
+
+    GraphicsPipeline_t activeGraphicsPipeline;
+
     uint32_t renderpassAttachmentCount;
     VkRenderPass pRenderPass;
     uint32_t framebufferCount;

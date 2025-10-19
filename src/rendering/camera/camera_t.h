@@ -5,4 +5,5 @@
 typedef struct
 {
     float fov;
-} EntityDataCamera_t;
+    Quaternionf_t rotation;
+} Camera_t;

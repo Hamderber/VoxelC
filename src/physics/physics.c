@@ -2,7 +2,7 @@
 #include "physics.h"
 #include "core/random.h"
 #include "cmath/cmath.h"
-#include "rendering/camera/cameraController.h"
+#include "character/characterController.h"
 
 void phys_applyForce(EntityDataPhysics_t *p, Vec3f_t force, float mass)
 {
@@ -34,13 +34,13 @@ void phys_applyImpulseUniform(EntityDataPhysics_t *p, Vec3f_t direction, bool is
 
 void phys_applyRotationIntention(EntityDataPhysics_t *p, float dt)
 {
-    // Convert angular velocity (rad/s) → quaternion delta
+    // Convert angular velocity (rad/s) -> quaternion delta
     if (!cmath_vec3f_isZero(p->rotationIntentionEulerRad))
     {
         Vec3f_t delta = cmath_vec3f_mult_scalarF(p->rotationIntentionEulerRad, dt);
         float angle = cmath_vec3f_magnitudeF(delta);
 
-        if (angle > 1e-8f)
+        if (angle > CMATH_EPSILON_F)
         {
             Vec3f_t axis = cmath_vec3f_mult_scalarF(delta, 1.0f / angle);
             Quaternionf_t dq = cmath_quat_fromAxisAngle(angle, axis);
@@ -122,8 +122,8 @@ void phys_update(State_t *state)
 {
     float dt = (float)state->config.fixedTimeStep;
 
-    // Update the camera here
-    camera_physicsIntentUpdate(state);
+    // Directly update player's movement intent
+    player_physicsIntentUpdate(state);
 
     phys_entityPhysicsApply(state, dt);
 }

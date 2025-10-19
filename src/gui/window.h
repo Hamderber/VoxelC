@@ -2,7 +2,10 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <stdbool.h>
 #include "core/types/state_t.h"
+
+void win_fullscreenToggle(State_t *state, bool toggle);
 
 void win_pollEvents(void);
 

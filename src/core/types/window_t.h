@@ -1,8 +1,9 @@
 #pragma once
 
-#include "core/types/swapchain_t.h"
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include "cmath/cmath.h"
+#include "core/types/swapchain_t.h"
 
 typedef struct
 {
@@ -14,4 +15,9 @@ typedef struct
     GLFWwindow *pWindow;
     int frameBufferWidth;
     int frameBufferHeight;
+    int widthPrev;
+    int heightPrev;
+    int prevX;
+    int prevY;
+    bool fullscreen;
 } Window_t;

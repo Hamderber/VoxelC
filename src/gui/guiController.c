@@ -5,6 +5,8 @@
 #include "events/eventBus.h"
 #include "gui/mouse.h"
 #include "gui/window.h"
+#include "input/input.h"
+#include "rendering/rendering.h"
 
 void gui_toggleCursorCapture(State_t *state, bool isCaptured)
 {
@@ -103,6 +105,35 @@ EventResult_t gui_onMenuTogglePress(struct State_t *state, Event_t *event, void 
     return EVENT_RESULT_PASS;
 }
 
+EventResult_t gui_onFullscreenTogglePress(struct State_t *state, Event_t *event, void *ctx)
+{
+    ctx = NULL;
+    if (event == NULL)
+    {
+        return EVENT_RESULT_ERROR;
+    }
+
+    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
+    {
+        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+        {
+            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            {
+                switch (event->data.inputMapped->inputActions[i].action)
+                {
+                case INPUT_ACTION_FULLSCREEN_TOGGLE:
+                    logs_log(LOG_DEBUG, "Fullscreen toggle (pressed)");
+                    win_fullscreenToggle(state, !state->window.fullscreen);
+                    return EVENT_RESULT_CONSUME;
+                    break;
+                }
+            }
+        }
+    }
+
+    return EVENT_RESULT_PASS;
+}
+
 void gui_buildGUIs(State_t *state)
 {
     for (size_t i = 0; i < GUI_ID_COUNT; i++)
@@ -126,13 +157,17 @@ void gui_init(State_t *state)
     logs_log(LOG_DEBUG, "Initializing GUI Controller...");
 
     events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, gui_onMenuTogglePress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, gui_onFullscreenTogglePress, false, false, NULL);
 
-    gui_toggleCursorCapture(state, true);
-
-    // Test that focus to correctly assign initial mouse capture. Initially the cursor is captured but if the window has lost focus before
-    // program init got to this point, free the cursor. Don't reset the cursor position during this and preserve the original setting
-    bool recenterCursor = state->config.resetCursorOnMenuExit;
+    // Don't start with the cursor captured. Start in the pause menu
+    bool centerCursor = state->config.resetCursorOnMenuExit;
     state->config.resetCursorOnMenuExit = false;
-    win_focusToggleCallback(state->window.pWindow, glfwGetWindowAttrib(state->window.pWindow, GLFW_FOCUSED));
-    state->config.resetCursorOnMenuExit = recenterCursor;
+    gui_toggleCursorCapture(state, false);
+    input_inputActionSimulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
+    state->config.resetCursorOnMenuExit = centerCursor;
+
+    // This is here because the renderer itself is mainly backend and this, while impacting the renderer, is more of a gui-facing effect.
+    // Also rend_create happens before the event system is initialized
+    // No need to unsubscribe because even though the renderer stuff is recreated, that is on the vulkan side and not this itself
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, rend_onWireframeTogglePress, false, false, NULL);
 }

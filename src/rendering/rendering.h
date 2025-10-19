@@ -1,6 +1,9 @@
 #pragma once
 
 #include "core/types/state_t.h"
+#include "events/eventTypes.h"
+
+EventResult_t rend_onWireframeTogglePress(struct State_t *state, Event_t *event, void *ctx);
 
 void rend_recreate(State_t *state);
 
