@@ -16,6 +16,9 @@ typedef struct
     bool useLocalAxes;
     // Use this to determine velocity using an external normalized direction. (m/s)
     float uniformSpeed;
+    // Default speed. Useful for setting speed directly to this after a speed modification instead of doing things like
+    // multiplying and dividing by a multiplier, which introduces precision errors
+    float uniformSpeedBase;
     // AI entities fill this from pathing (todo very future) or player-controlled inputs
     Vec3f_t moveIntention;
     // Use this for interpolation
@@ -38,7 +41,7 @@ typedef struct
 typedef union
 {
     void *genericData;
-    EntityDataCamera_t *cameraData;
+    Camera_t *cameraData;
     EntityDataPhysics_t *physicsData;
 } EntityComponentData_t;
 
@@ -52,6 +55,8 @@ typedef enum
 {
     ENTITY_TYPE_GENERIC = 0,
     ENTITY_TYPE_CAMERA = 1,
+    ENTITY_TYPE_CREATURE = 2,
+    ENTITY_TYPE_COUNT,
 } EntityType_t;
 
 typedef struct

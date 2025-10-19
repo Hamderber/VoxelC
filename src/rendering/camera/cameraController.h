@@ -4,6 +4,4 @@
 
 void camera_rotationUpdateNow(State_t *state);
 
-void camera_physicsIntentUpdate(State_t *state);
-
 void camera_init(State_t *state);

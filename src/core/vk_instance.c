@@ -348,7 +348,7 @@ static void vki_deviceCreate(State_t *state)
     if (state->context.physicalDeviceSupportedFeatures.logicOp)
     {
         // Allow logic operations
-        state->context.physicalDeviceSupportedFeatures.logicOp = VK_TRUE;
+        state->context.physicalDeviceEnabledFeatures.logicOp = VK_TRUE;
     }
     else
     {

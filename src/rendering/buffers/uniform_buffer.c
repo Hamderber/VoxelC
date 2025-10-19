@@ -58,27 +58,26 @@ void updateUniformBuffer(State_t *state)
     Quaternionf_t qCombined = cmath_quat_mult_quat(qTemp, qRoll);
     Mat4c_t model = cmath_quat2mat(qCombined);
 
-    float fov = 0.0F;
+    float fov = state->context.camera.fov;
     Vec3f_t pos = VEC3_ZERO;
-    Quaternionf_t rot = QUATERNION_IDENTITY;
+    Quaternionf_t rot = state->context.camera.rotation;
 
-    EntityComponentData_t *cameraData;
-    if (em_entityDataGet(state->context.pCameraEntity, ENTITY_COMPONENT_TYPE_CAMERA, &cameraData))
-    {
-        fov = cameraData->cameraData->fov;
-    }
+    // EntityComponentData_t *cameraData;
+    // if (em_entityDataGet(state->context.pCamera, ENTITY_COMPONENT_TYPE_CAMERA, &cameraData))
+    // {
+    //     fov = cameraData->cameraData->fov;
+    // }
 
-    EntityComponentData_t *cameraPhysicsData;
-    if (em_entityDataGet(state->context.pCameraEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &cameraPhysicsData))
+    EntityComponentData_t *playerPhysicsData;
+    if (em_entityDataGet(state->worldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &playerPhysicsData))
     {
         // Blend position for camera because its updated in physics but not required for rotation at this time
         float alpha = (float)(state->time.fixedTimeAccumulated / state->config.fixedTimeStep);
-        alpha = cmath_clampF(alpha, 0.0f, 1.0f);
+        alpha = cmath_clampF(alpha, 0.0F, 1.0F);
 
-        Vec3f_t posPrev = cameraPhysicsData->physicsData->posOld;
-        Vec3f_t posCurr = cameraPhysicsData->physicsData->pos;
+        Vec3f_t posPrev = playerPhysicsData->physicsData->posOld;
+        Vec3f_t posCurr = playerPhysicsData->physicsData->pos;
         pos = cmath_vec3f_lerpF(posPrev, posCurr, alpha);
-        rot = cameraPhysicsData->physicsData->rotation;
     }
 
     // Derive forward/up vectors from quaternion orientation

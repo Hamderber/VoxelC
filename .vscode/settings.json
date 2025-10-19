@@ -78,6 +78,8 @@
         "cmath": "c",
         "eventtypes.h": "c",
         "cameracontroller.h": "c",
-        "graphicspipeline_t.h": "c"
+        "graphicspipeline_t.h": "c",
+        "charactertype_t.h": "c",
+        "ctxinputmapped_t.h": "c"
     }
 }

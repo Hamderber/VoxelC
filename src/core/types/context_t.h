@@ -17,5 +17,5 @@ typedef struct
     VkAllocationCallbacks *pAllocator;
     /// @brief UINT32_MAX means no family assigned (set to max during creation)
     uint32_t queueFamily;
-    Entity_t *pCameraEntity;
+    Camera_t camera;
 } Context_t;
