@@ -206,7 +206,7 @@ void sc_create(State_t *state)
 
     VkSurfaceFormatKHR surfaceFormat = win_surfaceFormatsSelect(&state->context, &state->window);
 
-    vki_logCapabilities(state->context.physicalDeviceFeatures, capabilities);
+    vki_logCapabilities(state->context.physicalDeviceSupportedFeatures, capabilities);
 
     VkPresentModeKHR presentMode = win_surfacePresentModesSelect(&state->config, &state->context, &state->window);
 

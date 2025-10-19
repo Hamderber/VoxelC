@@ -21,14 +21,14 @@ void vki_logAPI(void)
 }
 
 /// @brief Logs the physical device's features and capabilities
-/// @param physicalDeviceFeatures
+/// @param physicalDeviceSupportedFeatures
 /// @param capabilities
-void vki_logCapabilities(VkPhysicalDeviceFeatures physicalDeviceFeatures, const VkSurfaceCapabilitiesKHR capabilities)
+void vki_logCapabilities(VkPhysicalDeviceFeatures physicalDeviceSupportedFeatures, const VkSurfaceCapabilitiesKHR capabilities)
 {
     logs_log(LOG_DEBUG, "The physical device has the following features:");
     logs_log(LOG_DEBUG, "\t\tImage count range: [%d-%d]", capabilities.minImageCount, capabilities.maxImageCount);
     logs_log(LOG_DEBUG, "\t\tMax Image Array Layers: %d", capabilities.maxImageArrayLayers);
-    logs_log(LOG_DEBUG, "\t\tAnisotropic Filtering: %s", physicalDeviceFeatures.samplerAnisotropy ? "Supported" : "Unsupported");
+    logs_log(LOG_DEBUG, "\t\tAnisotropic Filtering: %s", physicalDeviceSupportedFeatures.samplerAnisotropy ? "Supported" : "Unsupported");
 }
 
 /// @brief Gets the first memory type (best) that matches the property flags for the state's physical device
@@ -323,16 +323,36 @@ static void vki_queueFamilySelect(State_t *state)
 static void vki_deviceCreate(State_t *state)
 {
     // Query what features the selected GPU supports
-    vkGetPhysicalDeviceFeatures(state->context.physicalDevice, &state->context.physicalDeviceFeatures);
+    vkGetPhysicalDeviceFeatures(state->context.physicalDevice, &state->context.physicalDeviceSupportedFeatures);
 
-    // Enable anisotropy if supported
-    if (state->context.physicalDeviceFeatures.samplerAnisotropy)
+    if (state->context.physicalDeviceSupportedFeatures.samplerAnisotropy)
     {
-        state->context.physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
+        // Enable anisotropy supported
+        state->context.physicalDeviceEnabledFeatures.samplerAnisotropy = VK_TRUE;
     }
     else
     {
         logs_log(LOG_WARN, "Device does not support anisotropic filtering (feature will be disabled).");
+    }
+
+    if (state->context.physicalDeviceSupportedFeatures.fillModeNonSolid)
+    {
+        // Allow for wireframe drawing
+        state->context.physicalDeviceEnabledFeatures.fillModeNonSolid = VK_TRUE;
+    }
+    else
+    {
+        logs_log(LOG_WARN, "Device does not support non-solid fill (wireframe disabled).");
+    }
+
+    if (state->context.physicalDeviceSupportedFeatures.logicOp)
+    {
+        // Allow logic operations
+        state->context.physicalDeviceSupportedFeatures.logicOp = VK_TRUE;
+    }
+    else
+    {
+        logs_log(LOG_WARN, "Device does not support logic operations! Some graphics features will be disabled.");
     }
 
     const VkDeviceQueueCreateInfo queueCreateInfos = {
@@ -347,7 +367,7 @@ static void vki_deviceCreate(State_t *state)
         .queueCreateInfoCount = 1,
         .enabledExtensionCount = 1,
         .ppEnabledExtensionNames = &(const char *){VK_KHR_SWAPCHAIN_EXTENSION_NAME},
-        .pEnabledFeatures = &state->context.physicalDeviceFeatures,
+        .pEnabledFeatures = &state->context.physicalDeviceEnabledFeatures,
     };
 
     logs_logIfError(vkCreateDevice(state->context.physicalDevice, &createInfo, state->context.pAllocator, &state->context.device),

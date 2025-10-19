@@ -7,7 +7,7 @@
 static const char *pVALIDATION_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 static const uint32_t VALIDATION_LAYER_COUNT = 1;
 
-void vki_logCapabilities(VkPhysicalDeviceFeatures physicalDeviceFeatures, const VkSurfaceCapabilitiesKHR capabilities);
+void vki_logCapabilities(VkPhysicalDeviceFeatures physicalDeviceSupportedFeatures, const VkSurfaceCapabilitiesKHR capabilities);
 
 uint32_t vki_physicalMemoryTypeGet(State_t *state, uint32_t memoryRequirements, VkMemoryPropertyFlags propertyFlags);
 

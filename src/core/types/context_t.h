@@ -10,7 +10,8 @@ typedef struct
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
-    VkPhysicalDeviceFeatures physicalDeviceFeatures;
+    VkPhysicalDeviceFeatures physicalDeviceSupportedFeatures;
+    VkPhysicalDeviceFeatures physicalDeviceEnabledFeatures;
     VkQueue graphicsQueue;
     // This is always null right now so that Vulkan uses its own allocator
     VkAllocationCallbacks *pAllocator;

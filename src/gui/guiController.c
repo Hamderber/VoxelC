@@ -6,6 +6,7 @@
 #include "gui/mouse.h"
 #include "gui/window.h"
 #include "input/input.h"
+#include "rendering/rendering.h"
 
 void gui_toggleCursorCapture(State_t *state, bool isCaptured)
 {
@@ -164,4 +165,9 @@ void gui_init(State_t *state)
     gui_toggleCursorCapture(state, false);
     input_inputActionSimulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
     state->config.resetCursorOnMenuExit = centerCursor;
+
+    // This is here because the renderer itself is mainly backend and this, while impacting the renderer, is more of a gui-facing effect.
+    // Also rend_create happens before the event system is initialized
+    // No need to unsubscribe because even though the renderer stuff is recreated, that is on the vulkan side and not this itself
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, rend_onWireframeTogglePress, false, false, NULL);
 }
