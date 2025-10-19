@@ -1,16 +1,47 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
+#include "core/glfw_instance.h"
 #include "core/logs.h"
 #include "core/types/state_t.h"
 #include "core/vk_instance.h"
-#include "core/glfw_instance.h"
 #include "gui/swapchain.h"
 #include "gui/mouse.h"
 #include "events/eventBus.h"
 #include "input/input.h"
+#include "gui/guiController.h"
 
-// todo add mouse capture and subscribe event for mouse captured / uncaptured etc (menu?) and then incorporate mouse
-// movement to the camera quaternion
+void win_fullscreenToggle(State_t *state, bool toggle)
+{
+    state->window.fullscreen = toggle;
+
+    GLFWwindow *window = state->window.pWindow;
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+
+    if (state->window.fullscreen)
+    {
+        // Preserve aspect before fullscreen
+        glfwGetWindowPos(window, &state->window.prevX, &state->window.prevY);
+        glfwGetWindowSize(window, &state->window.widthPrev, &state->window.heightPrev);
+
+        // Set fullscreen (exclusive)
+        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, GLFW_DONT_CARE);
+
+        logs_log(LOG_INFO, "Entered fullscreen (%dx%d@%dHz)", mode->width, mode->height, mode->refreshRate);
+
+        state->window.fullscreen = true;
+    }
+    else
+    {
+        // Restore previous windowed mode
+        glfwSetWindowMonitor(window, NULL, state->window.prevX, state->window.prevY,
+                             state->window.widthPrev, state->window.heightPrev, GLFW_DONT_CARE);
+
+        logs_log(LOG_INFO, "Exited fullscreen, returning to %dx%d", state->window.widthPrev, state->window.heightPrev);
+    }
+}
 
 /// @brief Wrapper for polling GLFW events
 /// @param void
@@ -154,18 +185,22 @@ void win_waitForValidFramebuffer(Window_t *window)
 /// @brief Callback function for when the window gains or loses focus
 void win_focusToggleCallback(GLFWwindow *window, int focused)
 {
-    if (focused == GLFW_FOCUSED)
+    State_t *state = glfwGetWindowUserPointer(window);
+
+    if (focused == GLFW_TRUE)
     {
         logs_log(LOG_INFO, "Window gained focus");
+        if (state->gui.menuDepth == 0)
+            gui_toggleCursorCapture(state, true);
     }
     else
     {
-        // Simulate pressing pause if there isn't a menu open and the window loses focus
         logs_log(LOG_INFO, "Window lost focus");
-        State_t *state = glfwGetWindowUserPointer(window);
         if (state->gui.menuDepth == 0)
         {
             input_inputActionSimulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
+            // Freeing cursor immediately is better UX design
+            gui_toggleCursorCapture(state, false);
         }
     }
 }
@@ -183,7 +218,9 @@ void win_create(State_t *state)
     // There is no need to store the actual monitor reference. Just the window.
     GLFWmonitor *monitor = NULL;
 
-    if (state->config.windowFullscreen)
+    // Copy fullscreen from config to window
+    state->window.fullscreen = state->config.windowFullscreen;
+    if (state->window.fullscreen)
     {
         monitor = glfwGetPrimaryMonitor();
         // If the window is fullscreen, set the window's resolution to the monitor's

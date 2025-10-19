@@ -38,6 +38,7 @@ Engine:
    are signed 32-bit integers.
 2. DO NOT USE #pragma pack AT ALL (will break alignment for linear algebra used to copy into shaders)
 3. When using Blockbench to export a model, MAKE SURE THE UV SCALE IS THE SAME AS THE EXPORT SCALE! (16)
+4. The cursor will never be captured immediately. If the menu depth is 0, simulate pressing pause to permit state-tracked mouse control
 
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en
@@ -76,3 +77,4 @@ TODO:
 17. Vertex pooling
 18. Normalize input into a 3d vector for the camera controller. Basically combine wasd or whatever movement and then normalize it
 19. Replicate the math lib to account for non-roll axis entities (majority). This is a huge cpu optimization
+20 Add fullscreen borderless by changing fulscreen from a bool to an enum of windowed, borderless, fullscreen that wraps with F11

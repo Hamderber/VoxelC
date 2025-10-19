@@ -5,10 +5,29 @@
 #include "rendering/camera/cameraController.h"
 
 static bool firstRecord = true;
+static bool ignoreNextMouseInput = false;
 static double lastX = 0.0, lastY = 0.0;
+
+/// @brief Reset mouse delta and ignore the next input recieved. Necessary to prevent camera jerking when window size changes
+void mouse_inputReset(State_t *state)
+{
+    double xpos, ypos;
+    glfwGetCursorPos(state->window.pWindow, &xpos, &ypos);
+    lastX = xpos;
+    lastY = ypos;
+    state->gui.mouse.dx = 0.0;
+    state->gui.mouse.dy = 0.0;
+    ignoreNextMouseInput = true;
+}
 
 void mouse_onMove(GLFWwindow *window, double xpos, double ypos)
 {
+
+    if (ignoreNextMouseInput)
+    {
+        ignoreNextMouseInput = false;
+        return;
+    }
 
     if (firstRecord)
     {
