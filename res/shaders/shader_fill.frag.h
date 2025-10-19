@@ -1,9 +1,9 @@
-// Auto-generated from shader.frag.spv
+// Auto-generated from shader_fill.frag.spv
 #pragma once
 
 #include <stdint.h>
 
-static const uint32_t shaderFragCode[] = {
+static const uint32_t shaderFillFragCode[] = {
 0x07230203,0x00010000,0x000d000b,0x00000017,
 0x00000000,0x00020011,0x00000001,0x0006000b,
 0x00000001,0x4c534c47,0x6474732e,0x3035342e,
@@ -51,4 +51,4 @@ static const uint32_t shaderFragCode[] = {
 0x00000012,0x0003003e,0x00000009,0x00000013,
 0x000100fd,0x00010038
 };
-static const size_t shaderFragCodeSize = sizeof(shaderFragCode);
+static const size_t shaderFillFragCodeSize = sizeof(shaderFillFragCode);

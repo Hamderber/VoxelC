@@ -23,6 +23,57 @@
 #include "gui/window.h"
 #include "gui/swapchain.h"
 #include "gui/mouse.h"
+#include "rendering/types/graphicsPipeline_t.h"
+#include "input/input.h"
+#include "events/eventBus.h"
+#include "events/eventTypes.h"
+
+void rend_wireframeToggle(State_t *state)
+{
+    if (!state->context.physicalDeviceEnabledFeatures.fillModeNonSolid)
+    {
+        logs_log(LOG_WARN, "Attempted to toggle wireframe visiblity but the device doesn't support that feature.");
+        state->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
+        return;
+    }
+
+    // is the active graphics pipeline fill? If yes set to wirefame otherwise (that means it is already wireframe)
+    // set it to fill
+    state->renderer.activeGraphicsPipeline =
+        state->renderer.activeGraphicsPipeline ==
+                GRAPHICS_PIPELINE_FILL
+            ? GRAPHICS_PIPELINE_WIREFRAME
+            : GRAPHICS_PIPELINE_FILL;
+}
+
+EventResult_t rend_onWireframeTogglePress(struct State_t *state, Event_t *event, void *ctx)
+{
+    ctx = NULL;
+    if (event == NULL)
+    {
+        return EVENT_RESULT_ERROR;
+    }
+
+    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
+    {
+        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+        {
+            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            {
+                switch (event->data.inputMapped->inputActions[i].action)
+                {
+                case INPUT_ACTION_WIREFRAME_TOGGLE:
+                    logs_log(LOG_DEBUG, "Wireframe toggle (pressed)");
+                    rend_wireframeToggle(state);
+                    return EVENT_RESULT_CONSUME;
+                    break;
+                }
+            }
+        }
+    }
+
+    return EVENT_RESULT_PASS;
+}
 
 void rend_recreate(State_t *state)
 {
@@ -52,13 +103,17 @@ void rend_present(State_t *state)
     commandBufferSubmit(state);
     sc_imagePresent(state);
 }
+
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
 void rend_create(State_t *state)
 {
     // Must exist before anything that references it
     rp_create(state);
     descriptorSetLayoutCreate(state);
-    gp_create(state);
+    // Create all graphics pipelines and set the active (default) one
+    state->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
+    gp_create(state, GRAPHICS_PIPELINE_FILL);
+    gp_create(state, GRAPHICS_PIPELINE_WIREFRAME);
 
     // Needed for all staging/copies and one-time commands
     commandPoolCreate(state);
@@ -135,6 +190,8 @@ void rend_destroy(State_t *state)
     commandPoolDestroy(state);
 
     // Pipeline objects last
-    gp_destroy(state);
+    // Destroy all graphics pipeline types
+    gp_destroy(state, GRAPHICS_PIPELINE_FILL);
+    gp_destroy(state, GRAPHICS_PIPELINE_WIREFRAME);
     rp_destroy(state);
 }

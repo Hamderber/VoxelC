@@ -3,6 +3,7 @@
 #include <string.h>
 #include <vulkan/vulkan.h>
 #include "core/types/state_t.h"
+#include "rendering/types/graphicsPipeline_t.h"
 
 void commandBufferAllocate(State_t *state)
 {
@@ -110,8 +111,19 @@ void commandBufferRecord(State_t *state)
     };
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    // Bind the render pipeline to graphics (instead of compute)
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipeline);
+    // Bind the render pipeline to the active graphics pipeline (instead of compute)
+    switch (state->renderer.activeGraphicsPipeline)
+    {
+    case GRAPHICS_PIPELINE_FILL:
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineFill);
+        break;
+    case GRAPHICS_PIPELINE_WIREFRAME:
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineWireframe);
+        break;
+    default:
+        logs_log(LOG_ERROR, "Attempted to bind command pipeline for invalid graphics pipeline type! Defaulting to fill's.");
+        break;
+    }
 
     VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
     VkDeviceSize offsets[] = {0};
@@ -120,7 +132,7 @@ void commandBufferRecord(State_t *state)
     vkCmdBindIndexBuffer(cmd, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     // No offset and 1 descriptor set bound for this frame
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayout,
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayoutFill,
                             0, 1, &state->renderer.pDescriptorSets[state->renderer.currentFrame], 0, VK_NULL_HANDLE);
 
     // DRAW ! ! ! ! !

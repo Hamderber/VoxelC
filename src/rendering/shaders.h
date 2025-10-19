@@ -1,7 +1,8 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include "..\\res\\shaders\\shader.frag.h"
+#include "..\\res\\shaders\\shader_fill.frag.h"
+#include "..\\res\\shaders\\shader_wireframe.frag.h"
 #include "..\\res\\shaders\\shader.vert.h"
 #include "rendering/types/shaderVertex_t.h"
 
