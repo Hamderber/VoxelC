@@ -11,8 +11,14 @@
 #include "characterController.h"
 #include "entity/entity_t.h"
 
-EventResult_t character_onAxialInput(struct State_t *state, Event_t *event, void *ctx)
+EventResult_t character_onAxialInput(State_t *state, Event_t *event, void *ctx)
 {
+    // Don't even bother with axial input if a menu of any type is open
+    if (state->gui.menuDepth != GUI_ID_NONE)
+    {
+        return EVENT_RESULT_PASS;
+    }
+
     ctx = NULL;
     if (event == NULL)
     {
