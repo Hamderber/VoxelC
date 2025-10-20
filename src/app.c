@@ -44,13 +44,14 @@ void app_init(State_t *state)
     world_load(state);
 
     RenderModel_t *mdl = m3d_load(state,
-                                  MODEL_PATH "base_16x16_block.glb",
-                                  RESOURCE_TEXTURE_PATH "base_16x16_block.png");
+                                  MODEL_PATH "complex_test.glb",
+                                  RESOURCE_TEXTURE_PATH "complex_test.png");
 
-    scene_modelAdd(&state->scene, *mdl);
+    mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, (Vec3f_t){-1.0F, 0.0F, 0.0F});
+
+    scene_modelAdd(&state->scene, mdl);
 
     // wordl offsed
-    mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, (Vec3f_t){4.0f, 0.0f, -2.0f});
 }
 
 void app_renderLoop(State_t *state)

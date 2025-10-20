@@ -46,17 +46,17 @@ void updateUniformBuffer(State_t *state)
     // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
     // instead of having stutter with frames.
 
-    float rotateDegreesY = 0.0F;
-    float rotateDegreesX = 0.0F;
-    float rotateDegreesZ = 0.0F;
+    // float rotateDegreesY = 0.0F;
+    // float rotateDegreesX = 0.0F;
+    // float rotateDegreesZ = 0.0F;
     float farClippingPlane = 50.0F;
 
-    Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesY) * (float)state->time.frameTimeTotal, VEC3_Y_AXIS);
-    Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesX) * (float)state->time.frameTimeTotal, VEC3_X_AXIS);
-    Quaternionf_t qRoll = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesZ) * (float)state->time.frameTimeTotal, VEC3_Z_AXIS);
-    Quaternionf_t qTemp = cmath_quat_mult_quat(qYaw, qPitch);
-    Quaternionf_t qCombined = cmath_quat_mult_quat(qTemp, qRoll);
-    Mat4c_t model = cmath_quat2mat(qCombined);
+    // Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesY) * (float)state->time.frameTimeTotal, VEC3_Y_AXIS);
+    // Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesX) * (float)state->time.frameTimeTotal, VEC3_X_AXIS);
+    // Quaternionf_t qRoll = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesZ) * (float)state->time.frameTimeTotal, VEC3_Z_AXIS);
+    // Quaternionf_t qTemp = cmath_quat_mult_quat(qYaw, qPitch);
+    // Quaternionf_t qCombined = cmath_quat_mult_quat(qTemp, qRoll);
+    // Mat4c_t model = cmath_quat2mat(qCombined);
 
     float fov = state->context.camera.fov;
     Vec3f_t pos = VEC3_ZERO;
@@ -83,7 +83,7 @@ void updateUniformBuffer(State_t *state)
     // model = cmath_mat_transformByVec3(model, (Vec3f_t){-10.0F, 0.0F, 0.0F});
 
     UniformBufferObject_t ubo = {
-        .model = model,
+        // .model = model,
         .view = view,
         .projection = cmath_perspective(cmath_deg2radF(fov),
                                         state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,

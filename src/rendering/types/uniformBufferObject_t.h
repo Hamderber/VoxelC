@@ -9,7 +9,7 @@ typedef struct
     // alligned for use with vulkan and shaders. 16 per row.
     // So for values less than 16 do Ex: alignas(16) float foo;
     // Just have everything start with alignas for safety
-    alignas(16) Mat4c_t model;
+    // alignas(16) Mat4c_t model;
     alignas(16) Mat4c_t view;
     alignas(16) Mat4c_t projection;
 } UniformBufferObject_t;

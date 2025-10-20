@@ -486,6 +486,30 @@ static inline Quaternionf_t cmath_quat_inverse(Quaternionf_t q)
 #pragma endregion
 
 #pragma region Matrix Math
+/// @brief Convert cgltf row major to colum major
+static inline Mat4c_t mat4_from_cgltf_colmajor(const float a[16])
+{
+    // a is treated as column-major; Mat4c_t stores 4 columns (Vec4f_t each).
+    Mat4c_t M = MAT4_IDENTITY;
+    M.m[0].x = a[0];
+    M.m[0].y = a[1];
+    M.m[0].z = a[2];
+    M.m[0].w = a[3];
+    M.m[1].x = a[4];
+    M.m[1].y = a[5];
+    M.m[1].z = a[6];
+    M.m[1].w = a[7];
+    M.m[2].x = a[8];
+    M.m[2].y = a[9];
+    M.m[2].z = a[10];
+    M.m[2].w = a[11];
+    M.m[3].x = a[12];
+    M.m[3].y = a[13];
+    M.m[3].z = a[14];
+    M.m[3].w = a[15];
+    return M;
+}
+
 /// @brief Converts a 4x4 column-major matrix into a quaternion
 static inline Quaternionf_t cmath_mat2quat(Mat4c_t m)
 {

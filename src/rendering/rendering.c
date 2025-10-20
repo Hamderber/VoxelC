@@ -118,18 +118,36 @@ void rend_create(State_t *state)
     // Needed for all staging/copies and one-time commands
     commandPoolCreate(state);
 
+    // // so m3d_load can remap UVs using pAtlasRegions
+    // // loads atlas.png, creates VkImage + memory
+    // atlasTextureImageCreate(state);
+    // // view for the atlas image
+    // atlasTextureViewImageCreate(state);
+    // // sampler used by descriptors
+    // tex_samplerCreate(state);
+    // // call the dynamic atlas region builder *after* you know width/height
+    // // fills renderer.pAtlasRegions[0..N)
+    // state->renderer.pAtlasRegions = atlasCreate(state->renderer.pAtlasRegions, state->renderer.atlasRegionCount,
+    //                                             state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles);
+
     // Atlas resources FIRST (image -> view -> sampler -> regions)
-    // so m3d_load can remap UVs using pAtlasRegions
-    // loads atlas.png, creates VkImage + memory
     atlasTextureImageCreate(state);
-    // view for the atlas image
     atlasTextureViewImageCreate(state);
-    // sampler used by descriptors
     tex_samplerCreate(state);
-    // call the dynamic atlas region builder *after* you know width/height
-    // fills renderer.pAtlasRegions[0..N)
-    state->renderer.pAtlasRegions = atlasCreate(state->renderer.pAtlasRegions, state->renderer.atlasRegionCount,
-                                                state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles);
+
+    // Build gutter-aware regions. We know the tilePx and gutterPx here.
+    const uint32_t tilePx = state->config.subtextureSize;
+    const uint32_t gutterPx = 1;
+    const uint32_t tilesX = state->renderer.atlasWidthInTiles;
+    const uint32_t tilesY = state->renderer.atlasHeightInTiles;
+    const uint32_t stride = tilePx + 2 * gutterPx;
+
+    state->renderer.pAtlasRegions = atlasCreate(
+        state->renderer.pAtlasRegions,
+        state->renderer.atlasRegionCount,
+        tilesX, tilesY,
+        tilesX * stride, tilesY * stride,
+        tilePx, gutterPx);
 
     // Model upload that may use pAtlasRegions for UV remap
     // builds vertex/index buffers

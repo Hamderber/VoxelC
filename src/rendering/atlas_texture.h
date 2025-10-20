@@ -20,6 +20,13 @@ void atlasTextureViewImageCreate(State_t *state);
 
 void atlasTextureImageViewDestroy(Context_t *context, Renderer_t *renderer);
 
-AtlasRegion_t *atlasCreate(AtlasRegion_t *pAtlasRegions, uint32_t atlasRegionCount, uint32_t atlasWidthInTiles, uint32_t atlasHeightInTiles);
+AtlasRegion_t *atlasCreate(AtlasRegion_t *pAtlasRegions,
+                           uint32_t atlasRegionCount,
+                           uint32_t atlasWidthInTiles,
+                           uint32_t atlasHeightInTiles,
+                           uint32_t atlasWidthPx,
+                           uint32_t atlasHeightPx,
+                           uint32_t tilePx,
+                           uint32_t gutterPx);
 
 void atlasDestroy(AtlasRegion_t *pAtlasRegions);

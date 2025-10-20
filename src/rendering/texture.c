@@ -41,9 +41,9 @@ void tex_samplerCreate(State_t *state)
         .minFilter = VK_FILTER_NEAREST,
         // Addressing can be defined per-axis and for some reason its UVW instead of XYZ (texture space convention)
         // Repeat is the most commonly used (floors, etc.) for tiling
-        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         .anisotropyEnable = VK_TRUE,
         .maxAnisotropy = tex_AFGet(state),
         // Which color is returned when sampling beyond the image with clamp to border addressing mode. It is possible to
@@ -159,9 +159,9 @@ bool texture2DCreateFromFile(State_t *state,
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
         .magFilter = VK_FILTER_NEAREST, // sharper pixels
         .minFilter = VK_FILTER_NEAREST,
-        .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         .anisotropyEnable = VK_FALSE,
         .maxAnisotropy = 1.0f,
         .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,

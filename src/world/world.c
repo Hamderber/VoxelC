@@ -25,12 +25,12 @@ static RenderChunk_t *world_dummyChunkCreate(State_t *state, Vec3f_t position)
 
     // Your texture policy (must match your FACE_* enum values)
     const FaceTexture_t FACE_TEXTURES[6] = {
-        [FACE_LEFT] = {MELON_SIDE, TEX_ROT_0},
-        [FACE_RIGHT] = {MELON_SIDE, TEX_ROT_0},
-        [FACE_TOP] = {MELON_TOP, TEX_ROT_0},
-        [FACE_BOTTOM] = {MELON_TOP, TEX_ROT_0},
-        [FACE_FRONT] = {MELON_SIDE, TEX_ROT_0},
-        [FACE_BACK] = {MELON_SIDE, TEX_ROT_0},
+        [FACE_LEFT] = {OBSIDIAN, TEX_ROT_0},
+        [FACE_RIGHT] = {OBSIDIAN, TEX_ROT_0},
+        [FACE_TOP] = {OBSIDIAN, TEX_ROT_0},
+        [FACE_BOTTOM] = {OBSIDIAN, TEX_ROT_0},
+        [FACE_FRONT] = {OBSIDIAN, TEX_ROT_0},
+        [FACE_BACK] = {OBSIDIAN, TEX_ROT_0},
     };
 
     // ORDER REQUIRED: [0]=TL, [1]=BL, [2]=TR, [3]=BR (viewed from OUTSIDE), CCW

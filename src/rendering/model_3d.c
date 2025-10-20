@@ -152,111 +152,234 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
         return NULL;
     }
 
-    if (data->meshes_count == 0 || data->meshes[0].primitives_count == 0)
+    if (data->meshes_count == 0)
     {
-        logs_log(LOG_ERROR, "Model missing mesh/primitive: %s", glbPath);
+        logs_log(LOG_ERROR, "Model has no meshes: %s", glbPath);
         cgltf_free(data);
         return NULL;
     }
 
-    cgltf_primitive *prim = &data->meshes[0].primitives[0];
+    // Accumulate all primitives from all meshes into contiguous arrays
+    ShaderVertex_t *vertices = NULL;
+    uint32_t verticesCount = 0, verticesCapacity = 0;
 
-    // Accessors
-    cgltf_accessor *posAccessor = NULL, *uvAccessor = NULL, *colAccessor = NULL;
-    for (size_t k = 0; k < prim->attributes_count; ++k)
-    {
-        cgltf_attribute *attr = &prim->attributes[k];
-        if (attr->type == cgltf_attribute_type_position)
-            posAccessor = attr->data;
-        else if (attr->type == cgltf_attribute_type_texcoord)
-            uvAccessor = attr->data;
-        else if (attr->type == cgltf_attribute_type_color)
-            colAccessor = attr->data;
-    }
-    if (!posAccessor)
-    {
-        logs_log(LOG_ERROR, "Position attribute missing: %s", glbPath);
-        cgltf_free(data);
-        return NULL;
-    }
-
-    // Vertices
-    const size_t vertexCount = posAccessor->count;
-    ShaderVertex_t *vertices = (ShaderVertex_t *)malloc(sizeof(ShaderVertex_t) * vertexCount);
-    if (!vertices)
-    {
-        cgltf_free(data);
-        return NULL;
-    }
-
-    float tmp[4];
-    for (size_t v = 0; v < vertexCount; ++v)
-    {
-        cgltf_accessor_read_float(posAccessor, v, tmp, 3);
-        vertices[v].pos = (Vec3f_t){tmp[0], tmp[1], tmp[2]};
-
-        if (uvAccessor)
-        {
-            cgltf_accessor_read_float(uvAccessor, v, tmp, 2);
-            vertices[v].texCoord = (Vec2f_t){tmp[0], 1.0f - tmp[1]}; // flip V
-        }
-        else
-        {
-            vertices[v].texCoord = (Vec2f_t){0.0f, 0.0f};
-        }
-
-        if (colAccessor)
-        {
-            cgltf_accessor_read_float(colAccessor, v, tmp, 3);
-            vertices[v].color = (Vec3f_t){tmp[0], tmp[1], tmp[2]};
-        }
-        else
-        {
-            vertices[v].color = COLOR_WHITE;
-        }
-
-        // Models do NOT use atlas indexing; keep 0 so the attribute is well-defined
-        vertices[v].atlasIndex = 0u;
-    }
-
-    // Indices (ensure they fit UINT16 if your pipeline uses VK_INDEX_TYPE_UINT16)
     uint16_t *indices = NULL;
-    size_t indexCount = 0;
-    if (prim->indices)
+    uint32_t indexCount = 0, indexCapacity = 0;
+
+    float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f, minz = 1e9f, maxz = -1e9f;
+    uint32_t primitiveTotal = 0;
+
+    for (size_t m = 0; m < data->meshes_count; ++m)
     {
-        cgltf_accessor *ia = prim->indices;
-        indexCount = ia->count;
+        cgltf_mesh *mesh = &data->meshes[m];
 
-        // Validate index range here (65535)
-
-        indices = (uint16_t *)malloc(sizeof(uint16_t) * indexCount);
-        if (!indices)
+        // Find a node that references this mesh (Blockbench usually has one per mesh)
+        cgltf_node *node = NULL;
+        for (size_t n = 0; n < data->nodes_count; ++n)
         {
-            free(vertices);
-            cgltf_free(data);
-            return NULL;
+            if (data->nodes[n].mesh == mesh)
+            {
+                node = &data->nodes[n];
+                break;
+            }
         }
 
-        for (size_t i = 0; i < indexCount; ++i)
+        float nodeMat44[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1};
+        if (node)
         {
-            indices[i] = (uint16_t)cgltf_accessor_read_index(ia, i);
+            // Local TRS → 4x4 (column-major array)
+            cgltf_node_transform_local(node, nodeMat44);
+        }
+        Mat4c_t nodeXf = mat4_from_cgltf_colmajor(nodeMat44);
+
+        for (size_t p = 0; p < mesh->primitives_count; ++p)
+        {
+            cgltf_primitive *prim = &mesh->primitives[p];
+            ++primitiveTotal;
+
+            // Locate accessors
+            cgltf_accessor *posAccessor = NULL, *uvAccessor = NULL, *colAccessor = NULL;
+            for (size_t k = 0; k < prim->attributes_count; ++k)
+            {
+                cgltf_attribute *attr = &prim->attributes[k];
+                if (attr->type == cgltf_attribute_type_position)
+                    posAccessor = attr->data;
+                else if (attr->type == cgltf_attribute_type_texcoord)
+                    uvAccessor = attr->data;
+                else if (attr->type == cgltf_attribute_type_color)
+                    colAccessor = attr->data;
+            }
+            if (!posAccessor)
+            {
+                logs_log(LOG_WARN, "Primitive missing POSITION; skipping (mesh %zu prim %zu)", m, p);
+                continue;
+            }
+
+            const size_t vcount = posAccessor->count;
+            if (vcount == 0)
+                continue;
+
+            // Ensure vertex capacity
+            if (verticesCount + (uint32_t)vcount > verticesCapacity)
+            {
+                uint32_t newCap = verticesCapacity ? (verticesCapacity * 2u) : (uint32_t)vcount;
+                while (newCap < verticesCount + (uint32_t)vcount)
+                    newCap *= 2u;
+                ShaderVertex_t *newVerts = (ShaderVertex_t *)realloc(vertices, sizeof(ShaderVertex_t) * newCap);
+                if (!newVerts)
+                {
+                    logs_log(LOG_ERROR, "Vertex realloc failed");
+                    free(vertices);
+                    free(indices);
+                    cgltf_free(data);
+                    return NULL;
+                }
+                vertices = newVerts;
+                verticesCapacity = newCap;
+            }
+
+            // Read vertices (apply node transform to positions)
+            float tmp[4];
+            const uint32_t baseVertex = verticesCount;
+            for (size_t v = 0; v < vcount; ++v)
+            {
+                cgltf_accessor_read_float(posAccessor, v, tmp, 3);
+                Vec4f_t local = (Vec4f_t){tmp[0], tmp[1], tmp[2], 1.0f};
+                Vec4f_t world = cmath_mat_transformByVec4(nodeXf, local);
+
+                vertices[baseVertex + (uint32_t)v].pos = (Vec3f_t){world.x, world.y, world.z};
+
+                // UVs (keep your current V flip because your texture load flips pixels via STB)
+                if (uvAccessor)
+                {
+                    cgltf_accessor_read_float(uvAccessor, v, tmp, 2);
+                    vertices[baseVertex + (uint32_t)v].texCoord = (Vec2f_t){tmp[0], 1.0f - tmp[1]};
+                }
+                else
+                {
+                    vertices[baseVertex + (uint32_t)v].texCoord = (Vec2f_t){0.0f, 0.0f};
+                }
+
+                // Color (optional)
+                if (colAccessor)
+                {
+                    cgltf_accessor_read_float(colAccessor, v, tmp, 3);
+                    vertices[baseVertex + (uint32_t)v].color = (Vec3f_t){tmp[0], tmp[1], tmp[2]};
+                }
+                else
+                {
+                    vertices[baseVertex + (uint32_t)v].color = COLOR_WHITE;
+                }
+
+                vertices[baseVertex + (uint32_t)v].atlasIndex = 0u;
+
+                // Bounds (after transform)
+                minx = fminf(minx, vertices[baseVertex + (uint32_t)v].pos.x);
+                maxx = fmaxf(maxx, vertices[baseVertex + (uint32_t)v].pos.x);
+                miny = fminf(miny, vertices[baseVertex + (uint32_t)v].pos.y);
+                maxy = fmaxf(maxy, vertices[baseVertex + (uint32_t)v].pos.y);
+                minz = fminf(minz, vertices[baseVertex + (uint32_t)v].pos.z);
+                maxz = fmaxf(maxz, vertices[baseVertex + (uint32_t)v].pos.z);
+            }
+            verticesCount += (uint32_t)vcount;
+
+            // Indices (append, offset by baseVertex)
+            if (prim->indices)
+            {
+                cgltf_accessor *ia = prim->indices;
+                const size_t icount = ia->count;
+
+                if (indexCount + (uint32_t)icount > indexCapacity)
+                {
+                    uint32_t newCap = indexCapacity ? (indexCapacity * 2u) : (uint32_t)icount;
+                    while (newCap < indexCount + (uint32_t)icount)
+                        newCap *= 2u;
+                    uint16_t *newIdx = (uint16_t *)realloc(indices, sizeof(uint16_t) * newCap);
+                    if (!newIdx)
+                    {
+                        logs_log(LOG_ERROR, "Index realloc failed");
+                        free(vertices);
+                        free(indices);
+                        cgltf_free(data);
+                        return NULL;
+                    }
+                    indices = newIdx;
+                    indexCapacity = newCap;
+                }
+
+                for (size_t i = 0; i < icount; ++i)
+                {
+                    uint32_t idx = (uint32_t)cgltf_accessor_read_index(ia, i);
+                    uint32_t off = baseVertex + idx;
+                    if (off > 0xFFFFu)
+                    {
+                        logs_log(LOG_ERROR, "Index overflow (>65535). Use 32-bit indices or split meshes.");
+                        free(vertices);
+                        free(indices);
+                        cgltf_free(data);
+                        return NULL;
+                    }
+                    indices[indexCount + (uint32_t)i] = (uint16_t)off;
+                }
+                indexCount += (uint32_t)icount;
+            }
+            else
+            {
+                const size_t icount = vcount;
+                if (indexCount + (uint32_t)icount > indexCapacity)
+                {
+                    uint32_t newCap = indexCapacity ? (indexCapacity * 2u) : (uint32_t)icount;
+                    while (newCap < indexCount + (uint32_t)icount)
+                        newCap *= 2u;
+                    uint16_t *newIdx = (uint16_t *)realloc(indices, sizeof(uint16_t) * newCap);
+                    if (!newIdx)
+                    {
+                        logs_log(LOG_ERROR, "Index realloc failed (no-indices case)");
+                        free(vertices);
+                        free(indices);
+                        cgltf_free(data);
+                        return NULL;
+                    }
+                    indices = newIdx;
+                    indexCapacity = newCap;
+                }
+                for (size_t i = 0; i < icount; ++i)
+                {
+                    uint32_t off = baseVertex + (uint32_t)i;
+                    if (off > 0xFFFFu)
+                    {
+                        logs_log(LOG_ERROR, "Index overflow (>65535) in no-indices case.");
+                        free(vertices);
+                        free(indices);
+                        cgltf_free(data);
+                        return NULL;
+                    }
+                    indices[indexCount + (uint32_t)i] = (uint16_t)off;
+                }
+                indexCount += (uint32_t)icount;
+            }
         }
     }
-    else
+
+    logs_log(LOG_DEBUG, "Loaded %zu meshes, %u primitives. Total: %u verts, %u indices.",
+             (size_t)data->meshes_count, primitiveTotal, verticesCount, indexCount);
+    logs_log(LOG_DEBUG, "Model bounds (world-baked): X[%f,%f] Y[%f,%f] Z[%f,%f]",
+             minx, maxx, miny, maxy, minz, maxz);
+
+    if (verticesCount == 0 || indexCount == 0)
     {
-        indexCount = vertexCount;
-        indices = (uint16_t *)malloc(sizeof(uint16_t) * indexCount);
-        if (!indices)
-        {
-            free(vertices);
-            cgltf_free(data);
-            return NULL;
-        }
-        for (size_t i = 0; i < indexCount; ++i)
-            indices[i] = (uint16_t)i;
+        logs_log(LOG_ERROR, "No drawable geometry in: %s", glbPath);
+        free(vertices);
+        free(indices);
+        cgltf_free(data);
+        return NULL;
     }
 
-    // Create the GPU buffers for this model
+    // Create the GPU buffers for the combined model
     RenderModel_t *model = (RenderModel_t *)calloc(1, sizeof(RenderModel_t));
     if (!model)
     {
@@ -266,46 +389,46 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
         return NULL;
     }
 
-    vertexBufferCreateFromData(state, vertices, (uint32_t)vertexCount);
-    indexBufferCreateFromData(state, indices, (uint32_t)indexCount);
+    // (NOTE: your helpers populate renderer's shared buffers)
+    vertexBufferCreateFromData(state, vertices, verticesCount);
+    indexBufferCreateFromData(state, indices, indexCount);
 
-    // Take ownership of the buffers created by the renderer helpers
     model->vertexBuffer = state->renderer.vertexBuffer;
     model->vertexMemory = state->renderer.vertexBufferMemory;
     model->indexBuffer = state->renderer.indexBuffer;
     model->indexMemory = state->renderer.indexBufferMemory;
-    model->indexCount = (uint32_t)indexCount;
+    model->indexCount = indexCount;
 
-    // Load the model's texture from /res/textures (no atlas)
+    // Texture
     if (!texture2DCreateFromFile(state, texturePath, &model->textureImage, &model->textureMemory,
                                  &model->textureView, &model->textureSampler))
     {
-        logs_log(LOG_WARN, "Failed to load texture '%s'. Using renderer's default texture.", texturePath);
-        // You could fall back to a default white/gray texture here
+        logs_log(LOG_WARN, "Failed to load texture '%s'. Using renderer default.", texturePath);
     }
 
-    // Allocate per-frame descriptor sets for this model that point to:
-    //   binding 0 -> per-frame UBO (view/proj)
-    //   binding 1 -> model->textureView+model->textureSampler
+    // Descriptor sets (model-local)
     const uint32_t frames = state->config.maxFramesInFlight;
     model->pDescriptorSets = (VkDescriptorSet *)calloc(frames, sizeof(VkDescriptorSet));
     if (!modelDescriptorSetsCreate(state, model))
     {
         logs_log(LOG_ERROR, "Failed to create model descriptor sets");
-        // clean up model texture & buffers here
+        free(vertices);
+        free(indices);
+        cgltf_free(data);
+        free(model->pDescriptorSets);
+        free(model);
         return NULL;
     }
 
-    model->modelMatrix = MAT4_IDENTITY;
+    model->modelMatrix = MAT4_IDENTITY; // per-instance transform (additional to baked node TRS)
 
-    // Cleanup CPU arrays
+    // Cleanup CPU arrays + glTF
     free(vertices);
     free(indices);
     cgltf_free(data);
 
     return model;
 }
-
 /// @brief Placeholder
 /// @param state
 void m3d_destroy(State_t *state)
