@@ -133,7 +133,7 @@ void rend_create(State_t *state)
 
     // Model upload that may use pAtlasRegions for UV remap
     // builds vertex/index buffers
-    m3d_load(state);
+    // m3d_load(state);
 
     // Per-frame resources that descriptors will point at
     // UBOs (needed before descriptorSetsCreate)

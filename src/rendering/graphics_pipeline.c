@@ -191,10 +191,18 @@ void gp_create(State_t *state, GraphicsPipeline_t graphicsPipeline)
         logs_log(LOG_ERROR, "Attempted to create color blend state for invalid graphics pipeline type! No fill was created.");
     }
 
+    VkPushConstantRange pcRange = {
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(Mat4c_t),
+    };
+
     const VkPipelineLayoutCreateInfo layoutCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &state->renderer.descriptorSetLayout,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &pcRange,
     };
 
     VkPipelineLayout pipelineLayout;

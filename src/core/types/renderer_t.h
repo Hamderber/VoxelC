@@ -51,7 +51,6 @@ typedef struct
     VkImage depthImage;
     VkDeviceMemory depthImageMemory;
     VkImageView depthImageView;
-    uint32_t modelIndexCount;
     uint32_t atlasRegionCount;
     uint32_t atlasWidthInTiles;
     uint32_t atlasHeightInTiles;

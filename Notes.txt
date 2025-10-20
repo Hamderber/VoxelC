@@ -39,6 +39,7 @@ Engine:
 2. DO NOT USE #pragma pack AT ALL (will break alignment for linear algebra used to copy into shaders)
 3. When using Blockbench to export a model, MAKE SURE THE UV SCALE IS THE SAME AS THE EXPORT SCALE! (16)
 4. The cursor will never be captured immediately. If the menu depth is 0, simulate pressing pause to permit state-tracked mouse control
+5. Default camera placement means +Z is facing out of screen
 
 References:
 1. Shader compiling: man.archlinux.org/man/extra/shaderc/glslc.1.en

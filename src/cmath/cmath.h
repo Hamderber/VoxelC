@@ -108,6 +108,18 @@ static const Vec3f_t VEC3_X_AXIS = {1.0F, 0.0F, 0.0F};
 static const Vec3f_t VEC3_Y_AXIS = {0.0F, 1.0F, 0.0F};
 static const Vec3f_t VEC3_Z_AXIS = {0.0F, 0.0F, 1.0F};
 #pragma endregion
+
+#pragma region Rendering
+static const Vec3f_t VEC3_VOXEL_FRONT_BOT_LEFT = {0.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3_VOXEL_FRONT_BOT_RIGHT = {1.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3_VOXEL_FRONT_TOP_LEFT = {0.0F, 1.0F, 1.0F};
+static const Vec3f_t VEC3_VOXEL_FRONT_TOP_RIGHT = {1.0F, 1.0F, 1.0F};
+
+static const Vec3f_t VEC3_VOXEL_BACK_BOT_LEFT = {0.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3_VOXEL_BACK_BOT_RIGHT = {1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3_VOXEL_BACK_TOP_LEFT = {0.0F, 1.0F, 0.0F};
+static const Vec3f_t VEC3_VOXEL_BACK_TOP_RIGHT = {1.0F, 1.0F, 0.0F};
+#pragma endregion
 #pragma endregion
 
 #pragma region Fundamentals
@@ -544,7 +556,7 @@ static inline Vec4f_t cmath_mat_transformByVec4(Mat4c_t matrix, Vec4f_t v)
 }
 
 /// @brief Column-major matrix translation (position matrix, so w = 1)
-static inline Vec4f_t cmath_mat_translateByVec3(Mat4c_t matrix, Vec3f_t vector)
+static inline Vec4f_t cmath_mat_transformPoint(Mat4c_t matrix, Vec3f_t vector)
 {
     return (Vec4f_t){
         .x = matrix.m[0].x * vector.x + matrix.m[1].x * vector.y + matrix.m[2].x * vector.z + matrix.m[3].x,
@@ -554,10 +566,40 @@ static inline Vec4f_t cmath_mat_translateByVec3(Mat4c_t matrix, Vec3f_t vector)
     };
 }
 
+/// @brief Creates a matrix representing identity rotation and the passed translation
+static inline Mat4c_t cmath_mat_translationCreate(Vec3f_t t)
+{
+    Mat4c_t M = MAT4_IDENTITY;
+    M.m[3].x = t.x;
+    M.m[3].y = t.y;
+    M.m[3].z = t.z;
+    return M;
+}
+
+/// @brief Sets the matrix's world translation to t
+static inline Mat4c_t cmath_mat_setTranslation(Mat4c_t M, Vec3f_t t)
+{
+    M.m[3].x = t.x;
+    M.m[3].y = t.y;
+    M.m[3].z = t.z;
+    return M;
+}
+
+/// @brief Translate the matrix in local space
+static inline Mat4c_t cmath_mat_translateLocal(Mat4c_t M, Vec3f_t t)
+{
+    // M columns: m[0]=X axis, m[1]=Y axis, m[2]=Z axis, m[3]=translation
+    M.m[3].x += M.m[0].x * t.x + M.m[1].x * t.y + M.m[2].x * t.z;
+    M.m[3].y += M.m[0].y * t.x + M.m[1].y * t.y + M.m[2].y * t.z;
+    M.m[3].z += M.m[0].z * t.x + M.m[1].z * t.y + M.m[2].z * t.z;
+    // keep M.m[3].w as-is (usually 1)
+    return M;
+}
+
 /// @brief Column-major matrix transformation (not position matrix specific)
 static inline Vec3f_t cmath_mat_transformByVec3(Mat4c_t m, Vec3f_t v)
 {
-    Vec4f_t result4 = cmath_mat_translateByVec3(m, v);
+    Vec4f_t result4 = cmath_mat_transformPoint(m, v);
     return (Vec3f_t){result4.x, result4.y, result4.z};
 }
 
@@ -575,7 +617,7 @@ static inline Vec4f_t cmath_mat_scale(Mat4c_t matrix, Vec3f_t vector)
 /// @brief Column-major matrix a mult by b
 static inline Mat4c_t cmath_mat_mult_mat(Mat4c_t a, Mat4c_t b)
 {
-    Mat4c_t result;
+    Mat4c_t result = MAT4_IDENTITY;
 
     for (uint8_t col = 0; col < 4; ++col)
     {

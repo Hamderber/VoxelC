@@ -4,6 +4,8 @@
 #include <vulkan/vulkan.h>
 #include "core/types/state_t.h"
 #include "rendering/types/graphicsPipeline_t.h"
+#include "rendering/types/renderChunk_t.h"
+#include "rendering/types/renderModel_t.h"
 
 void commandBufferAllocate(State_t *state)
 {
@@ -112,32 +114,65 @@ void commandBufferRecord(State_t *state)
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     // Bind the render pipeline to the active graphics pipeline (instead of compute)
+    VkPipelineLayout pl = VK_NULL_HANDLE;
     switch (state->renderer.activeGraphicsPipeline)
     {
     case GRAPHICS_PIPELINE_FILL:
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineFill);
+        pl = state->renderer.pipelineLayoutFill;
         break;
     case GRAPHICS_PIPELINE_WIREFRAME:
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineWireframe);
-        break;
-    default:
-        logs_log(LOG_ERROR, "Attempted to bind command pipeline for invalid graphics pipeline type! Defaulting to fill's.");
+        pl = state->renderer.pipelineLayoutWireframe;
         break;
     }
 
-    VkBuffer vertexBuffers[] = {state->renderer.vertexBuffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
-    // 16 limits verticies to 65535 (consider once making own models and having a check?)
-    vkCmdBindIndexBuffer(cmd, state->renderer.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
     // No offset and 1 descriptor set bound for this frame
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.pipelineLayoutFill,
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pl,
                             0, 1, &state->renderer.pDescriptorSets[state->renderer.currentFrame], 0, VK_NULL_HANDLE);
 
     // DRAW ! ! ! ! !
-    // Not using instanced rendering so just 1 instance with nothing for the offset
-    vkCmdDrawIndexed(cmd, state->renderer.modelIndexCount, 1, 0, 0, 0);
+    // Chunks
+    {
+        for (uint32_t i = 0; i < state->worldState->renderChunkCount; ++i)
+        {
+            RenderChunk_t *chunk = state->worldState->ppRenderChunks[i];
+            if (!chunk)
+                continue;
+
+            VkBuffer chunkVB[] = {chunk->vertexBuffer};
+            VkDeviceSize offs[] = {0};
+            vkCmdBindVertexBuffers(cmd, 0, 1, chunkVB, offs);
+            vkCmdBindIndexBuffer(cmd, chunk->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+            vkCmdPushConstants(cmd, pl, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &chunk->modelMatrix);
+            vkCmdDrawIndexed(cmd, chunk->indexCount, 1, 0, 0, 0);
+        }
+    }
+
+    // Models
+    {
+        for (uint32_t i = 0; i < state->scene.modelCount; ++i)
+        {
+            RenderModel_t *m = state->scene.models[i];
+            if (!m)
+                continue;
+
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pl,
+                                    0, 1, &m->pDescriptorSets[state->renderer.currentFrame],
+                                    0, NULL);
+
+            VkBuffer modelVBs[] = {m->vertexBuffer};
+            VkDeviceSize offs[] = {0};
+            vkCmdBindVertexBuffers(cmd, 0, 1, modelVBs, offs);
+            // 16 limits verticies to 65535 (consider once making own models and having a check?)
+            vkCmdBindIndexBuffer(cmd, m->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+            vkCmdPushConstants(cmd, pl, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &m->modelMatrix);
+            // // Not using instanced rendering so just 1 instance with nothing for the offset
+            vkCmdDrawIndexed(cmd, m->indexCount, 1, 0, 0, 0);
+        }
+    }
 
     // Must end the render pass if has begun (obviously)
     vkCmdEndRenderPass(cmd);

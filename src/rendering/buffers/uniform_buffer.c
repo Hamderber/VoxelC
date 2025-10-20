@@ -62,12 +62,6 @@ void updateUniformBuffer(State_t *state)
     Vec3f_t pos = VEC3_ZERO;
     Quaternionf_t rot = state->context.camera.rotation;
 
-    // EntityComponentData_t *cameraData;
-    // if (em_entityDataGet(state->context.pCamera, ENTITY_COMPONENT_TYPE_CAMERA, &cameraData))
-    // {
-    //     fov = cameraData->cameraData->fov;
-    // }
-
     EntityComponentData_t *playerPhysicsData;
     if (em_entityDataGet(state->worldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &playerPhysicsData))
     {
@@ -85,6 +79,8 @@ void updateUniformBuffer(State_t *state)
     Vec3f_t up = cmath_quat_rotateVec3(rot, VEC3_UP);
 
     Mat4c_t view = cmath_lookAt(pos, cmath_vec3f_add_vec3f(pos, forward), up);
+
+    // model = cmath_mat_transformByVec3(model, (Vec3f_t){-10.0F, 0.0F, 0.0F});
 
     UniformBufferObject_t ubo = {
         .model = model,

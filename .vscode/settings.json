@@ -80,6 +80,7 @@
         "cameracontroller.h": "c",
         "graphicspipeline_t.h": "c",
         "charactertype_t.h": "c",
-        "ctxinputmapped_t.h": "c"
+        "ctxinputmapped_t.h": "c",
+        "texturerotation_t.h": "c"
     }
 }
