@@ -49,7 +49,7 @@ void app_init(State_t *state)
 
     mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, (Vec3f_t){-1.0F, 0.0F, 0.0F});
 
-    scene_modelAdd(&state->scene, mdl);
+    scene_modelCreate(&state->scene, mdl);
 
     // wordl offsed
 }
@@ -88,6 +88,9 @@ void app_loop(State_t *state)
 
 void app_cleanup(State_t *state)
 {
+    scene_destroy(state);
+    world_destroy(state);
+
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
     // vki_instanceCreate() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.

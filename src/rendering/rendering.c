@@ -137,7 +137,7 @@ void rend_create(State_t *state)
 
     // Build gutter-aware regions. We know the tilePx and gutterPx here.
     const uint32_t tilePx = state->config.subtextureSize;
-    const uint32_t gutterPx = 1;
+    const uint32_t gutterPx = state->config.atlasGutterPx; // SAME value used above
     const uint32_t tilesX = state->renderer.atlasWidthInTiles;
     const uint32_t tilesY = state->renderer.atlasHeightInTiles;
     const uint32_t stride = tilePx + 2 * gutterPx;

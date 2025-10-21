@@ -204,16 +204,20 @@ void atlasTextureImageCreate(State_t *state)
     logs_logIfError(src == NULL, "Failed to load texture %s!", imagePath);
 
     const uint32_t tilePx = state->config.subtextureSize;
-    const uint32_t gutter = 1;
+    const uint32_t gutterPx = state->config.atlasGutterPx; // <<< add this to your config (e.g., 4 or 8)
 
-    const uint32_t tilesX = width / tilePx;
-    const uint32_t tilesY = height / tilePx;
-    const uint32_t stride = tilePx + 2 * gutter;
+    logs_logIfError((width % (int)tilePx) != 0 || (height % (int)tilePx) != 0,
+                    "Atlas dimensions (%dx%d) not divisible by subtextureSize (%u)", width, height, tilePx);
+
+    const uint32_t tilesX = (uint32_t)width / tilePx;
+    const uint32_t tilesY = (uint32_t)height / tilePx;
+    const uint32_t stride = tilePx + 2 * gutterPx;
     const uint32_t newWidth = tilesX * stride;
     const uint32_t newHeight = tilesY * stride;
 
     const int C = 4;
-    stbi_uc *dst = calloc((size_t)newWidth * newHeight, C);
+    stbi_uc *dst = (stbi_uc *)calloc((size_t)newWidth * newHeight, C);
+    logs_logIfError(dst == NULL, "Failed to allocate padded atlas buffer (%ux%u)", newWidth, newHeight);
 
 #define SRC(px, py) (&src[((py) * width + (px)) * C])
 #define DST(px, py) (&dst[((py) * newWidth + (px)) * C])
@@ -224,43 +228,68 @@ void atlasTextureImageCreate(State_t *state)
         {
             const uint32_t sx = tx * tilePx;
             const uint32_t sy = ty * tilePx;
-            const uint32_t dx = tx * stride + gutter;
-            const uint32_t dy = ty * stride + gutter;
+            const uint32_t dx = tx * stride + gutterPx;
+            const uint32_t dy = ty * stride + gutterPx;
 
-            // copy inner
+            // Copy inner tile
             for (uint32_t y = 0; y < tilePx; ++y)
-                memcpy(DST(dx, dy + y), SRC(sx, sy + y), tilePx * C);
+                memcpy(DST(dx, dy + y), SRC(sx, sy + y), (size_t)tilePx * C);
 
-            // duplicate borders
-            for (uint32_t x = 0; x < tilePx; ++x)
+            // Duplicate gutter rings of thickness = gutterPx
+            // Horizontal rings (top & bottom), for each ring row r in [1..gutterPx]
+            for (uint32_t r = 1; r <= gutterPx; ++r)
             {
-                memcpy(DST(dx + x, dy - 1), SRC(sx + x, sy + 0), C);
-                memcpy(DST(dx + x, dy + tilePx), SRC(sx + x, sy + tilePx - 1), C);
+                // Top ring row dy - r copies original first row (sy + 0)
+                for (uint32_t x = 0; x < tilePx; ++x)
+                    memcpy(DST(dx + x, dy - r), SRC(sx + x, sy + 0), C);
+
+                // Bottom ring row dy + tilePx - 1 + r copies original last row (sy + tilePx - 1)
+                for (uint32_t x = 0; x < tilePx; ++x)
+                    memcpy(DST(dx + x, dy + tilePx - 1 + r), SRC(sx + x, sy + tilePx - 1), C);
             }
-            for (uint32_t y = 0; y < tilePx; ++y)
+
+            // Vertical rings (left & right), for each ring column r in [1..gutterPx]
+            for (uint32_t r = 1; r <= gutterPx; ++r)
             {
-                memcpy(DST(dx - 1, dy + y), SRC(sx + 0, sy + y), C);
-                memcpy(DST(dx + tilePx, dy + y), SRC(sx + tilePx - 1, sy + y), C);
+                // Left ring column dx - r copies original first col (sx + 0)
+                for (uint32_t y = 0; y < tilePx; ++y)
+                    memcpy(DST(dx - r, dy + y), SRC(sx + 0, sy + y), C);
+
+                // Right ring column dx + tilePx - 1 + r copies original last col (sx + tilePx - 1)
+                for (uint32_t y = 0; y < tilePx; ++y)
+                    memcpy(DST(dx + tilePx - 1 + r, dy + y), SRC(sx + tilePx - 1, sy + y), C);
             }
-            // corners
-            memcpy(DST(dx - 1, dy - 1), SRC(sx, sy), C);
-            memcpy(DST(dx + tilePx, dy - 1), SRC(sx + tilePx - 1, sy), C);
-            memcpy(DST(dx - 1, dy + tilePx), SRC(sx, sy + tilePx - 1), C);
-            memcpy(DST(dx + tilePx, dy + tilePx), SRC(sx + tilePx - 1, sy + tilePx - 1), C);
+
+            // Corners: fill all r×c corner blocks
+            for (uint32_t r = 1; r <= gutterPx; ++r)
+            {
+                for (uint32_t c = 1; c <= gutterPx; ++c)
+                {
+                    // top-left corner
+                    memcpy(DST(dx - c, dy - r), SRC(sx + 0, sy + 0), C);
+                    // top-right corner
+                    memcpy(DST(dx + tilePx - 1 + c, dy - r), SRC(sx + tilePx - 1, sy + 0), C);
+                    // bottom-left corner
+                    memcpy(DST(dx - c, dy + tilePx - 1 + r), SRC(sx + 0, sy + tilePx - 1), C);
+                    // bottom-right corner
+                    memcpy(DST(dx + tilePx - 1 + c, dy + tilePx - 1 + r), SRC(sx + tilePx - 1, sy + tilePx - 1), C);
+                }
+            }
         }
     }
 
     stbi_image_free(src);
 
-    // --- upload to GPU (same as before) ---
+    // Upload to GPU
     VkDeviceSize size = (VkDeviceSize)newWidth * newHeight * C;
     VkBuffer staging;
     VkDeviceMemory stagingMem;
     bufferCreate(state, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                  &staging, &stagingMem);
-    void *mapped;
-    vkMapMemory(state->context.device, stagingMem, 0, size, 0, &mapped);
+    void *mapped = NULL;
+    logs_logIfError(vkMapMemory(state->context.device, stagingMem, 0, size, 0, &mapped),
+                    "Failed to map texture staging buffer memory.");
     memcpy(mapped, dst, (size_t)size);
     vkUnmapMemory(state->context.device, stagingMem);
     free(dst);
@@ -276,12 +305,18 @@ void atlasTextureImageCreate(State_t *state)
     bufferCopyToImage(state, staging, state->renderer.atlasTextureImage, newWidth, newHeight);
     imageLayoutTransition(state, state->renderer.atlasTextureImage,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     vkDestroyBuffer(state->context.device, staging, state->context.pAllocator);
     vkFreeMemory(state->context.device, stagingMem, state->context.pAllocator);
 
+    // Store tile grid; regions will be built using padded size + same gutter
     state->renderer.atlasWidthInTiles = tilesX;
     state->renderer.atlasHeightInTiles = tilesY;
     state->renderer.atlasRegionCount = tilesX * tilesY;
+
+    // Optional safety asserts:
+    logs_log(LOG_DEBUG, "Padded atlas: %ux%u (tile=%u, gutter=%u, stride=%u, tiles=%ux%u)",
+             newWidth, newHeight, tilePx, gutterPx, stride, tilesX, tilesY);
 }
 
 void atlasTextureImageDestroy(State_t *state)
@@ -414,7 +449,8 @@ AtlasRegion_t *atlasCreate(AtlasRegion_t *regions,
 {
     if (regions)
         free(regions);
-    regions = malloc(sizeof(AtlasRegion_t) * count);
+    regions = (AtlasRegion_t *)malloc(sizeof(AtlasRegion_t) * count);
+    logs_logIfError(!regions, "Failed to allocate atlas regions");
 
     const float invW = 1.0f / (float)atlasWpx;
     const float invH = 1.0f / (float)atlasHpx;
@@ -422,19 +458,20 @@ AtlasRegion_t *atlasCreate(AtlasRegion_t *regions,
 
     uint32_t i = 0;
     for (uint32_t ty = 0; ty < tilesY; ++ty)
+    {
         for (uint32_t tx = 0; tx < tilesX; ++tx)
         {
             const uint32_t x0 = tx * stride + gutterPx;
             const uint32_t y0 = ty * stride + gutterPx;
-            const uint32_t x1 = x0 + tilePx;
+            const uint32_t x1 = x0 + tilePx; // edge-aligned inner rect
             const uint32_t y1 = y0 + tilePx;
 
-            // full inner content (edge-aligned)
             regions[i].uvMin.x = (float)x0 * invW;
             regions[i].uvMin.y = (float)y0 * invH;
             regions[i].uvMax.x = (float)x1 * invW;
             regions[i].uvMax.y = (float)y1 * invH;
             ++i;
         }
+    }
     return regions;
 }

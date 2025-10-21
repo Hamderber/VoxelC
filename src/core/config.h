@@ -48,6 +48,7 @@ typedef struct
     // Size in pixels of each subtexture on the texture atlas. Minecraft is 16px
     uint32_t subtextureSize;
     double mouseSensitivity;
+    uint32_t atlasGutterPx;
 } AppConfig_t;
 
 void cfg_keyBindingsDestroy(void);

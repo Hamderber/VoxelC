@@ -57,6 +57,7 @@ static AppConfig_t appConfig = {
     .cameraFOV = 45.0F,
     .resetCursorOnMenuExit = true,
     .mouseSensitivity = 1.0,
+    .atlasGutterPx = 8,
 };
 
 static cJSON *load_json_file(const char *path, const char *debugName)

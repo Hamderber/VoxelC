@@ -14,6 +14,8 @@
 #include "rendering/voxel.h"
 #include "rendering/types/faceTexture_t.h"
 #include "rendering/uvs.h"
+#include "chunk.h"
+#include "rendering/chunk/chunkRendering.h"
 
 static RenderChunk_t *world_dummyChunkCreate(State_t *state, Vec3f_t position)
 {
@@ -23,7 +25,6 @@ static RenderChunk_t *world_dummyChunkCreate(State_t *state, Vec3f_t position)
     const size_t vertexCount = (size_t)faceCount * (size_t)vertsPerFace;  // 24
     const size_t indexCount = (size_t)faceCount * (size_t)indicesPerFace; // 36
 
-    // Your texture policy (must match your FACE_* enum values)
     const FaceTexture_t FACE_TEXTURES[6] = {
         [FACE_LEFT] = {OBSIDIAN, TEX_ROT_0},
         [FACE_RIGHT] = {OBSIDIAN, TEX_ROT_0},
@@ -184,4 +185,29 @@ void world_init(State_t *state)
 void world_load(State_t *state)
 {
     world_init(state);
+}
+
+void world_destroy(State_t *state)
+{
+    if (!state || !state->worldState || !state->worldState->ppRenderChunks)
+        return;
+
+    // Ensure nothing is in-flight that still uses these buffers
+    vkDeviceWaitIdle(state->context.device);
+
+    size_t count = state->worldState->renderChunkCount;
+    for (size_t i = 0; i < count; ++i)
+    {
+        RenderChunk_t *chunk = state->worldState->ppRenderChunks[i];
+        if (!chunk)
+            continue;
+
+        chunk_renderDestroy(state, chunk);
+        state->worldState->ppRenderChunks[i] = NULL;
+    }
+
+    // Free the container array and reset counters
+    free(state->worldState->ppRenderChunks);
+    state->worldState->ppRenderChunks = NULL;
+    state->worldState->renderChunkCount = 0;
 }
