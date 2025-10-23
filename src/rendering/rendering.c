@@ -112,8 +112,8 @@ void rend_create(State_t *state)
     descriptorSetLayoutCreate(state);
     // Create all graphics pipelines and set the active (default) one
     state->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
-    gp_create(state, GRAPHICS_PIPELINE_FILL);
-    gp_create(state, GRAPHICS_PIPELINE_WIREFRAME);
+    gp_create(state, GRAPHICS_PIPELINE_FILL, GRAPHICS_PIPELINE_TARGET_MODEL);
+    gp_create(state, GRAPHICS_PIPELINE_WIREFRAME, GRAPHICS_PIPELINE_TARGET_MODEL);
 
     // Needed for all staging/copies and one-time commands
     commandPoolCreate(state);

@@ -10,12 +10,16 @@
 typedef struct
 {
     // Normal rendering
-    VkPipeline graphicsPipelineFill;
-    VkPipelineLayout pipelineLayoutFill;
+    VkPipeline graphicsPipelineFillModel;
+    VkPipelineLayout pipelineLayoutFillModel;
+    VkPipeline graphicsPipelineFillVoxel;
+    VkPipelineLayout pipelineLayoutFillVoxel;
 
     // Vertex wireframe rendering
-    VkPipeline graphicsPipelineWireframe;
-    VkPipelineLayout pipelineLayoutWireframe;
+    VkPipeline graphicsPipelineWireframeModel;
+    VkPipelineLayout pipelineLayoutWireframeModel;
+    VkPipeline graphicsPipelineWireframeVoxel;
+    VkPipelineLayout pipelineLayoutWireframeVoxel;
 
     GraphicsPipeline_t activeGraphicsPipeline;
 

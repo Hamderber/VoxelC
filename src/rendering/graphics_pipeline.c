@@ -8,19 +8,35 @@
 
 /// @brief Creates the graphics pipeline
 /// @param state
-void gp_create(State_t *state, GraphicsPipeline_t graphicsPipeline)
+void gp_create(State_t *state, GraphicsPipeline_t graphicsPipeline, GraphicsPipelineTarget_t target)
 {
     const char *shaderEntryFunctionName = "main";
 
     logs_log(LOG_DEBUG, "Loading shaders for render pipeline %d...", (int)graphicsPipeline);
 
-    VkShaderModuleCreateInfo vertexShaderModuleCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        // Need to pass how big the code actuallly is...
-        .codeSize = shaderVertCodeSize,
-        // ... For it to correctly allocate storage for it here.
-        .pCode = shaderVertCode,
-    };
+    VkShaderModuleCreateInfo vertexShaderModuleCreateInfo = {0};
+
+    if (target == GRAPHICS_PIPELINE_TARGET_MODEL)
+    {
+        vertexShaderModuleCreateInfo = (VkShaderModuleCreateInfo){
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            // Need to pass how big the code actuallly is...
+            .codeSize = shaderVertCodeSize,
+            // ... For it to correctly allocate storage for it here.
+            .pCode = shaderVertCode,
+        };
+    }
+    else if (target == GRAPHICS_PIPELINE_TARGET_VOXEL)
+    {
+        vertexShaderModuleCreateInfo = (VkShaderModuleCreateInfo){
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            // Need to pass how big the code actuallly is...
+            .codeSize = shaderVoxelVertCodeSize,
+            // ... For it to correctly allocate storage for it here.
+            .pCode = shaderVoxelVertCode,
+        };
+    }
+
     VkShaderModule vertexShaderModule;
     logs_logIfError(vkCreateShaderModule(state->context.device, &vertexShaderModuleCreateInfo, state->context.pAllocator, &vertexShaderModule),
                     "Couldn't create the vertex shader module.");
@@ -205,27 +221,34 @@ void gp_create(State_t *state, GraphicsPipeline_t graphicsPipeline)
         .pPushConstantRanges = &pcRange,
     };
 
-    VkPipelineLayout pipelineLayout;
+    VkPipelineLayout pipelineLayout = {0};
     switch (graphicsPipeline)
     {
     case GRAPHICS_PIPELINE_FILL:
         logs_logIfError(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator,
                                                &pipelineLayout),
                         "Failed to create the fill pipeline layout.");
-        state->renderer.pipelineLayoutFill = pipelineLayout;
+        if (target == GRAPHICS_PIPELINE_TARGET_MODEL)
+        {
+            state->renderer.pipelineLayoutFillModel = pipelineLayout;
+        }
+        else
+        {
+            state->renderer.pipelineLayoutFillVoxel = pipelineLayout;
+        }
         break;
     case GRAPHICS_PIPELINE_WIREFRAME:
         logs_logIfError(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator,
                                                &pipelineLayout),
                         "Failed to create the wireframe pipeline layout.");
-        state->renderer.pipelineLayoutWireframe = pipelineLayout;
-        break;
-    default:
-        logs_log(LOG_ERROR, "Attempted to create invalid render pipeline type's layout! Defaulting to fill's.");
-        logs_logIfError(vkCreatePipelineLayout(state->context.device, &layoutCreateInfo, state->context.pAllocator,
-                                               &pipelineLayout),
-                        "Failed to create the fill pipeline layout.");
-        state->renderer.pipelineLayoutFill = pipelineLayout;
+        if (target == GRAPHICS_PIPELINE_TARGET_MODEL)
+        {
+            state->renderer.pipelineLayoutWireframeModel = pipelineLayout;
+        }
+        else
+        {
+            state->renderer.pipelineLayoutWireframeVoxel = pipelineLayout;
+        }
         break;
     }
 
@@ -275,18 +298,18 @@ void gp_create(State_t *state, GraphicsPipeline_t graphicsPipeline)
     {
     case GRAPHICS_PIPELINE_FILL:
         logs_logIfError(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
-                                                  &state->renderer.graphicsPipelineFill),
+                                                  &state->renderer.graphicsPipelineFillModel),
                         "Failed to create the graphics pipeline fill.");
         break;
     case GRAPHICS_PIPELINE_WIREFRAME:
         logs_logIfError(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
-                                                  &state->renderer.graphicsPipelineWireframe),
+                                                  &state->renderer.graphicsPipelineWireframeModel),
                         "Failed to create the graphics pipeline wireframe.");
         break;
     default:
         logs_log(LOG_ERROR, "Attempted to create invalid graphics pipeline type! Defaulting to fill's.");
         logs_logIfError(vkCreateGraphicsPipelines(state->context.device, NULL, 1U, graphicsPipelineCreateInfos, state->context.pAllocator,
-                                                  &state->renderer.graphicsPipelineFill),
+                                                  &state->renderer.graphicsPipelineFillModel),
                         "Failed to create the graphics pipeline.");
         break;
     }
@@ -305,12 +328,12 @@ void gp_destroy(State_t *state, GraphicsPipeline_t graphicsPipeline)
     switch (graphicsPipeline)
     {
     case GRAPHICS_PIPELINE_FILL:
-        vkDestroyPipeline(state->context.device, state->renderer.graphicsPipelineFill, state->context.pAllocator);
-        vkDestroyPipelineLayout(state->context.device, state->renderer.pipelineLayoutFill, state->context.pAllocator);
+        vkDestroyPipeline(state->context.device, state->renderer.graphicsPipelineFillModel, state->context.pAllocator);
+        vkDestroyPipelineLayout(state->context.device, state->renderer.pipelineLayoutFillModel, state->context.pAllocator);
         break;
     case GRAPHICS_PIPELINE_WIREFRAME:
-        vkDestroyPipeline(state->context.device, state->renderer.graphicsPipelineWireframe, state->context.pAllocator);
-        vkDestroyPipelineLayout(state->context.device, state->renderer.pipelineLayoutWireframe, state->context.pAllocator);
+        vkDestroyPipeline(state->context.device, state->renderer.graphicsPipelineWireframeModel, state->context.pAllocator);
+        vkDestroyPipelineLayout(state->context.device, state->renderer.pipelineLayoutWireframeModel, state->context.pAllocator);
         break;
     default:
         logs_log(LOG_ERROR, "Attempted to destroy invalid render pipeline type!");

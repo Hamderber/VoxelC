@@ -12,9 +12,13 @@ glslc -mfmt=c res\shaders\shader_wireframe.frag -o res\shaders\shader_wireframe.
 python convert_shaders.py res\shaders\shader_wireframe.frag.spv
 del res\shaders\shader_wireframe.frag.spv
 
-:: Vertex shader
+:: Vertex shaders
 glslc -mfmt=c res\shaders\shader.vert -o res\shaders\shader.vert.spv
 python convert_shaders.py res\shaders\shader.vert.spv
 del res\shaders\shader.vert.spv
+
+glslc -mfmt=c res\shaders\shader_voxel.vert -o res\shaders\shader_voxel.vert.spv
+python convert_shaders.py res\shaders\shader_voxel.vert.spv
+del res\shaders\shader_voxel.vert.spv
 
 echo Complete.

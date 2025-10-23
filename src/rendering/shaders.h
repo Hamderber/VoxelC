@@ -4,6 +4,7 @@
 #include "..\\res\\shaders\\shader_fill.frag.h"
 #include "..\\res\\shaders\\shader_wireframe.frag.h"
 #include "..\\res\\shaders\\shader.vert.h"
+#include "..\\res\\shaders\\shader_voxel.vert.h"
 #include "rendering/types/shaderVertex_t.h"
 
 typedef enum

@@ -20,6 +20,7 @@ blockbench/
 gimp/
 logs/
 config/
+docs/
 
 # Object files
 *.o

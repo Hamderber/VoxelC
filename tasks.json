@@ -27,11 +27,7 @@
             "label": "Generate Doxygen Docs",
             "type": "shell",
             "command": "doxygen Doxyfile",
-            "group": "build",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
+            "group": "build"
         }
     ],
     "version": "2.0.0"

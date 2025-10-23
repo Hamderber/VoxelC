@@ -118,12 +118,12 @@ void commandBufferRecord(State_t *state)
     switch (state->renderer.activeGraphicsPipeline)
     {
     case GRAPHICS_PIPELINE_FILL:
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineFill);
-        pl = state->renderer.pipelineLayoutFill;
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineFillModel);
+        pl = state->renderer.pipelineLayoutFillModel;
         break;
     case GRAPHICS_PIPELINE_WIREFRAME:
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineWireframe);
-        pl = state->renderer.pipelineLayoutWireframe;
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineWireframeModel);
+        pl = state->renderer.pipelineLayoutWireframeModel;
         break;
     }
 
