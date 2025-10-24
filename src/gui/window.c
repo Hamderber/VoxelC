@@ -230,7 +230,7 @@ void win_create(State_t *state)
     }
 
     // If not fullscreen, set window resolution to the default state values (set in main())
-    state->window.pWindow = glfwCreateWindow(width, height, state->config.pWindowTitle, monitor, NULL);
+    state->window.pWindow = glfwCreateWindow(width, height, state->config.pWINDOW_TITLE, monitor, NULL);
 
     int frameBufferWidth;
     int frameBufferHeight;

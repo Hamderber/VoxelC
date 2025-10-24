@@ -10,20 +10,40 @@
 #include "cJSON.h"
 #include "fileIO.h"
 #include "input/types/inputActionMapping_t.h"
+#include "core/types/state_t.h"
 #include "input/types/input_t.h"
 #include "input/types/defaulyKeyMapping_t.h"
+#include "rendering/types/anisotropicFilteringOptions_t.h"
 
-static FILE *pKeyCfg;
-const char *cfgFolder = "config";
-static FILE *pCfg;
+#define CFG_COMMENT "comment"
+#define APP_CFG_WINDOW "window"
+#define APP_CFG_WIDTH "width"
+#define APP_CFG_HEIGHT "height"
+#define APP_CFG_FULLSCREEN "fullscreen"
+#define APP_CFG_MOUSE "mouse"
+#define APP_CFG_RESET_MOUSE_CURSOR_ON_MENU_EXIT "resetCursorOnMenuExit"
+#define APP_CFG_MOUSE_SENSITIVITY "mouseSensitivity"
+#define APP_CFG_RENDERER "renderer"
+#define APP_CFG_VSYNC "vsync"
+#define APP_CFG_ANISOTROPY "anisotropy"
+#define APP_CFG_FOV "fov"
 
-#define KEYBINDINGS_FILE_NAME "keybindings.json"
-#define APP_CONFIG_NAME PROGRAM_NAME ".cfg.json"
+typedef enum
+{
+    CONFIG_TYPE_APP,
+    CONFIG_TYPE_KEYBINDINGS,
+} ConfigType_t;
 
-static AppConfig_t appConfig = {
-    .pApplicationName = (PROGRAM_NAME " Application"),
-    .pEngineName = (PROGRAM_NAME " Engine"),
-    .pWindowTitle = PROGRAM_NAME,
+static const char *pCONFIG_FOLDER_NAME = "config";
+static const char *pKEYBINDINGS_FILE_NAME = "keybindings.json";
+static const char *pAPP_CONFIG_FILE_NAME = PROGRAM_NAME ".cfg.json";
+static const double MOUSE_SENSITIVITY_MIN = 0.01;
+static const double MOUSE_SENSITIVITY_MAX = 2.0;
+
+static AppConfig_t s_AppConfig = {
+    .pAPPLICATION_NAME = (PROGRAM_NAME " Application"),
+    .pENGINE_NAME = (PROGRAM_NAME " Engine"),
+    .pWINDOW_TITLE = PROGRAM_NAME,
     .windowWidth = 720,
     .windowHeight = 480,
     // If the window gets resized, the swapchain MUST be recreated
@@ -60,431 +80,392 @@ static AppConfig_t appConfig = {
     .atlasGutterPx = 8,
 };
 
-static cJSON *load_json_file(const char *path, const char *debugName)
+static Input_t s_Input = {0};
+
+static void config_input_buildDefault(void)
 {
-    // Open file safely with logging
-    FILE *file = file_open(path, "rb", debugName);
-    if (!file)
+    // Apply defaults
+    int key;
+    for (key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
-        logs_log(LOG_ERROR, "Failed to open JSON file '%s' '%s'", path, debugName);
+        s_Input.pInputKeys[key] = (InputKey_t){
+            .key = key,
+            .keyDown = false,
+            .keyUp = false,
+            .pressedLastFrame = false,
+            .pressedThisFrame = false,
+            .inputMapping = INPUT_ACTION_UNMAPPED,
+        };
+    }
+
+    InputActionMapping_t act;
+    for (size_t i = 0; i < DEFAULT_KEY_MAPPINGS_COUNT; i++)
+    {
+        act = DEFAULT_KEY_MAPPINGS[i].action;
+        key = DEFAULT_KEY_MAPPINGS[i].defaultKey;
+
+        s_Input.pInputKeys[key].key = key;
+        s_Input.pInputKeys[key].inputMapping = act;
+    }
+}
+
+static cJSON *load_json_file(const char *pPATH, const char *pDEBUG_NAME)
+{
+    FILE *pFile = file_open(pPATH, "rb", pDEBUG_NAME);
+    if (!pFile)
+    {
+        logs_log(LOG_WARN, "Failed to open JSON file '%s' '%s'", pPATH, pDEBUG_NAME);
         return NULL;
     }
 
     // Seek to determine file length
-    if (fseek(file, 0, SEEK_END) != 0)
+    const long OFFSET = 0;
+    if (fseek(pFile, OFFSET, SEEK_END) != 0)
     {
-        logs_log(LOG_ERROR, "Failed to seek to end of file '%s' '%s'", path, debugName);
-        file_close(file, debugName);
+        logs_log(LOG_ERROR, "Failed to seek to end of file '%s' '%s'", pPATH, pDEBUG_NAME);
+        file_close(pFile, pDEBUG_NAME);
         return NULL;
     }
 
-    long len = ftell(file);
+    long len = ftell(pFile);
     if (len < 0)
     {
-        logs_log(LOG_ERROR, "ftell() failed for '%s' '%s'", path, debugName);
-        file_close(file, debugName);
+        logs_log(LOG_ERROR, "Failed to get file position for '%s' '%s'", pPATH, pDEBUG_NAME);
+        file_close(pFile, pDEBUG_NAME);
         return NULL;
     }
-    rewind(file);
+    rewind(pFile);
 
-    // Allocate buffer
-    char *buffer = malloc(len + 1);
-    if (!buffer)
+    // Add 1 for the null terminator
+    char *pBuffer = malloc(len + 1);
+    if (!pBuffer)
     {
-        logs_log(LOG_ERROR, "Failed to allocate %ld bytes for '%s' '%s'", len + 1, path, debugName);
-        file_close(file, debugName);
+        logs_log(LOG_ERROR, "Failed to allocate %ld bytes for '%s' '%s'", len + 1, pPATH, pDEBUG_NAME);
+        file_close(pFile, pDEBUG_NAME);
         return NULL;
     }
 
-    // Read entire file
-    size_t bytesRead = fread(buffer, 1, len, file);
-    if (bytesRead != (size_t)len)
-    {
-        logs_log(LOG_WARN, "Expected %ld bytes but read %zu bytes from '%s' '%s'", len, bytesRead, path, debugName);
-    }
+    const size_t ELEMENT_SIZE = 1;
+    size_t bytesRead = fread(pBuffer, ELEMENT_SIZE, len, pFile);
+    logs_logIfError(bytesRead != (size_t)len, "Expected %ld bytes but read %zu bytes from '%s' '%s'",
+                    len, bytesRead, pPATH, pDEBUG_NAME);
 
-    buffer[len] = '\0';
+    pBuffer[len] = '\0';
 
-    // Close file safely
-    file_close(file, debugName);
+    file_close(pFile, pDEBUG_NAME);
 
-    // Parse JSON
-    cJSON *json = cJSON_Parse(buffer);
-    if (!json)
-    {
-        logs_log(LOG_ERROR, "Failed to parse JSON contents from '%s' '%s'", path, debugName);
-    }
+    cJSON *pJson = cJSON_Parse(pBuffer);
+    if (!pJson)
+        logs_log(LOG_ERROR, "Failed to parse JSON contents from '%s' '%s'", pPATH, pDEBUG_NAME);
 
-    free(buffer);
-    return json;
+    free(pBuffer);
+    return pJson;
 }
 
-void cfg_keyBindingsSave(Input_t *input, const char *dir, const char *filename)
+static void config_keyBindings_save(const Input_t *pINPUT, cJSON *pRoot)
 {
-    char path[MAX_DIR_PATH_LENGTH];
-    snprintf(path, sizeof(path), "%s/%s", dir, filename);
-
-    cJSON *root = cJSON_CreateObject();
-    if (!root)
-    {
-        logs_log(LOG_ERROR, "Failed to allocate JSON root for keybinding save");
-        return;
-    }
-
     // Iterate over all GLFW keycodes
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
-        InputActionMapping_t mapping = input->pInputKeys[key].inputMapping;
+        InputActionMapping_t mapping = pINPUT->pInputKeys[key].inputMapping;
 
         // Only save mapped keys
         if (mapping != INPUT_ACTION_UNMAPPED)
         {
-            const char *actionName = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
-            cJSON_AddNumberToObject(root, actionName, key);
+            const char *pACTION_NAME = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
+            cJSON_AddNumberToObject(pRoot, pACTION_NAME, key);
         }
     }
-
-    char *jsonStr = cJSON_Print(root);
-    if (!jsonStr)
-    {
-        logs_log(LOG_ERROR, "Failed to serialize keybinding JSON");
-        cJSON_Delete(root);
-        return;
-    }
-
-    FILE *file = file_create(dir, filename);
-    if (!file)
-    {
-        logs_log(LOG_ERROR, "Failed to open keybindings file for writing: %s", path);
-        free(jsonStr);
-        cJSON_Delete(root);
-        return;
-    }
-
-    fputs(jsonStr, file);
-    file_close(file, filename);
-    free(jsonStr);
-    cJSON_Delete(root);
-
-    logs_log(LOG_DEBUG, "Saved keybindings to '%s'", path);
 }
 
-void cfg_keyBindingsLoad(Input_t *input, const char *dir, const char *fileName)
+static void config_app_save(const AppConfig_t *pCFG, cJSON *pRoot)
 {
-    if (!input)
+    cJSON *pWindow = cJSON_AddObjectToObject(pRoot, APP_CFG_WINDOW);
+    cJSON_AddNumberToObject(pWindow, APP_CFG_WIDTH, pCFG->windowWidth);
+    cJSON_AddNumberToObject(pWindow, APP_CFG_HEIGHT, pCFG->windowHeight);
+    cJSON_AddStringToObject(pWindow, CFG_COMMENT, "Should " PROGRAM_NAME " start in fullscreen mode?");
+    cJSON_AddBoolToObject(pWindow, APP_CFG_FULLSCREEN, pCFG->windowFullscreen);
+
+    cJSON *pMouse = cJSON_AddObjectToObject(pRoot, APP_CFG_MOUSE);
+    cJSON_AddStringToObject(pMouse, CFG_COMMENT, "Reset the mouse cursor to the center of the screen when entering/exiting");
+    cJSON_AddStringToObject(pMouse, CFG_COMMENT, "the first opened menu that causes the cursor to appear.");
+    cJSON_AddBoolToObject(pMouse, APP_CFG_RESET_MOUSE_CURSOR_ON_MENU_EXIT, pCFG->resetCursorOnMenuExit);
+    cJSON_AddStringToObject(pMouse, CFG_COMMENT, "Mouse sensitivity multiplier 0.01 to 2.0 where normal is 1.0");
+    cJSON_AddNumberToObject(pMouse, APP_CFG_MOUSE_SENSITIVITY, pCFG->mouseSensitivity);
+
+    cJSON *pRenderer = cJSON_AddObjectToObject(pRoot, APP_CFG_RENDERER);
+    cJSON_AddBoolToObject(pRenderer, APP_CFG_VSYNC, pCFG->vsync);
+    cJSON_AddNumberToObject(pRenderer, APP_CFG_ANISOTROPY, pCFG->anisotropy);
+    cJSON_AddNumberToObject(pRenderer, APP_CFG_FOV, pCFG->cameraFOV);
+}
+
+static bool config_keyBindings_load(Input_t *pInput, const cJSON *pROOT)
+{
+    if (!pInput)
+        return false;
+
+    if (cJSON_IsObject(pROOT))
     {
-        logs_log(LOG_ERROR, "Input_t pointer was NULL in cfg_keyBindingsLoad()");
-        return;
-    }
+        // Clear defaults
+        for (int i = 0; i < DEFAULT_KEY_MAPPING_COUNT; i++)
+            pInput->pInputKeys[DEFAULT_KEY_MAPPINGS[i].defaultKey].inputMapping = INPUT_ACTION_UNMAPPED;
 
-    char fullDir[MAX_DIR_PATH_LENGTH];
-    if (!file_dirExists(dir, fullDir))
-    {
-        logs_log(LOG_WARN, "Directory '%s' not found at '%s'. Using default keybindings.", dir, fullDir);
-        return;
-    }
-
-    // Build final file path (../dir/fileName)
-    char fullPath[MAX_DIR_PATH_LENGTH];
-    snprintf(fullPath, MAX_DIR_PATH_LENGTH, "%s/%s", fullDir, fileName);
-    logs_log(LOG_DEBUG, "Attempting to load '%s' from '%s'", fileName, fullPath);
-
-    cJSON *root = load_json_file(fullPath, fileName);
-    if (!root)
-    {
-        logs_log(LOG_ERROR, "Failed to read or parse '%s' JSON at '%s'. Using defaults.", fileName, fullPath);
-
-        // Attempt to rename the bad file
-        char backupPath[MAX_DIR_PATH_LENGTH];
-        snprintf(backupPath, sizeof(backupPath), "%s.old", fullPath);
-
-        int renameResult = rename(fullPath, backupPath);
-        if (renameResult == 0)
+        // Assign cfg keys. Skips over INPUT_ACTION_UNMAPPED
+        for (int i = 1; i < INPUT_ACTION_COUNT; i++)
         {
-            logs_log(LOG_WARN, "Corrupted keybinding file '%s' renamed to '%s'", fullPath, backupPath);
-        }
-        else
-        {
-            logs_log(LOG_ERROR, "Failed to rename corrupted keybinding file '%s' to '%s' (error %d)", fullPath, backupPath, renameResult);
-        }
+            const char *pACTION_NAME = INPUT_ACTION_MAPPING_NAMES[i];
+            cJSON *pKey = cJSON_GetObjectItemCaseSensitive(pROOT, pACTION_NAME);
 
-        // Regenerate a fresh default keybinding file
-        logs_log(LOG_DEBUG, "Regenerating new default keybinding file '%s'", fileName);
-        cfg_keyBindingsSave(input, dir, fileName);
-        return;
-    }
-
-    // Parse the JSON contents
-    cJSON *bindings = root;
-    if (cJSON_IsObject(bindings))
-    {
-        for (int i = 0; i < INPUT_ACTION_COUNT; i++)
-        {
-            const char *actionName = INPUT_ACTION_MAPPING_NAMES[i];
-            cJSON *keyItem = cJSON_GetObjectItemCaseSensitive(bindings, actionName);
-
-            if (cJSON_IsNumber(keyItem))
+            if (cJSON_IsNumber(pKey))
             {
-                input->pInputKeys[i].key = keyItem->valueint;
-                input->pInputKeys[i].inputMapping = (InputActionMapping_t)i;
+                pInput->pInputKeys[pKey->valueint].inputMapping = (InputActionMapping_t)i;
+                logs_log(LOG_DEBUG, "Keycode %3d -> %s", pKey->valueint, pACTION_NAME);
+            }
+            else if (i != INPUT_ACTION_UNMAPPED)
+            {
+                logs_log(LOG_WARN, "Failed to parse keycode assignment [%d] for %s. Using default.", i, pACTION_NAME);
+                // Default key shift left 1 because UNMAPPED is a binding
+                pInput->pInputKeys[DEFAULT_KEY_MAPPINGS[i - 1].defaultKey].inputMapping = (InputActionMapping_t)i;
             }
         }
     }
+    else
+        return false;
 
-    logs_log(LOG_DEBUG, "Loaded '%s' keybindings from '%s'", fileName, fullPath);
-    cJSON_Delete(root);
+    return true;
 }
 
-Input_t cfg_inputDefaults(void)
+static bool config_app_load(AppConfig_t *pCfg, const cJSON *pROOT)
 {
-    Input_t input = {0};
+    if (!pCfg)
+        return false;
 
-    // Apply defaults
-    for (size_t i = 0; i < DEFAULT_KEY_MAPPINGS_COUNT; i++)
+    cJSON *pWindow = cJSON_GetObjectItemCaseSensitive(pROOT, APP_CFG_WINDOW);
+    if (cJSON_IsObject(pWindow))
     {
-        InputActionMapping_t act = DEFAULT_KEY_MAPPINGS[i].action;
-        int key = DEFAULT_KEY_MAPPINGS[i].defaultKey;
+        cJSON *pWidth = cJSON_GetObjectItem(pWindow, APP_CFG_WIDTH);
+        if (cJSON_IsNumber(pWidth))
+            pCfg->windowWidth = pWidth->valueint;
 
-        input.pInputKeys[key].key = key;
-        input.pInputKeys[key].inputMapping = act;
-        input.pInputKeys[key].pressedLastFrame = false;
-        input.pInputKeys[key].pressedThisFrame = false;
-    }
+        cJSON *pHeight = cJSON_GetObjectItem(pWindow, APP_CFG_HEIGHT);
+        if (cJSON_IsNumber(pHeight))
+            pCfg->windowHeight = pHeight->valueint;
 
-    return input;
-}
-
-Input_t cfg_keyBindingsLoadOrCreate(void)
-{
-    Input_t input = cfg_inputDefaults();
-
-    char fullDir[MAX_DIR_PATH_LENGTH];
-
-    if (file_exists(cfgFolder, KEYBINDINGS_FILE_NAME, fullDir))
-    {
-        logs_log(LOG_DEBUG, "Loading existing keybindings");
-        cfg_keyBindingsLoad(&input, cfgFolder, KEYBINDINGS_FILE_NAME);
+        cJSON *pFullscreen = cJSON_GetObjectItem(pWindow, APP_CFG_FULLSCREEN);
+        if (cJSON_IsBool(pFullscreen))
+            pCfg->windowFullscreen = cJSON_IsTrue(pFullscreen);
     }
     else
+        return false;
+
+    cJSON *pMouse = cJSON_GetObjectItemCaseSensitive(pROOT, APP_CFG_MOUSE);
+    if (cJSON_IsObject(pMouse))
     {
-        logs_log(LOG_WARN, "Unable to locate keybinding file. Creating default.");
+        cJSON *pResetCursorOnMenuExit = cJSON_GetObjectItem(pMouse, APP_CFG_RESET_MOUSE_CURSOR_ON_MENU_EXIT);
+        if (cJSON_IsBool(pResetCursorOnMenuExit))
+            pCfg->resetCursorOnMenuExit = cJSON_IsTrue(pResetCursorOnMenuExit);
 
-        cfg_keyBindingsSave(&input, cfgFolder, KEYBINDINGS_FILE_NAME);
+        cJSON *pMouseSensitivity = cJSON_GetObjectItem(pMouse, APP_CFG_MOUSE_SENSITIVITY);
+        if (cJSON_IsNumber(pMouseSensitivity))
+            pCfg->mouseSensitivity = cmath_clampD(pMouseSensitivity->valuedouble, MOUSE_SENSITIVITY_MIN, MOUSE_SENSITIVITY_MAX);
     }
+    else
+        return false;
 
-    return input;
+    cJSON *pRenderer = cJSON_GetObjectItemCaseSensitive(pROOT, APP_CFG_RENDERER);
+    if (cJSON_IsObject(pRenderer))
+    {
+        cJSON *pVsync = cJSON_GetObjectItem(pRenderer, APP_CFG_VSYNC);
+        if (cJSON_IsBool(pVsync))
+            pCfg->vsync = cJSON_IsTrue(pVsync);
+
+        cJSON *pAnisotropy = cJSON_GetObjectItem(pRenderer, APP_CFG_ANISOTROPY);
+        if (cJSON_IsNumber(pAnisotropy))
+            pCfg->anisotropy = pAnisotropy->valueint;
+
+        cJSON *pFOV = cJSON_GetObjectItem(pRenderer, APP_CFG_FOV);
+        if (cJSON_IsNumber(pFOV))
+            pCfg->cameraFOV = (float)pFOV->valuedouble;
+    }
+    else
+        return false;
+
+    return true;
 }
 
-void cfg_keyBindingsDestroy(void)
+static void config_save(void *pCfg, const ConfigType_t TYPE)
 {
-    if (pKeyCfg)
-    {
-        file_close(pKeyCfg, KEYBINDINGS_FILE_NAME);
-        pKeyCfg = NULL;
-    }
-}
+    logs_logIfError(pCfg == NULL, "Attempted to save the config from an invalid pointer!");
 
-void cfg_appSave(const AppConfig_t *cfg, const char *dir, const char *fileName)
-{
-    if (!cfg)
+    char pFullDir[MAX_DIR_PATH_LENGTH];
+    if (file_dirCreate(pCONFIG_FOLDER_NAME, pFullDir) == FILE_IO_RESULT_SUCCESS)
+        logs_log(LOG_WARN, "Directory '%s' not found at '%s'. Using defaults.", pCONFIG_FOLDER_NAME, pFullDir);
+
+    cJSON *pRoot = cJSON_CreateObject();
+    if (!pRoot)
     {
-        logs_log(LOG_ERROR, "AppConfig_t pointer was NULL in cfg_appSave()");
+        logs_log(LOG_ERROR, "Failed to allocate JSON root!");
         return;
     }
 
-    // Ensure directory exists
-    char fullDir[MAX_DIR_PATH_LENGTH];
-    logs_log(LOG_DEBUG, "Verifying '%s' directory still exists.", dir);
-
-    if (!file_dirExists(dir, fullDir))
+    switch (TYPE)
     {
-        logs_log(LOG_ERROR, "Failed to ensure '%s' directory exists at '%s'", dir, fullDir);
+    case CONFIG_TYPE_APP:
+        config_app_save((AppConfig_t *)pCfg, pRoot);
+        break;
+    case CONFIG_TYPE_KEYBINDINGS:
+        config_keyBindings_save((Input_t *)pCfg, pRoot);
+        break;
+    }
+
+    char *pJsonStr = cJSON_Print(pRoot);
+    if (!pJsonStr)
+    {
+        logs_log(LOG_ERROR, "Failed to serialize JSON!");
+        cJSON_Delete(pRoot);
         return;
     }
 
-    // Create JSON root
-    cJSON *root = cJSON_CreateObject();
-    if (!root)
+    const char *pFILE_NAME = NULL;
+    switch (TYPE)
     {
-        logs_log(LOG_ERROR, "Failed to allocate JSON root for cfg_appSave()");
-        return;
+    case CONFIG_TYPE_APP:
+        pFILE_NAME = pAPP_CONFIG_FILE_NAME;
+        break;
+    case CONFIG_TYPE_KEYBINDINGS:
+        pFILE_NAME = pKEYBINDINGS_FILE_NAME;
+        break;
     }
 
-    cJSON *window = cJSON_AddObjectToObject(root, "window");
-    cJSON_AddNumberToObject(window, "width", cfg->windowWidth);
-    cJSON_AddNumberToObject(window, "height", cfg->windowHeight);
-    cJSON_AddStringToObject(window, "comment", "Should " PROGRAM_NAME " start in fullscreen mode?");
-    cJSON_AddBoolToObject(window, "fullscreen", cfg->windowFullscreen);
-
-    cJSON *mouse = cJSON_AddObjectToObject(root, "mouse");
-    cJSON_AddStringToObject(mouse, "comment", "Reset the mouse cursor to the center of the screen when entering/exiting");
-    cJSON_AddStringToObject(mouse, "comment", "the first opened menu that causes the cursor to appear.");
-    cJSON_AddBoolToObject(mouse, "resetCursorOnMenuExit", cfg->resetCursorOnMenuExit);
-    cJSON_AddStringToObject(mouse, "comment", "Mouse sensitivity multiplier 0.01 to 2.0 where normal is 1.0");
-    cJSON_AddNumberToObject(mouse, "mouseSensitivity", cfg->mouseSensitivity);
-
-    cJSON *renderer = cJSON_AddObjectToObject(root, "renderer");
-    cJSON_AddBoolToObject(renderer, "vsync", cfg->vsync);
-    cJSON_AddNumberToObject(renderer, "anisotropy", cfg->anisotropy);
-    cJSON_AddNumberToObject(renderer, "fov", cfg->cameraFOV);
-
-    // Serialize JSON
-    char *json_str = cJSON_Print(root);
-    if (!json_str)
-    {
-        logs_log(LOG_ERROR, "Failed to serialize JSON for cfg_appSave()");
-        cJSON_Delete(root);
-        return;
-    }
-
-    FILE *file = file_create(dir, fileName);
+    FILE *file = file_create(pCONFIG_FOLDER_NAME, pFILE_NAME);
     if (!file)
     {
-        logs_log(LOG_ERROR, "Failed to create config file '%s' in '%s'", fileName, dir);
-        free(json_str);
-        cJSON_Delete(root);
+        logs_log(LOG_ERROR, "Failed to create config file '%s' in '%s'", pFILE_NAME, pCONFIG_FOLDER_NAME);
+        free(pJsonStr);
+        cJSON_Delete(pRoot);
         return;
     }
 
-    fputs(json_str, file);
-    logs_log(LOG_DEBUG, "Saved '%s' to '%s/%s'", APP_CONFIG_NAME, fullDir, fileName);
+    fputs(pJsonStr, file);
+    logs_log(LOG_DEBUG, "Saved '%s' to '%s/%s'", pAPP_CONFIG_FILE_NAME, pFullDir, pFILE_NAME);
 
-    file_close(file, APP_CONFIG_NAME);
+    file_close(file, pAPP_CONFIG_FILE_NAME);
 
-    free(json_str);
-    cJSON_Delete(root);
+    free(pJsonStr);
+    cJSON_Delete(pRoot);
 }
 
-void cfg_appLoad(AppConfig_t *cfg, const char *dir, const char *fileName)
+static bool config_json_load(cJSON **ppRoot, const char *pFULL_PATH, const char *pFILE_NAME)
 {
-    if (!cfg)
+    *ppRoot = load_json_file(pFULL_PATH, pFILE_NAME);
+    if (!*ppRoot)
     {
-        logs_log(LOG_ERROR, "AppConfig_t pointer was NULL in cfg_appLoad()");
-        return;
-    }
-
-    char fullDir[MAX_DIR_PATH_LENGTH];
-    if (!file_dirExists(dir, fullDir))
-    {
-        logs_log(LOG_WARN, "Directory '%s' not found at '%s'. Using defaults.", dir, fullDir);
-        return;
-    }
-
-    // Build final file path (../dir/fileName)
-    char fullPath[MAX_DIR_PATH_LENGTH];
-    snprintf(fullPath, MAX_DIR_PATH_LENGTH, "%s/%s", fullDir, fileName);
-    logs_log(LOG_DEBUG, "Attempting to load '%s' from '%s'", fileName, fullPath);
-
-    cJSON *root = load_json_file(fullPath, APP_CONFIG_NAME);
-    if (!root)
-    {
-        logs_log(LOG_ERROR, "Failed to read or parse '%s' JSON at '%s'. Using defaults.", fileName, fullPath);
+        logs_log(LOG_ERROR, "Failed to read or parse '%s' JSON at '%s'. Using defaults.", pFILE_NAME, pFULL_PATH);
 
         // Attempt to rename the bad file
         char backupPath[MAX_DIR_PATH_LENGTH];
-        snprintf(backupPath, sizeof(backupPath), "%s.old", fullPath);
+        bool isForFile = true;
+        snprintf(backupPath, sizeof(backupPath), "%s.%s.old", pFULL_PATH, logs_timestampGet(isForFile));
 
-        int renameResult = rename(fullPath, backupPath);
+        int renameResult = rename(pFULL_PATH, backupPath);
         if (renameResult == 0)
-        {
-            logs_log(LOG_WARN, "Corrupted config '%s' renamed to '%s'", fullPath, backupPath);
-        }
+            logs_log(LOG_WARN, "Corrupted file '%s' renamed to '%s'", pFULL_PATH, backupPath);
         else
-        {
-            logs_log(LOG_ERROR, "Failed to rename corrupted config '%s' to '%s' (error %d)", fullPath, backupPath, renameResult);
-        }
+            logs_log(LOG_ERROR, "Failed to rename corrupted file'%s' to '%s' (error %d)", pFULL_PATH, backupPath, renameResult);
 
-        // Regenerate a fresh default config
-        logs_log(LOG_DEBUG, "Regenerating new default config '%s'", fileName);
-        cfg_appSave(cfg, dir, fileName);
-        return;
+        return false;
     }
 
-    cJSON *window = cJSON_GetObjectItemCaseSensitive(root, "window");
-    if (cJSON_IsObject(window))
-    {
-        cJSON *w = cJSON_GetObjectItem(window, "width");
-        cJSON *h = cJSON_GetObjectItem(window, "height");
-        cJSON *fs = cJSON_GetObjectItem(window, "fullscreen");
-
-        if (cJSON_IsNumber(w))
-            cfg->windowWidth = w->valueint;
-        if (cJSON_IsNumber(h))
-            cfg->windowHeight = h->valueint;
-        if (cJSON_IsBool(fs))
-            cfg->windowFullscreen = cJSON_IsTrue(fs);
-    }
-
-    cJSON *mouse = cJSON_GetObjectItemCaseSensitive(root, "mouse");
-    if (cJSON_IsObject(mouse))
-    {
-        cJSON *cR = cJSON_GetObjectItem(mouse, "resetCursorOnMenuExit");
-        cJSON *cS = cJSON_GetObjectItem(mouse, "mouseSensitivity");
-
-        if (cJSON_IsBool(cR))
-            cfg->resetCursorOnMenuExit = cJSON_IsTrue(cR);
-        if (cJSON_IsNumber(cS))
-            cfg->mouseSensitivity = cmath_clampD(cS->valuedouble, 0.01, 2.0);
-    }
-
-    cJSON *renderer = cJSON_GetObjectItemCaseSensitive(root, "renderer");
-    if (cJSON_IsObject(renderer))
-    {
-        cJSON *vsync = cJSON_GetObjectItem(renderer, "vsync");
-        cJSON *aniso = cJSON_GetObjectItem(renderer, "anisotropy");
-        cJSON *fov = cJSON_GetObjectItem(renderer, "fov");
-
-        if (cJSON_IsBool(vsync))
-            cfg->vsync = cJSON_IsTrue(vsync);
-        if (cJSON_IsNumber(aniso))
-            cfg->anisotropy = aniso->valueint;
-        if (cJSON_IsNumber(fov))
-            cfg->cameraFOV = (float)fov->valuedouble;
-    }
-
-    logs_log(LOG_DEBUG, "Loaded '%s' configuration from '%s'", APP_CONFIG_NAME, fullPath);
-    cJSON_Delete(root);
+    return true;
 }
 
-AppConfig_t cfg_loadOrCreate(void)
+static void config_load(void *pCfg, const ConfigType_t TYPE)
 {
-    char fullDir[MAX_DIR_PATH_LENGTH];
+    logs_logIfError(pCfg == NULL, "Attempted to load config file for an invalid pointer!");
 
-    if (file_exists(cfgFolder, APP_CONFIG_NAME, fullDir))
+    char pFullDir[MAX_DIR_PATH_LENGTH];
+    if (file_dirCreate(pCONFIG_FOLDER_NAME, pFullDir) == FILE_IO_RESULT_SUCCESS)
+        logs_log(LOG_WARN, "Directory '%s' not found at '%s'. Using defaults.", pCONFIG_FOLDER_NAME, pFullDir);
+
+    char pFullPath[MAX_DIR_PATH_LENGTH];
+    const char *pFILE_NAME = NULL;
+    switch (TYPE)
     {
-        logs_log(LOG_DEBUG, "Loading existing cfg");
-        cfg_appLoad(&appConfig, cfgFolder, APP_CONFIG_NAME);
+    case CONFIG_TYPE_APP:
+        pFILE_NAME = pAPP_CONFIG_FILE_NAME;
+        break;
+    case CONFIG_TYPE_KEYBINDINGS:
+        pFILE_NAME = pKEYBINDINGS_FILE_NAME;
+        break;
     }
+
+    // Build final file path (../dir/fileName)
+    snprintf(pFullPath, MAX_DIR_PATH_LENGTH, "%s/%s", pFullDir, pFILE_NAME);
+    logs_log(LOG_DEBUG, "Attempting to load '%s' from '%s'", pFILE_NAME, pFullPath);
+
+    cJSON *pRoot = NULL;
+    bool loadResult = config_json_load(&pRoot, pFullPath, pFILE_NAME);
+
+    if (loadResult)
+        logs_log(LOG_DEBUG, "Loading existing %s json data...", pFILE_NAME);
     else
     {
-        logs_log(LOG_WARN, "Unable to locate config file. Creating default.");
-        cfg_appSave(&appConfig, cfgFolder, APP_CONFIG_NAME);
+        // Regenerate a fresh default config
+        logs_log(LOG_DEBUG, "Regenerating new default config '%s'", pFILE_NAME);
+
+    save:
+        logs_log(LOG_DEBUG, "Saving fresh default '%s' file", pFILE_NAME);
+        config_save(pCfg, TYPE);
+
+        // No need to load because the defaults are already loaded if the cfg can't be found/read
+        goto cleanup;
     }
 
-    return appConfig;
-}
-
-void cfg_appDestroy(void)
-{
-    if (pCfg)
+    bool readResult = false;
+    switch (TYPE)
     {
-        file_close(pCfg, APP_CONFIG_NAME);
-        pCfg = NULL;
+    case CONFIG_TYPE_APP:
+        readResult = config_app_load((AppConfig_t *)pCfg, pRoot);
+        break;
+    case CONFIG_TYPE_KEYBINDINGS:
+        readResult = config_keyBindings_load((Input_t *)pCfg, pRoot);
+        break;
     }
+
+    if (!readResult)
+    {
+        logs_log(LOG_ERROR, "Failed to parse json for '%s'", pFILE_NAME);
+        goto save;
+    }
+
+cleanup:
+    logs_log(LOG_DEBUG, "Loaded '%s' config from '%s'", pFILE_NAME, pFullPath);
+    cJSON_Delete(pRoot);
 }
 
-Input_t cfg_inputInit(void)
+static inline void *config_loadOrCreate(const ConfigType_t TYPE)
 {
-    return cfg_keyBindingsLoadOrCreate();
+    switch (TYPE)
+    {
+    case CONFIG_TYPE_APP:
+        config_load(&s_AppConfig, TYPE);
+        return &s_AppConfig;
+        break;
+    case CONFIG_TYPE_KEYBINDINGS:
+        config_input_buildDefault();
+        config_load(&s_Input, TYPE);
+        return &s_Input;
+        break;
+    }
+
+    return NULL;
 }
 
-AppConfig_t cfg_appInit(void)
-{
-    return cfg_loadOrCreate();
-}
-
-void cfg_init(void)
+void config_init(struct State_t *pState)
 {
     char fullDir[MAX_DIR_PATH_LENGTH];
-    file_dirCreate(cfgFolder, fullDir);
+    file_dirCreate(pCONFIG_FOLDER_NAME, fullDir);
+
+    pState->config = *(AppConfig_t *)config_loadOrCreate(CONFIG_TYPE_APP);
+    pState->input = *(Input_t *)config_loadOrCreate(CONFIG_TYPE_KEYBINDINGS);
 }

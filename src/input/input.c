@@ -417,37 +417,26 @@ void input_update(State_t *state)
     }
 }
 
-void input_init(State_t *state)
+void input_init(const State_t *pSTATE)
 {
+#if defined(DEBUG)
     logs_log(LOG_DEBUG, "Initializing input system...");
-
-    state->input = cfg_inputInit();
-
+    // Log mapped keys. Actual mapping is handled by loading the keybindings cfg
+    InputActionMapping_t mapping = INPUT_ACTION_UNMAPPED;
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
-        const char *keyName = input_keyNameGet(key);
+        const char *pKeyName = input_keyNameGet(key);
 
-        // Skip unknown keys entirely
-        if (!keyName || strcmp(keyName, "Unknown") == 0)
+        if (!pKeyName || strcmp(pKeyName, "Unknown") == 0)
             continue;
 
-        // Pull the configured mapping for this key
-        InputActionMapping_t mapping = state->input.pInputKeys[key].inputMapping;
-        const char *mappingName = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
-
-        // Assign a fully initialized key struct
-        state->input.pInputKeys[key] = (InputKey_t){
-            .key = key,
-            .keyDown = false,
-            .keyUp = false,
-            .pressedLastFrame = false,
-            .pressedThisFrame = false,
-            .inputMapping = mapping,
-        };
+        mapping = pSTATE->input.pInputKeys[key].inputMapping;
+        const char *pMappingName = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
 
         if (mapping != INPUT_ACTION_UNMAPPED)
         {
-            logs_log(LOG_DEBUG, "Keycode %3d (%-12s) -> %s", key, keyName, mappingName);
+            logs_log(LOG_DEBUG, "Keycode %3d (%-12s) -> %s", key, pKeyName, pMappingName);
         }
     }
+#endif
 }

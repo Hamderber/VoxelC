@@ -79,3 +79,4 @@ TODO:
 18. Normalize input into a 3d vector for the camera controller. Basically combine wasd or whatever movement and then normalize it
 19. Replicate the math lib to account for non-roll axis entities (majority). This is a huge cpu optimization
 20 Add fullscreen borderless by changing fulscreen from a bool to an enum of windowed, borderless, fullscreen that wraps with F11
+21. Zoom breaks when pressing ESC while zoomed

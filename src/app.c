@@ -102,9 +102,6 @@ void app_cleanup(State_t *state)
     state->context.instance = NULL;
     state->context.pAllocator = NULL;
 
-    cfg_appDestroy();
-    cfg_keyBindingsDestroy();
-
     em_destroy(state);
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);

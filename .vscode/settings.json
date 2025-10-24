@@ -83,6 +83,8 @@
         "ctxinputmapped_t.h": "c",
         "texturerotation_t.h": "c",
         "cmath.h": "c",
-        "renderchunk_t.h": "c"
+        "renderchunk_t.h": "c",
+        "float.h": "c",
+        "anisotropicfilteringoptions_t.h": "c"
     }
 }

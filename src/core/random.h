@@ -4,32 +4,73 @@
 #include <stdint.h>
 #include "cmath/cmath.h"
 
-uint32_t rand_stateGet(void);
+/// @brief Gets the current PRNG state (changes each query)
+/// @return uint32_t
+uint32_t random_stateGet(void);
 
-uint32_t rand_seedGet(void);
+/// @brief Gets the original rng seed
+/// @return uint32_t
+uint32_t random_seedGet(void);
 
-uint32_t rand_nextU32t(void);
+/// @brief Get a new pseudo-random 32-bit unsigned integer
+/// @return uint32_t
+uint32_t random_nextU32t(void);
 
-bool rand_5050(void);
+/**
+ * @brief Get a new pseudo-random n-bit signed integer means-corrected to zero in the range [-2^(n-1)-1, 2^(n-1)+1] =>
+ * [-1073741823, 1073741823]
+ * @param numBits Clamped to [1, 31] (last bit reserved for sign)
+ * @return int32_t
+ */
+int32_t random_rangeNbit(int numBits);
 
-int64_t rand_rangeNbit(int numBits);
+/// @brief Get a pesudo-random unsigned 32-bit integer in range [min, max]
+/// @return uint32_t
+uint32_t random_rangeU32(uint32_t min, uint32_t max);
 
-static inline int8_t rand_range7bit(int n) { return (int8_t)rand_rangeNbit(n); }
-static inline int16_t rand_range15bit(int n) { return (int16_t)rand_rangeNbit(n); }
-static inline int32_t rand_range31bit(int n) { return (int32_t)rand_rangeNbit(n); }
+/// @brief Returns a random signed 32-bit integer in [min, max]
+/// @return int32_t
+int32_t random_rangeI32(int32_t min, int32_t max);
 
-uint32_t rand_rangeU32(uint32_t min, uint32_t max);
+/// @brief Returns a bit-uniform pseudo-random float in [0, 1)
+/// @return float
+float random_nextF32(void);
 
-int32_t rand_rangeI32(int32_t min, int32_t max);
+/// @brief Returns a random float in [min, max)
+/// @return float
+float random_rangeF32(float min, float max);
 
-float rand_nextF32(void);
+/// @brief Returns a uniform pseudo-random double in [0, 1)
+/// @return double
+double random_nextD64(void);
 
-double rand_nextF64(void);
+/// @brief Returns a random double in [min, max)
+/// @return double
+double random_rangeD64(double min, double max);
 
-float rand_rangeF32(float min, float max);
+/// @brief Flip a coin.
+/// @return bool
+static inline bool random_5050(void) { return random_rangeNbit(1); }
 
-double rand_rangeF64(double min, double max);
+/// @brief Wrapper for @ref random_rangeNbit for the correct int size
+/// @return int8_t
+static inline int8_t random_range7bit(int n) { return (int8_t)random_rangeNbit(n); }
 
-Vec3f_t rand_vec3f(float xMin, float xMax, float yMin, float yMax, float zMin, float zMax);
+/// @brief Wrapper for @ref random_rangeNbit for the correct int size
+/// @return int16_t
+static inline int16_t random_range15bit(int n) { return (int16_t)random_rangeNbit(n); }
 
-void rand_init(uint32_t seed);
+/// @brief Generates a pseudo-random vec3f with axes within [min, max)
+/// @return Vec3f_t
+static inline Vec3f_t random_vec3f(float xMin, float xMax, float yMin, float yMax, float zMin, float zMax)
+{
+    return (Vec3f_t){
+        .x = random_rangeF32(xMin, xMax),
+        .y = random_rangeF32(yMin, yMax),
+        .z = random_rangeF32(zMin, zMax),
+    };
+}
+
+/// @brief Initializes deterministic random using the provided seed or current time if seed = 0
+/// @param seed
+void random_init(uint32_t seed);

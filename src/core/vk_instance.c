@@ -156,8 +156,8 @@ static void vki_instanceCreate(State_t *state)
     const VkApplicationInfo applicationInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .apiVersion = state->config.vkAPIVersion,
-        .pApplicationName = state->config.pApplicationName,
-        .pEngineName = state->config.pEngineName,
+        .pApplicationName = state->config.pAPPLICATION_NAME,
+        .pEngineName = state->config.pENGINE_NAME,
     };
 
     VkInstanceCreateInfo createInfo = {

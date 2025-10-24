@@ -6,6 +6,7 @@
 #include "core/config.h"
 #include "core/types/atlasRegion_t.h"
 #include "rendering/types/graphicsPipeline_t.h"
+#include "rendering/types/anisotropicFilteringOptions_t.h"
 
 typedef struct
 {
