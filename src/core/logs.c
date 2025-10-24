@@ -83,48 +83,48 @@ char *logs_timestampGet(bool isForFileName)
     return s_buffer;
 }
 
-void logs_log(LogLevel_t level, const char *format, ...)
+void logs_log(LogLevel_t level, const char *pFORMAT, ...)
 {
     // log() is built-in don't use it
-    const char *prefix = "Info";
+    const char *pPREFIX = "Info";
     switch (level)
     {
     case LOG_INFO:
-        prefix = "Info";
+        pPREFIX = "Info";
         break;
     case LOG_WARN:
-        prefix = "Warn";
+        pPREFIX = "Warn";
         break;
     case LOG_ERROR:
-        prefix = "Eror";
+        pPREFIX = "Eror";
         break;
     case LOG_PHYSICS:
-        prefix = "Phys";
+        pPREFIX = "Phys";
         break;
     case LOG_UNIT_TEST:
 #ifdef NDEBUG
         // Skip when not in debug mode
         return;
 #endif
-        prefix = "Test";
+        pPREFIX = "Test";
         break;
     case LOG_DEBUG:
 #ifdef NDEBUG
         return;
 #endif
-        prefix = "Dbug";
+        pPREFIX = "Dbug";
         break;
     }
 
     va_list args;
-    va_start(args, format);
+    va_start(args, pFORMAT);
 
     // Print to file if open otherwise console
     FILE *pTarget = s_pLogFile ? s_pLogFile : stdout;
 
     const bool IS_FOR_FILE = false;
-    fprintf(pTarget, "[%s][%s] ", prefix, logs_timestampGet(IS_FOR_FILE));
-    vfprintf(pTarget, format, args);
+    fprintf(pTarget, "[%s][%s] ", pPREFIX, logs_timestampGet(IS_FOR_FILE));
+    vfprintf(pTarget, pFORMAT, args);
     fprintf(pTarget, "\n");
     fflush(pTarget);
 
@@ -182,12 +182,9 @@ bool logs_logIfError_impl(const char *pFILE, const char *pFUNC, int line, int er
 
 void logs_create(char *pProgramName)
 {
-    // char filename[MAX_FILE_NAME_LENGTH];
     snprintf(s_pLogName, MAX_FILE_NAME_LENGTH, "%s_%s.log", pProgramName, logs_timestampGet(true));
 
-    s_pLogFile = file_create("logs", s_pLogName);
-
-    if (!s_pLogFile)
+    if (fileIO_file_create(&s_pLogFile, "logs", s_pLogName) != FILE_IO_RESULT_FILE_CREATED)
     {
         logs_log(LOG_ERROR, "Failed to open log file '%s'", s_pLogName);
         return;
@@ -204,7 +201,7 @@ void logs_destroy(void)
 {
     if (s_pLogFile)
     {
-        file_close(s_pLogFile, s_pLogName);
+        fileIO_file_close(s_pLogFile, s_pLogName);
         s_pLogFile = NULL;
     }
 }

@@ -111,8 +111,8 @@ static void config_input_buildDefault(void)
 
 static cJSON *load_json_file(const char *pPATH, const char *pDEBUG_NAME)
 {
-    FILE *pFile = file_open(pPATH, "rb", pDEBUG_NAME);
-    if (!pFile)
+    FILE *pFile = NULL;
+    if (fileIO_file_open(&pFile, pPATH, "rb", pDEBUG_NAME) != FILE_IO_RESULT_SUCCESS)
     {
         logs_log(LOG_WARN, "Failed to open JSON file '%s' '%s'", pPATH, pDEBUG_NAME);
         return NULL;
@@ -123,7 +123,7 @@ static cJSON *load_json_file(const char *pPATH, const char *pDEBUG_NAME)
     if (fseek(pFile, OFFSET, SEEK_END) != 0)
     {
         logs_log(LOG_ERROR, "Failed to seek to end of file '%s' '%s'", pPATH, pDEBUG_NAME);
-        file_close(pFile, pDEBUG_NAME);
+        fileIO_file_close(pFile, pDEBUG_NAME);
         return NULL;
     }
 
@@ -131,7 +131,7 @@ static cJSON *load_json_file(const char *pPATH, const char *pDEBUG_NAME)
     if (len < 0)
     {
         logs_log(LOG_ERROR, "Failed to get file position for '%s' '%s'", pPATH, pDEBUG_NAME);
-        file_close(pFile, pDEBUG_NAME);
+        fileIO_file_close(pFile, pDEBUG_NAME);
         return NULL;
     }
     rewind(pFile);
@@ -141,7 +141,7 @@ static cJSON *load_json_file(const char *pPATH, const char *pDEBUG_NAME)
     if (!pBuffer)
     {
         logs_log(LOG_ERROR, "Failed to allocate %ld bytes for '%s' '%s'", len + 1, pPATH, pDEBUG_NAME);
-        file_close(pFile, pDEBUG_NAME);
+        fileIO_file_close(pFile, pDEBUG_NAME);
         return NULL;
     }
 
@@ -152,7 +152,7 @@ static cJSON *load_json_file(const char *pPATH, const char *pDEBUG_NAME)
 
     pBuffer[len] = '\0';
 
-    file_close(pFile, pDEBUG_NAME);
+    fileIO_file_close(pFile, pDEBUG_NAME);
 
     cJSON *pJson = cJSON_Parse(pBuffer);
     if (!pJson)
@@ -298,7 +298,7 @@ static void config_save(void *pCfg, const ConfigType_t TYPE)
     logs_logIfError(pCfg == NULL, "Attempted to save the config from an invalid pointer!");
 
     char pFullDir[MAX_DIR_PATH_LENGTH];
-    if (file_dirCreate(pCONFIG_FOLDER_NAME, pFullDir) == FILE_IO_RESULT_SUCCESS)
+    if (fileIO_dir_create(pCONFIG_FOLDER_NAME, pFullDir) == FILE_IO_RESULT_DIR_CREATED)
         logs_log(LOG_WARN, "Directory '%s' not found at '%s'. Using defaults.", pCONFIG_FOLDER_NAME, pFullDir);
 
     cJSON *pRoot = cJSON_CreateObject();
@@ -337,8 +337,8 @@ static void config_save(void *pCfg, const ConfigType_t TYPE)
         break;
     }
 
-    FILE *file = file_create(pCONFIG_FOLDER_NAME, pFILE_NAME);
-    if (!file)
+    FILE *pFile = NULL;
+    if (fileIO_file_create(&pFile, pCONFIG_FOLDER_NAME, pFILE_NAME) != FILE_IO_RESULT_FILE_CREATED)
     {
         logs_log(LOG_ERROR, "Failed to create config file '%s' in '%s'", pFILE_NAME, pCONFIG_FOLDER_NAME);
         free(pJsonStr);
@@ -346,10 +346,10 @@ static void config_save(void *pCfg, const ConfigType_t TYPE)
         return;
     }
 
-    fputs(pJsonStr, file);
+    fputs(pJsonStr, pFile);
     logs_log(LOG_DEBUG, "Saved '%s' to '%s/%s'", pAPP_CONFIG_FILE_NAME, pFullDir, pFILE_NAME);
 
-    file_close(file, pAPP_CONFIG_FILE_NAME);
+    fileIO_file_close(pFile, pAPP_CONFIG_FILE_NAME);
 
     free(pJsonStr);
     cJSON_Delete(pRoot);
@@ -384,7 +384,7 @@ static void config_load(void *pCfg, const ConfigType_t TYPE)
     logs_logIfError(pCfg == NULL, "Attempted to load config file for an invalid pointer!");
 
     char pFullDir[MAX_DIR_PATH_LENGTH];
-    if (file_dirCreate(pCONFIG_FOLDER_NAME, pFullDir) == FILE_IO_RESULT_SUCCESS)
+    if (fileIO_dir_create(pCONFIG_FOLDER_NAME, pFullDir) == FILE_IO_RESULT_DIR_CREATED)
         logs_log(LOG_WARN, "Directory '%s' not found at '%s'. Using defaults.", pCONFIG_FOLDER_NAME, pFullDir);
 
     char pFullPath[MAX_DIR_PATH_LENGTH];
@@ -464,7 +464,7 @@ static inline void *config_loadOrCreate(const ConfigType_t TYPE)
 void config_init(struct State_t *pState)
 {
     char fullDir[MAX_DIR_PATH_LENGTH];
-    file_dirCreate(pCONFIG_FOLDER_NAME, fullDir);
+    fileIO_dir_create(pCONFIG_FOLDER_NAME, fullDir);
 
     pState->config = *(AppConfig_t *)config_loadOrCreate(CONFIG_TYPE_APP);
     pState->input = *(Input_t *)config_loadOrCreate(CONFIG_TYPE_KEYBINDINGS);

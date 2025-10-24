@@ -1,8 +1,4 @@
-#include <time.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <signal.h>
-#include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -12,7 +8,6 @@
 // OS-specific inclusions for file/directory writing
 #include <sys/stat.h>
 #include <sys/types.h>
-
 #ifdef _WIN32
 #include <direct.h>
 #include <io.h>
@@ -25,152 +20,140 @@
 // Base path always ../ relative to executable (bin)
 static const char *pBASE_PATH = "../";
 
-void file_close(FILE *file, const char *debugName)
+void fileIO_file_close(FILE *pFile, const char *pDEBUG_NAME)
 {
-    if (!file)
+    if (!pFile)
     {
-        logs_log(LOG_ERROR, "Attempted to close invalid file at Address %p (%s)", file, debugName);
+        logs_log(LOG_ERROR, "Attempted to close invalid file at address %p (%s)", pFile, pDEBUG_NAME);
         return;
     }
 
-    logs_log(LOG_DEBUG, "Closing file at Address %p (%s)", file, debugName);
-    logs_logIfError(fclose(file),
-                    "Error while closing file at Address %p (%s)", file, debugName);
+    logs_log(LOG_DEBUG, "Closing file at address %p (%s)", pFile, pDEBUG_NAME);
+    logs_logIfError(fclose(pFile), "Error while closing file at address %p (%s)", pFile, pDEBUG_NAME);
 }
 
-FILE *file_open(const char *path, const char *mode, const char *debugName)
+FileIO_Result_t fileIO_file_open(FILE **ppFile, const char *pPATH, const char *pMODE, const char *pDEBUG_NAME)
 {
-    if (!path || !mode)
+    if (!pPATH || !pMODE)
     {
-        logs_log(LOG_ERROR, "file_open() received invalid parameters (path=%p, mode=%p) [%s]", path, mode, debugName);
-        return NULL;
+        logs_log(LOG_ERROR, "Received invalid parameters (path=%p, mode=%p) [%s]", pPATH, pMODE, pDEBUG_NAME);
+        *ppFile = NULL;
+        return FILE_IO_RESULT_FAILURE;
     }
-
-    FILE *file = NULL;
 
 #ifdef _WIN32
-    if (fopen_s(&file, path, mode) != 0)
+    errno_t result = fopen_s(ppFile, pPATH, pMODE);
+    if (result != 0)
     {
-        logs_log(LOG_ERROR, "Failed to open file '%s' (mode='%s') [%s]", path, mode, debugName);
-        return NULL;
+        logs_log(LOG_ERROR, "Failed to open file '%s' (mode='%s') [%s]", pPATH, pMODE, pDEBUG_NAME);
+        return FILE_IO_RESULT_FAILURE;
     }
 #else
-    file = fopen(path, mode);
-    if (!file)
+    *ppFile = fopen(pPATH, pMODE);
+    if (!*ppFile)
     {
-        logs_log(LOG_ERROR, "Failed to open file '%s' (mode='%s') [%s]", path, mode, debugName);
-        return NULL;
+        logs_log(LOG_ERROR, "Failed to open file '%s' (mode='%s') [%s]", pPATH, pMODE, pDEBUG_NAME);
+        return FILE_IO_RESULT_FAILURE;
     }
 #endif
 
-    logs_log(LOG_DEBUG, "Opened file '%s' in mode '%s' at Address %p [%s]", path, mode, (void *)file, debugName);
+    logs_log(LOG_DEBUG, "Opened file '%s' in mode '%s' at address %p [%s]", pPATH, pMODE, (void *)*ppFile, pDEBUG_NAME);
 
     // Flush immediately for safety in write modes
-    if (strchr(mode, 'w') || strchr(mode, 'a'))
-        fflush(file);
+    if (strchr(pMODE, 'w') || strchr(pMODE, 'a'))
+        fflush(*ppFile);
 
-    return file;
+    return FILE_IO_RESULT_SUCCESS;
 }
 
-/// @brief Checks if ../dirPath/dir/ exists and writes that path to *fullDir regardless
-/// @param dir
-/// @param dirPath
-/// @param fullDir
-/// @return bool
-bool file_dirExists(const char *dir, char *fullDir)
+bool fileIO_dir_exists(const char *pFOLDER_NAME, char *pFullDir)
 {
-    snprintf(fullDir, MAX_DIR_PATH_LENGTH, "%s%s", pBASE_PATH, dir);
+    snprintf(pFullDir, MAX_DIR_PATH_LENGTH, "%s%s", pBASE_PATH, pFOLDER_NAME);
+    logs_log(LOG_DEBUG, "Checking if '%s' exists at '%s'", pFOLDER_NAME, pFullDir);
 
-    logs_log(LOG_DEBUG, "Checking if '%s' exists at '%s'", dir, fullDir);
-
-    struct stat st = {0};
-    return stat(fullDir, &st) != -1;
+    struct stat fileStats = {0};
+    return stat(pFullDir, &fileStats) != -1;
 }
 
-bool file_exists(const char *dir, const char *fileName, char *fullPath)
+bool fileIO_file_exists(const char *pFOLDER_NAME, const char *pFILE_NAME, char *pFullPath)
 {
-    if (!dir || !fileName)
+    if (!pFOLDER_NAME || !pFILE_NAME)
     {
-        logs_log(LOG_ERROR, "file_fileExists() received invalid parameters (dir=%p, fileName=%p)", dir, fileName);
+        logs_log(LOG_ERROR, "Received invalid parameters (dir=%p, fileName=%p)", pFOLDER_NAME, pFILE_NAME);
         return false;
     }
 
-    char fullDir[MAX_DIR_PATH_LENGTH];
-    if (!file_dirExists(dir, fullDir))
+    char pFullDir[MAX_DIR_PATH_LENGTH];
+    if (!fileIO_dir_exists(pFOLDER_NAME, pFullDir))
     {
-        logs_log(LOG_WARN, "Directory '%s' not found at '%s' while checking '%s'", dir, fullDir, fileName);
+        logs_log(LOG_WARN, "Directory '%s' not found at '%s' while checking '%s'", pFOLDER_NAME, pFullDir, pFILE_NAME);
         return false;
     }
 
-    // Build final path
-    snprintf(fullPath, MAX_DIR_PATH_LENGTH, "%s/%s", fullDir, fileName);
-    logs_log(LOG_DEBUG, "Checking if file '%s' exists at '%s'", fileName, fullPath);
+    snprintf(pFullPath, MAX_DIR_PATH_LENGTH, "%s/%s", pFullDir, pFILE_NAME);
+    logs_log(LOG_DEBUG, "Checking if file '%s' exists at '%s'", pFILE_NAME, pFullPath);
 
 #ifdef _WIN32
-    // On Windows, use _access (or _waccess if wide chars)
-    return (_access(fullPath, 0) == 0);
+    // Windows
+    return (_access(pFullPath, 0) == 0);
 #else
-    // On POSIX systems, use access() or stat()
-    struct stat st = {0};
-    return (stat(fullPath, &st) == 0);
+    // POSIX systems
+    struct stat fileStats = {0};
+    return (stat(pFullPath, &fileStats) == 0);
 #endif
 }
 
-/// @brief Creates the directory dir at ../dirPath/dir relative to bin/.exe
-/// @param dir
-/// @param dirPath
-/// @return FILE_IO_RESULT_SUCCESS | FILE_IO_RESULT_FAILURE | FILE_IO_RESULT_DIR_ALREADY_EXISTS
-FileIO_Result_t file_dirCreate(const char *dir, char *fullDir)
+FileIO_Result_t fileIO_dir_create(const char *pFOLDER_NAME, char *pFullDir)
 {
-    if (!file_dirExists(dir, fullDir))
+    if (!fileIO_dir_exists(pFOLDER_NAME, pFullDir))
     {
-        if (MKDIR(fullDir) != 0)
+        // Make the folder for the current OS platform
+        if (MKDIR(pFullDir) != 0)
         {
-            logs_log(LOG_ERROR, "Failed to create directory '%s'", fullDir);
+            logs_log(LOG_ERROR, "Failed to create directory '%s'", pFullDir);
             return FILE_IO_RESULT_FAILURE;
         }
 
-        logs_log(LOG_DEBUG, "Created directory: '%s'", fullDir);
-        return FILE_IO_RESULT_SUCCESS;
+        logs_log(LOG_DEBUG, "Created directory: '%s'", pFullDir);
+        return FILE_IO_RESULT_DIR_CREATED;
     }
 
     return FILE_IO_RESULT_DIR_ALREADY_EXISTS;
 }
 
-FILE *file_create(const char *dir, const char *fileName)
+FileIO_Result_t fileIO_file_create(FILE **ppFile, const char *pFOLDER_NAME, const char *pFILE_NAME)
 {
-    logs_log(LOG_DEBUG, "Checking if '%s' exists before creating %s", dir, fileName);
-    char fullDir[MAX_DIR_PATH_LENGTH];
+    logs_log(LOG_DEBUG, "Checking if '%s' exists before creating %s", pFOLDER_NAME, pFILE_NAME);
 
-    FileIO_Result_t result = file_dirCreate(dir, fullDir);
-
-    if (result == FILE_IO_RESULT_FAILURE)
+    char pFullDir[MAX_DIR_PATH_LENGTH];
+    if (fileIO_dir_create(pFOLDER_NAME, pFullDir) == FILE_IO_RESULT_FAILURE)
     {
-        logs_log(LOG_ERROR, "Failed to create directory '%s'. '%s' was not saved.", dir, fileName);
-        return NULL;
+        logs_log(LOG_ERROR, "Failed to create directory '%s'. '%s' was not saved.", pFOLDER_NAME, pFILE_NAME);
+        *ppFile = NULL;
+        return FILE_IO_RESULT_FAILURE;
     }
 
-    // Build final file path: ../dir/fileName
-    char fullPath[MAX_DIR_PATH_LENGTH];
-    snprintf(fullPath, sizeof(fullPath), "%s/%s", fullDir, fileName);
+    // Build final file path: ../folderName/fileName
+    char pFullPath[MAX_DIR_PATH_LENGTH];
+    snprintf(pFullPath, sizeof(pFullPath), "%s/%s", pFullDir, pFILE_NAME);
 
-    FILE *file = NULL;
 #ifdef _WIN32
-    if (fopen_s(&file, fullPath, "w") != 0)
-        file = NULL;
+    if (fopen_s(ppFile, pFullPath, "w") != 0)
+        *ppFile = NULL;
 #else
-    file = fopen(fullPath, "w");
+    *ppFile = fopen(pFullPath, "w");
 #endif
 
-    if (!file)
+    if (!*ppFile)
     {
-        logs_log(LOG_ERROR, "Failed to open file '%s'", fullPath);
-        return NULL;
+        logs_log(LOG_ERROR, "Failed to open file '%s'", pFullPath);
+        *ppFile = NULL;
+        return FILE_IO_RESULT_FAILURE;
     }
 
-    logs_log(LOG_DEBUG, "File created: '%s'", fullPath);
+    logs_log(LOG_DEBUG, "File created: '%s'", pFullPath);
 
-    fflush(file);
+    fflush(*ppFile);
 
-    return file;
+    return FILE_IO_RESULT_FILE_CREATED;
 }
