@@ -82,7 +82,7 @@ void descriptorSetsCreate(State_t *state)
     VkDescriptorSetLayout *layouts = malloc(sizeof(VkDescriptorSetLayout) * state->config.maxFramesInFlight);
     logs_logIfError(layouts == NULL,
                     "Failed to allocate memory for descriptor set layouts!");
-    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    for (uint32_t i = 0; i < state->config.maxFramesInFlight; i++)
     {
         layouts[i] = state->renderer.descriptorSetLayout;
     }

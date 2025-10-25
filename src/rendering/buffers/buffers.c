@@ -20,7 +20,7 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(state->context.device, *buffer, &memoryRequirements);
 
-    uint32_t memoryType = vki_physicalMemoryTypeGet(state, memoryRequirements.memoryTypeBits, propertyFlags);
+    uint32_t memoryType = vulkan_device_physicalMemoryType_get(state, memoryRequirements.memoryTypeBits, propertyFlags);
 
     VkMemoryAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,

@@ -6,7 +6,7 @@
 
 void syncObjectsDestroy(State_t *state)
 {
-    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    for (uint32_t i = 0; i < state->config.maxFramesInFlight; i++)
     {
         if (state->renderer.inFlightFences != NULL)
         {
@@ -15,7 +15,7 @@ void syncObjectsDestroy(State_t *state)
         }
     }
 
-    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    for (uint32_t i = 0; i < state->config.maxFramesInFlight; i++)
     {
         if (state->renderer.renderFinishedSemaphores != NULL)
         {
@@ -24,7 +24,7 @@ void syncObjectsDestroy(State_t *state)
         }
     }
 
-    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    for (uint32_t i = 0; i < state->config.maxFramesInFlight; i++)
     {
         if (state->renderer.imageAcquiredSemaphores != NULL)
         {
@@ -72,7 +72,7 @@ void syncObjectsCreate(State_t *state)
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
 
-    for (uint32_t i = 0U; i < state->config.maxFramesInFlight; i++)
+    for (uint32_t i = 0; i < state->config.maxFramesInFlight; i++)
     {
         logs_logIfError(vkCreateSemaphore(state->context.device, &semaphoreCreateInfo, state->context.pAllocator,
                                           &state->renderer.imageAcquiredSemaphores[i]),

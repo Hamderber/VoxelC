@@ -16,8 +16,8 @@ VkFormat depth_formatGet(State_t *state)
         VK_FORMAT_D24_UNORM_S8_UINT,
     };
 
-    return vki_formatSupportedFind(state, formats, sizeof(formats) / sizeof(*formats), VK_IMAGE_TILING_OPTIMAL,
-                                   VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    return vulkan_instance_formatSupportedFind(state, formats, sizeof(formats) / sizeof(*formats), VK_IMAGE_TILING_OPTIMAL,
+                                               VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
 void depthResourcesCreate(State_t *state)

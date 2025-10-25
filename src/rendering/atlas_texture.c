@@ -356,7 +356,7 @@ void atlasDestroy(AtlasRegion_t *pAtlasRegions)
 //     const float dU = 1.0f / (float)atlasWidthInTiles;
 //     const float dV = 1.0f / (float)atlasHeightInTiles;
 
-//     uint32_t regionIndex = 0U;
+//     uint32_t regionIndex = 0;
 //     for (uint32_t y = 0; y < atlasHeightInTiles; y++)
 //     {
 //         for (uint32_t x = 0; x < atlasWidthInTiles; x++)

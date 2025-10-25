@@ -38,9 +38,9 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
     static const VkVertexInputAttributeDescription descriptions[3] = {
         // Position
         {
-            .binding = 0U,
+            .binding = 0,
             // The location for the position in the vertex shader
-            .location = 0U,
+            .location = 0,
             // Type of data (format is data type so color is same format as pos)
             // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
             .format = VK_FORMAT_R32G32B32_SFLOAT,
@@ -50,7 +50,7 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
         },
         // Color
         {
-            .binding = 0U,
+            .binding = 0,
             // The location for the color in the vertex shader
             .location = 1U,
             .format = VK_FORMAT_R32G32B32_SFLOAT,
@@ -58,7 +58,7 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
             .offset = offsetof(ShaderVertex_t, color),
         },
         {
-            .binding = 0U,
+            .binding = 0,
             .location = 2U,
             .format = VK_FORMAT_R32G32_SFLOAT,
             .offset = offsetof(ShaderVertex_t, texCoord),

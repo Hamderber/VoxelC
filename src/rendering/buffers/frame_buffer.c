@@ -14,7 +14,7 @@ void framebuffersCreate(State_t *state)
     logs_logIfError(!state->renderer.pFramebuffers,
                     "Failed to allocate memory for the framebuffers.");
 
-    for (uint32_t framebufferIndex = 0U; framebufferIndex < state->renderer.framebufferCount; framebufferIndex++)
+    for (uint32_t framebufferIndex = 0; framebufferIndex < state->renderer.framebufferCount; framebufferIndex++)
     {
         // Building the image view here by just attaching the depth image view to the original swapchain image view
         VkImageView attachments[2] = {
@@ -52,5 +52,5 @@ void framebuffersDestroy(State_t *state)
     free(state->renderer.pFramebuffers);
 
     state->renderer.pFramebuffers = NULL;
-    state->renderer.framebufferCount = 0U;
+    state->renderer.framebufferCount = 0;
 }

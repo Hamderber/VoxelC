@@ -105,7 +105,7 @@ VkSurfaceFormatKHR win_surfaceFormatsSelect(const Context_t *context, const Wind
                     "Failed to query physical device surface formats.");
 
     VkSurfaceFormatKHR format = formats[0]; // Default to the first format ...
-    for (uint32_t i = 0U; i < formatCount; i++)
+    for (uint32_t i = 0; i < formatCount; i++)
     {
         // SRGB is the most commonly supported (and best) so we want that one if available
         // B8G8R8A8 = 8-bit blue/green/red/alpha components (so a 32-bit color depth)
@@ -149,7 +149,7 @@ VkPresentModeKHR win_surfacePresentModesSelect(const AppConfig_t *config, const 
                     "Failed to query physical device surface presentation modes.");
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR; // Default to FIFO ...
-    for (uint32_t i = 0U; i < presentModeCount; i++)
+    for (uint32_t i = 0; i < presentModeCount; i++)
     {
         if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
         {
@@ -255,7 +255,7 @@ void win_create(State_t *state)
     // For those types of displays, the window width/height and the frame buffer size would be different numbers. Also consider
     // that if the user has two monitors with only one being a retina display, they could drag the window from one screen to another
     // which would change the frame buffer size but NOT the actual window dimensions.
-    glfwSetFramebufferSizeCallback(state->window.pWindow, glfwi_framebufferSizeCallback);
+    glfwSetFramebufferSizeCallback(state->window.pWindow, glfwInstance_framebuffer_sizeCallback);
 
     win_surfaceCreate(state);
     sc_create(state);

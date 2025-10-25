@@ -83,7 +83,7 @@ static void sc_imagesFree(State_t *state)
 {
     if (state->window.swapchain.handle != NULL && state->window.swapchain.pImageViews)
     {
-        for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
+        for (uint32_t i = 0; i < state->window.swapchain.imageCount; i++)
         {
             vkDestroyImageView(state->context.device, state->window.swapchain.pImageViews[i], state->context.pAllocator);
         }
@@ -130,7 +130,7 @@ static void sc_imageViewsCreate(State_t *state)
         .levelCount = 1,
     };
 
-    for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
+    for (uint32_t i = 0; i < state->window.swapchain.imageCount; i++)
     {
         // This is defined in the loop because of using i for the swapchain image
         VkImageViewCreateInfo createInfo = {
@@ -206,7 +206,9 @@ void sc_create(State_t *state)
 
     VkSurfaceFormatKHR surfaceFormat = win_surfaceFormatsSelect(&state->context, &state->window);
 
-    vki_logCapabilities(state->context.physicalDeviceSupportedFeatures, capabilities);
+#if defined(DEBUG)
+    vulkan_deviceCapabilities_log(state->context.physicalDeviceSupportedFeatures, capabilities);
+#endif
 
     VkPresentModeKHR presentMode = win_surfacePresentModesSelect(&state->config, &state->context, &state->window);
 

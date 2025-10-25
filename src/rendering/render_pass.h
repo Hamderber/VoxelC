@@ -10,7 +10,7 @@ static void rp_create(State_t *state)
     VkAttachmentReference colorAttachmentReference = {
         // This 0 is the output location of the outColor vec4 in the fragment shader. If other outputs are needed, the attachment
         // number would be the same as the output location
-        .attachment = 0U,
+        .attachment = 0,
         // Render target for color output
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     };
@@ -68,7 +68,7 @@ static void rp_create(State_t *state)
         (VkSubpassDependency){
             .srcSubpass = VK_SUBPASS_EXTERNAL,
             // Destination is the first subpass
-            .dstSubpass = 0U,
+            .dstSubpass = 0,
             // Wait in the pipeline for the previous external operations to finish before color attachment output
             .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
             .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
@@ -97,5 +97,5 @@ static void rp_destroy(State_t *state)
 {
     vkDestroyRenderPass(state->context.device, state->renderer.pRenderPass, state->context.pAllocator);
 
-    state->renderer.renderpassAttachmentCount = 0U;
+    state->renderer.renderpassAttachmentCount = 0;
 }

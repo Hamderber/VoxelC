@@ -70,7 +70,11 @@ static AppConfig_t s_AppConfig = {
     .fixedTimeStep = 1.0 / 50.0,
     // Skip if more than x frames accumulated
     .maxPhysicsFrameDelay = 10,
+#if defined(DEBUG)
     .vulkanValidation = true,
+#else
+    .vulkanValidation = false,
+#endif
     .subtextureSize = 16,
     .vsync = true,
     .anisotropy = 16,

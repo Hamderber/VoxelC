@@ -126,7 +126,7 @@ void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat forma
     VkMemoryAllocateInfo allocateInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = memoryRequirements.size,
-        .memoryTypeIndex = vki_physicalMemoryTypeGet(state, memoryRequirements.memoryTypeBits, properties),
+        .memoryTypeIndex = vulkan_device_physicalMemoryType_get(state, memoryRequirements.memoryTypeBits, properties),
     };
 
     logs_logIfError(vkAllocateMemory(state->context.device, &allocateInfo, state->context.pAllocator, imageMemory),

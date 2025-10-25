@@ -275,7 +275,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
                     vertices[baseVertex + (uint32_t)v].color = COLOR_WHITE;
                 }
 
-                vertices[baseVertex + (uint32_t)v].atlasIndex = 0u;
+                vertices[baseVertex + (uint32_t)v].atlasIndex = 0;
 
                 // Bounds (after transform)
                 minx = fminf(minx, vertices[baseVertex + (uint32_t)v].pos.x);

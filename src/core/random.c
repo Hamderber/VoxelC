@@ -3,6 +3,8 @@
 #include <time.h>
 #include <float.h>
 #include "cmath/cmath.h"
+#include "core/logs.h"
+#include <inttypes.h>
 
 // Current PRNG state
 static uint32_t s_state;
@@ -143,7 +145,7 @@ double random_rangeD64(double min, double max)
 
 void random_init(uint32_t seed)
 {
-    if (seed == 0U)
+    if (seed == 0)
     {
         // Use current time for a nondeterministic seed
         seed = (uint32_t)time(NULL);
@@ -151,4 +153,6 @@ void random_init(uint32_t seed)
 
     s_state = seed;
     s_seed = seed;
+
+    logs_log(LOG_DEBUG, "Random initialized with seed %" PRIu32 ".", s_seed);
 }

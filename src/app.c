@@ -17,14 +17,20 @@
 #include "rendering/types/renderModel_t.h"
 #include "rendering/model_3d.h"
 #include "scene/scene.h"
+#include "core/random.h"
 
 void app_init(State_t *state)
 {
     logs_log(LOG_INFO, "Starting %s...", PROGRAM_NAME);
 
-    glfwi_init();
+    config_init(state);
 
-    vki_create(state);
+    uint32_t seed = 8675309U;
+    random_init(seed);
+
+    glfwInstance_init();
+
+    vulkan_init(state);
 
     win_create(state);
 
@@ -47,14 +53,12 @@ void app_init(State_t *state)
                                   MODEL_PATH "complex_test.glb",
                                   RESOURCE_TEXTURE_PATH "complex_test.png");
 
-    mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, (Vec3f_t){-1.0F, 0.0F, 0.0F});
+    mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, VEC3_LEFT);
 
     scene_modelCreate(&state->scene, mdl);
-
-    // wordl offsed
 }
 
-void app_renderLoop(State_t *state)
+void app_loop_render(State_t *state)
 {
     // Handle the window events, including actually closing the window with the X
     win_pollEvents();
@@ -76,12 +80,12 @@ void app_renderLoop(State_t *state)
     time_update(&state->time);
 }
 
-void app_loop(State_t *state)
+void app_loop_main(State_t *state)
 {
     while (!win_shouldClose(&state->window))
     {
         phys_loop(state);
-        app_renderLoop(state);
+        app_loop_render(state);
         // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
     }
 }
@@ -92,11 +96,11 @@ void app_cleanup(State_t *state)
     world_destroy(state);
 
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
-    // vki_instanceCreate() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
+    // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.
     rend_destroy(state);
     win_destroy(state);
-    vki_destroy(state);
+    vulkan_instance_destroy(state);
     // Best practice to mitigate dangling pointers. Not strictly necessary, though
     state->window.swapchain.handle = NULL;
     state->context.instance = NULL;
