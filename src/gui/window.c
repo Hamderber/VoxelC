@@ -252,13 +252,13 @@ static void focusToggleCallback(GLFWwindow *pWindow, int focused)
 
     if (focused == GLFW_TRUE)
     {
-        logs_log(LOG_INFO, "Window gained focus");
+        logs_log(LOG_DEBUG, "Window gained focus");
         if (pState->gui.menuDepth == 0)
             gui_toggleCursorCapture(pState, true);
     }
     else
     {
-        logs_log(LOG_INFO, "Window lost focus");
+        logs_log(LOG_DEBUG, "Window lost focus");
         if (pState->gui.menuDepth == 0)
         {
             input_inputActionSimulate(pState, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);

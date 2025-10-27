@@ -351,7 +351,7 @@ static void config_save(void *pCfg, const ConfigType_t TYPE)
     }
 
     fputs(pJsonStr, pFile);
-    logs_log(LOG_DEBUG, "Saved '%s' to '%s/%s'", pAPP_CONFIG_FILE_NAME, pFullDir, pFILE_NAME);
+    logs_log(LOG_DEBUG, "Saved '%s' to '%s/%s'", pFILE_NAME, pFullDir, pFILE_NAME);
 
     fileIO_file_close(pFile, pAPP_CONFIG_FILE_NAME);
 
@@ -385,9 +385,11 @@ static bool config_json_load(cJSON **ppRoot, const char *pFULL_PATH, const char 
 
 static void config_load(void *pCfg, const ConfigType_t TYPE)
 {
-    // TODO: Remove gotos because shame on my past self
-
-    logs_logIfError(pCfg == NULL, "Attempted to load config file for an invalid pointer!");
+    if (!pCfg)
+    {
+        logs_log(LOG_ERROR, "Attempted to load config file for an invalid pointer!");
+        return;
+    }
 
     char pFullDir[MAX_DIR_PATH_LENGTH];
     if (fileIO_dir_create(pCONFIG_FOLDER_NAME, pFullDir) == FILE_IO_RESULT_DIR_CREATED)
@@ -405,47 +407,42 @@ static void config_load(void *pCfg, const ConfigType_t TYPE)
         break;
     }
 
-    // Build final file path (../dir/fileName)
+    // Build final file path (../folderName/fileName)
     snprintf(pFullPath, MAX_DIR_PATH_LENGTH, "%s/%s", pFullDir, pFILE_NAME);
     logs_log(LOG_DEBUG, "Attempting to load '%s' from '%s'", pFILE_NAME, pFullPath);
 
     cJSON *pRoot = NULL;
-    bool loadResult = config_json_load(&pRoot, pFullPath, pFILE_NAME);
 
-    if (loadResult)
-        logs_log(LOG_DEBUG, "Loading existing %s json data...", pFILE_NAME);
-    else
+    do
     {
-        // Regenerate a fresh default config
-        logs_log(LOG_DEBUG, "Regenerating new default config '%s'", pFILE_NAME);
+        if (config_json_load(&pRoot, pFullPath, pFILE_NAME))
+            logs_log(LOG_DEBUG, "Loading existing %s json data...", pFILE_NAME);
+        else
+        {
+            // Regenerate a fresh default config
+            logs_log(LOG_DEBUG, "Regenerating new default config '%s'", pFILE_NAME);
+            config_save(pCfg, TYPE);
+            break;
+        }
 
-    save:
-        logs_log(LOG_DEBUG, "Saving fresh default '%s' file", pFILE_NAME);
-        config_save(pCfg, TYPE);
+        bool readResult = false;
+        switch (TYPE)
+        {
+        case CONFIG_TYPE_APP:
+            readResult = config_app_load((AppConfig_t *)pCfg, pRoot);
+            break;
+        case CONFIG_TYPE_KEYBINDINGS:
+            readResult = config_keyBindings_load((Input_t *)pCfg, pRoot);
+            break;
+        }
 
-        // No need to load because the defaults are already loaded if the cfg can't be found/read
-        goto cleanup;
-    }
+        if (!readResult)
+        {
+            logs_log(LOG_ERROR, "Failed to parse json for '%s'", pFILE_NAME);
+            config_save(pCfg, TYPE);
+        }
+    } while (0);
 
-    bool readResult = false;
-    switch (TYPE)
-    {
-    case CONFIG_TYPE_APP:
-        readResult = config_app_load((AppConfig_t *)pCfg, pRoot);
-        break;
-    case CONFIG_TYPE_KEYBINDINGS:
-        readResult = config_keyBindings_load((Input_t *)pCfg, pRoot);
-        break;
-    }
-
-    if (!readResult)
-    {
-        logs_log(LOG_ERROR, "Failed to parse json for '%s'", pFILE_NAME);
-        goto save;
-    }
-
-cleanup:
-    logs_log(LOG_DEBUG, "Loaded '%s' config from '%s'", pFILE_NAME, pFullPath);
     cJSON_Delete(pRoot);
 }
 

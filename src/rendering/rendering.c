@@ -98,10 +98,10 @@ void rend_recreate(State_t *state)
 void rend_present(State_t *state)
 {
     updateUniformBuffer(state);
-    sc_imageAcquireNext(state);
+    swapchain_image_acquireNext(state);
     commandBufferRecord(state);
     commandBufferSubmit(state);
-    sc_imagePresent(state);
+    swapchain_image_present(state);
 }
 
 // https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
