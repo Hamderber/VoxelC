@@ -26,8 +26,8 @@ void app_init(State_t *pState)
 
     config_init(pState);
 
-    uint32_t seed = 8675309U;
-    random_init(seed);
+    const uint32_t PRNG_SEED = 8675309U;
+    random_init(PRNG_SEED);
 
     glfwInstance_init();
 
@@ -67,7 +67,7 @@ void app_loop_render(State_t *state)
     window_events_poll();
 
     // Handle all inputs since the last frame displayed (GLFW)
-    input_update(state);
+    input_poll(state);
 
     // Must call this after the window poll events (glfwPollEvents(); specifically) because resizing the window and the
     // associated callback would be generated from that function. This will only hit AFTER the user has LET GO of the

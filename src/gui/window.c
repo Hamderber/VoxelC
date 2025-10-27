@@ -261,7 +261,7 @@ static void focusToggleCallback(GLFWwindow *pWindow, int focused)
         logs_log(LOG_DEBUG, "Window lost focus");
         if (pState->gui.menuDepth == 0)
         {
-            input_inputActionSimulate(pState, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
+            input_inputAction_simulate(pState, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
             // Freeing cursor immediately is better UX design
             gui_toggleCursorCapture(pState, false);
         }

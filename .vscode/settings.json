@@ -17,6 +17,7 @@
         "memory": "c",
         "utility": "c",
         "xlocale": "c",
-        "xutility": "c"
+        "xutility": "c",
+        "state_t.h": "c"
     }
 }

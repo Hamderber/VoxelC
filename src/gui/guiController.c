@@ -163,7 +163,7 @@ void gui_init(State_t *state)
     bool centerCursor = state->config.resetCursorOnMenuExit;
     state->config.resetCursorOnMenuExit = false;
     gui_toggleCursorCapture(state, false);
-    input_inputActionSimulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
+    input_inputAction_simulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
     state->config.resetCursorOnMenuExit = centerCursor;
 
     // This is here because the renderer itself is mainly backend and this, while impacting the renderer, is more of a gui-facing effect.
