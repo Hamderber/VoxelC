@@ -1,3 +1,4 @@
+#pragma region Includes
 #include <vulkan/vulkan.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,7 +7,7 @@
 #include "core/types/state_t.h"
 #include "core/vk_instance.h"
 #include "core/crash_handler.h"
-
+#pragma endregion
 #pragma region Tools
 bool vulkan_format_hasStencilComponent(VkFormat format) { return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT; }
 
@@ -38,7 +39,6 @@ VkFormat vulkan_instance_formatSupportedFind(State_t *pState, VkFormat *pCandida
         vkGetPhysicalDeviceFormatProperties(pState->context.physicalDevice, pCandidates[i], &properties);
 
         // Iterate and compare flags for the current format candidate and try to return the first found that is best
-
         if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features)
             return pCandidates[i];
         else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features)

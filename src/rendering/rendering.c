@@ -79,7 +79,7 @@ void rend_recreate(State_t *state)
 {
     // Make sure the GPU is idle. This could be a queue wait plus fence if more wait accuracy is needed
     vkDeviceWaitIdle(state->context.device);
-    win_waitForValidFramebuffer(&state->window);
+    window_waitForValidFramebuffer(&state->window);
 
     // Reset mouse input so that the camera does't jerk when the window is resized
     mouse_inputReset(state);
@@ -87,7 +87,7 @@ void rend_recreate(State_t *state)
     depthResourcesDestroy(state);
     framebuffersDestroy(state);
 
-    sc_create(state);
+    swapchain_create(state);
     depthResourcesCreate(state);
     framebuffersCreate(state);
 

@@ -196,21 +196,21 @@ static void sc_imagesInFlightFree(State_t *state)
     state->renderer.imagesInFlight = NULL;
 }
 
-/// @brief Creates the actual swapchain
-/// @param state
-void sc_create(State_t *state)
+#pragma region Const/Dest-ructor
+void swapchain_create(State_t *pState)
 {
+    // TODO: crashHandler for swapchain failure and finish refactoring this next
     logs_log(LOG_DEBUG, "Creating the swapchain...");
 
-    VkSurfaceCapabilitiesKHR capabilities = win_surfaceCapabilitiesGet(&state->context, &state->window);
+    VkSurfaceCapabilitiesKHR capabilities = window_surfaceCapabilities_get(&pState->context, &pState->window);
 
-    VkSurfaceFormatKHR surfaceFormat = win_surfaceFormatsSelect(&state->context, &state->window);
+    VkSurfaceFormatKHR surfaceFormat = window_surfaceFormats_select(&pState->context, &pState->window);
 
 #if defined(DEBUG)
-    vulkan_deviceCapabilities_log(state->context.physicalDeviceSupportedFeatures, capabilities);
+    vulkan_deviceCapabilities_log(pState->context.physicalDeviceSupportedFeatures, capabilities);
 #endif
 
-    VkPresentModeKHR presentMode = win_surfacePresentModesSelect(&state->config, &state->context, &state->window);
+    VkPresentModeKHR presentMode = window_surfacePresentModes_select(&pState->config, &pState->context, &pState->window);
 
     // Prevent the image extend from somehow exceeding what the physical device is capable of
     VkExtent2D imageExtent = {
@@ -224,15 +224,15 @@ void sc_create(State_t *state)
         return;
     }
 
-    state->window.swapchain.imageExtent = imageExtent;
-    state->window.swapchain.format = surfaceFormat.format;
-    state->window.swapchain.colorSpace = surfaceFormat.colorSpace;
+    pState->window.swapchain.imageExtent = imageExtent;
+    pState->window.swapchain.format = surfaceFormat.format;
+    pState->window.swapchain.colorSpace = surfaceFormat.colorSpace;
 
     VkSwapchainCreateInfoKHR createInfo = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface = state->window.surface,
-        .queueFamilyIndexCount = 1U,                        // Only using 1 queue family
-        .pQueueFamilyIndices = &state->context.queueFamily, // Skip making an array for this since only using 1 queue family
+        .surface = pState->window.surface,
+        .queueFamilyIndexCount = 1U,                         // Only using 1 queue family
+        .pQueueFamilyIndices = &pState->context.queueFamily, // Skip making an array for this since only using 1 queue family
         // Don't render pixels that are obscured by some other program window (ex: Chrome). If using some complex
         // post-processing or other things, this should be false because it requires the whole image to be processed regardless.
         .clipped = true,
@@ -248,51 +248,48 @@ void sc_create(State_t *state)
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         // The value is initially null but is still stored when the swapchain needs to be recreated.
         // Because this is a pointer in a pointer, the swapchain itself must exist first here. Otherwise just NULL directly.
-        .oldSwapchain = state->window.swapchain.handle ? state->window.swapchain.handle : NULL,
+        .oldSwapchain = pState->window.swapchain.handle ? pState->window.swapchain.handle : NULL,
         // Only really applicable to mobile devices. Phone screens etc. obviously have to support rotating 90/180 but this same
         // support is often not included with desktop/laptop GPUs. Identity just means keep the image the same.
         // Current transform is almost certainly VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
         .preTransform = capabilities.currentTransform,
-        .imageExtent = state->window.swapchain.imageExtent,
-        .minImageCount = sc_minImageCountGet(&state->config, presentMode, capabilities.minImageCount, capabilities.maxImageCount),
-        .imageFormat = state->window.swapchain.format,
-        .imageColorSpace = state->window.swapchain.colorSpace,
+        .imageExtent = pState->window.swapchain.imageExtent,
+        .minImageCount = sc_minImageCountGet(&pState->config, presentMode, capabilities.minImageCount, capabilities.maxImageCount),
+        .imageFormat = pState->window.swapchain.format,
+        .imageColorSpace = pState->window.swapchain.colorSpace,
         .presentMode = presentMode,
     };
 
     // Prevent memory leak by freeing previous swapchain's image views if they exist
-    sc_imagesFree(state);
+    sc_imagesFree(pState);
     VkSwapchainKHR swapchain;
 
-    logs_logIfError(vkCreateSwapchainKHR(state->context.device, &createInfo, state->context.pAllocator, &swapchain),
+    logs_logIfError(vkCreateSwapchainKHR(pState->context.device, &createInfo, pState->context.pAllocator, &swapchain),
                     "Failed to create Vulkan swapchain!");
 
     // Even though the state's initial swapchain is obviously null, this sets us up to properly assign the new one (drivers/etc.)
-    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
-    state->window.swapchain.handle = swapchain;
+    vkDestroySwapchainKHR(pState->context.device, pState->window.swapchain.handle, pState->context.pAllocator);
+    pState->window.swapchain.handle = swapchain;
 
-    sc_imagesGet(state);
+    sc_imagesGet(pState);
 
     // Free old images in flight
-    sc_imagesInFlightFree(state);
+    sc_imagesInFlightFree(pState);
 
     // Allocate the memory for the images in flight
-    state->renderer.imagesInFlight = malloc(sizeof(VkFence) * state->window.swapchain.imageCount);
-    logs_logIfError(state->renderer.imagesInFlight == NULL,
+    pState->renderer.imagesInFlight = malloc(sizeof(VkFence) * pState->window.swapchain.imageCount);
+    logs_logIfError(pState->renderer.imagesInFlight == NULL,
                     "Failed to allocate memory for images in flight!");
-    for (uint32_t i = 0; i < state->window.swapchain.imageCount; ++i)
-    {
-        state->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
-    }
+    for (uint32_t i = 0; i < pState->window.swapchain.imageCount; ++i)
+        pState->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
 
-    sc_imageViewsCreate(state);
+    sc_imageViewsCreate(pState);
 }
 
-/// @brief Destroys the swapchain
-/// @param state
-void sc_destroy(State_t *state)
+void swapchain_destroy(State_t *state)
 {
     sc_imagesInFlightFree(state);
     sc_imagesFree(state);
     vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
 }
+#pragma endregion

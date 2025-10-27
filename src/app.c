@@ -18,50 +18,53 @@
 #include "rendering/model_3d.h"
 #include "scene/scene.h"
 #include "core/random.h"
+#include "gui/swapchain.h"
 
-void app_init(State_t *state)
+void app_init(State_t *pState)
 {
     logs_log(LOG_INFO, "Starting %s...", PROGRAM_NAME);
 
-    config_init(state);
+    config_init(pState);
 
     uint32_t seed = 8675309U;
     random_init(seed);
 
     glfwInstance_init();
 
-    vulkan_init(state);
+    vulkan_init(pState);
 
-    win_create(state);
+    window_init(pState);
 
-    // MUST be called AFTER win_create because the Window_t is assigned there
-    input_init(state);
+    swapchain_create(pState);
 
-    rend_create(state);
+    // MUST be called AFTER window_init because the Window_t is assigned there
+    input_init(pState);
 
-    time_init(&state->time);
+    rend_create(pState);
 
-    events_init(&state->eventBus);
+    time_init(&pState->time);
 
-    em_init(state);
+    events_init(&pState->eventBus);
 
-    gui_init(state);
+    em_init(pState);
 
-    world_load(state);
+    gui_init(pState);
 
-    RenderModel_t *mdl = m3d_load(state,
+    world_load(pState);
+
+    RenderModel_t *mdl = m3d_load(pState,
                                   MODEL_PATH "complex_test.glb",
                                   RESOURCE_TEXTURE_PATH "complex_test.png");
 
     mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, VEC3_LEFT);
 
-    scene_modelCreate(&state->scene, mdl);
+    scene_modelCreate(&pState->scene, mdl);
 }
 
 void app_loop_render(State_t *state)
 {
     // Handle the window events, including actually closing the window with the X
-    win_pollEvents();
+    window_events_poll();
 
     // Handle all inputs since the last frame displayed (GLFW)
     input_update(state);
@@ -99,7 +102,7 @@ void app_cleanup(State_t *state)
     // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.
     rend_destroy(state);
-    win_destroy(state);
+    window_destroy(state);
     vulkan_instance_destroy(state);
     // Best practice to mitigate dangling pointers. Not strictly necessary, though
     state->window.swapchain.handle = NULL;

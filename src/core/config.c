@@ -385,6 +385,8 @@ static bool config_json_load(cJSON **ppRoot, const char *pFULL_PATH, const char 
 
 static void config_load(void *pCfg, const ConfigType_t TYPE)
 {
+    // TODO: Remove gotos because shame on my past self
+
     logs_logIfError(pCfg == NULL, "Attempted to load config file for an invalid pointer!");
 
     char pFullDir[MAX_DIR_PATH_LENGTH];

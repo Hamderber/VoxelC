@@ -31,6 +31,7 @@ Conventions:
 18. There shall be no functions with () they must have at the very least (void). Ex: foo(void) NOT foo()
 19. Global variables will start with a g. ex: static int gGlobalInt or a global pointer static char *gpString 
     (global pointer char array)
+20. THOU SHALT NOT USE goto STATEMENTS
 
 Engine:
 1. The world will be defined by x/y chunk coordinates and a const max height. When referencing a chunk,

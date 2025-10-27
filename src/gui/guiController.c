@@ -123,7 +123,7 @@ EventResult_t gui_onFullscreenTogglePress(struct State_t *state, Event_t *event,
                 {
                 case INPUT_ACTION_FULLSCREEN_TOGGLE:
                     logs_log(LOG_DEBUG, "Fullscreen toggle (pressed)");
-                    win_fullscreenToggle(state, !state->window.fullscreen);
+                    window_fullscreen_toggle(state, !state->window.fullscreen);
                     return EVENT_RESULT_CONSUME;
                     break;
                 }
