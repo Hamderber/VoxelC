@@ -163,7 +163,7 @@ void rendering_recreate(State_t *pState)
 void rendering_create(State_t *pState)
 {
     // Must exist before anything that references it
-    rp_create(pState);
+    renderpass_create(pState);
     descriptorSetLayoutCreate(pState);
     // Create all graphics pipelines and set the active (default) one
     pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
@@ -228,6 +228,6 @@ void rendering_destroy(State_t *pState)
     // Destroy all graphics pipeline types
     gp_destroy(pState, GRAPHICS_PIPELINE_FILL);
     gp_destroy(pState, GRAPHICS_PIPELINE_WIREFRAME);
-    rp_destroy(pState);
+    renderpass_destroy(pState);
 }
 #pragma endregion
