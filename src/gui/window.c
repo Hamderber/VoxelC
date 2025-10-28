@@ -67,20 +67,22 @@ void window_waitForValidFramebuffer(Window_t *pWindow)
 #pragma region Surface Ops.
 VkSurfaceFormatKHR window_surfaceFormats_select(const Context_t *pCONTEXT, const Window_t *pWINDOW)
 {
-    bool crash = true;
     VkSurfaceFormatKHR format = {0};
     VkSurfaceFormatKHR *pFormats = NULL;
     uint32_t count;
+    int crashLine = 0;
     do
     {
         if (vkGetPhysicalDeviceSurfaceFormatsKHR(pCONTEXT->physicalDevice, pWINDOW->surface, &count, NULL) != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to query Vulkan physical device surface format count!");
             break;
         }
 
         if (count == 0)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Found no supported Vulkan physical device surface formats!");
             break;
         }
@@ -88,12 +90,14 @@ VkSurfaceFormatKHR window_surfaceFormats_select(const Context_t *pCONTEXT, const
         pFormats = malloc(sizeof(VkSurfaceFormatKHR) * count);
         if (!pFormats)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to allocate memory for Vulkan physical device surface formats!");
             break;
         }
 
         if (vkGetPhysicalDeviceSurfaceFormatsKHR(pCONTEXT->physicalDevice, pWINDOW->surface, &count, pFormats) != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to query Vulkan physical device surface formats!");
             break;
         }
@@ -112,27 +116,29 @@ VkSurfaceFormatKHR window_surfaceFormats_select(const Context_t *pCONTEXT, const
 
         logs_log(LOG_DEBUG, "Format %s %" PRIu32 " selected for Vukan physical device presentation.",
                  VkFormatToString(format.format), (uint32_t)format.format);
-        crash = false;
     } while (0);
 
     free(pFormats);
-    if (crash)
-        crashHandler_crash_graceful("The program cannot continue without a format to present to the Vulkan physical device with.");
+    if (crashLine != 0)
+        crashHandler_crash_graceful(
+            CRASH_LOCATION_LINE(crashLine),
+            "The program cannot continue without a format to present to the Vulkan physical device with.");
     return format;
 }
 
 VkPresentModeKHR window_surfacePresentModes_select(const AppConfig_t *pCONFIG, const Context_t *pCONTEXT, const Window_t *pWINDOW)
 {
-    bool crash = true;
     // Default to FIFO if immediate/mailbox conditon's aren't met
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
     VkPresentModeKHR *pPresentModes = NULL;
     // See https://www.youtube.com/watch?v=nSzQcyQTtRY for the different present modes (visual examples)
     uint32_t count = 0;
+    int crashLine = 0;
     do
     {
         if (vkGetPhysicalDeviceSurfacePresentModesKHR(pCONTEXT->physicalDevice, pWINDOW->surface, &count, NULL) != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to query physical device surface presentation modes!");
             break;
         }
@@ -140,18 +146,21 @@ VkPresentModeKHR window_surfacePresentModes_select(const AppConfig_t *pCONFIG, c
         pPresentModes = malloc(sizeof(VkPresentModeKHR) * count);
         if (!pPresentModes)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to allocate memory for presentation modes!");
             break;
         }
 
         if (vkGetPhysicalDeviceSurfacePresentModesKHR(pCONTEXT->physicalDevice, pWINDOW->surface, &count, pPresentModes) != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to query physical device surface presentation modes!");
             break;
         }
 
         if (count == 0)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "No surface presentation modes found for the Vulkan physical device!");
             break;
         }
@@ -170,14 +179,14 @@ VkPresentModeKHR window_surfacePresentModes_select(const AppConfig_t *pCONFIG, c
                 presentMode = pPresentModes[i];
                 stop = true;
             }
-
-        crash = false;
     } while (0);
 
     free(pPresentModes);
     logs_log(LOG_DEBUG, "Vulkan presentation mode: %s", VkPresentModeKHRToString(presentMode));
-    if (crash)
-        crashHandler_crash_graceful("The program cannot continue without a Vulkan surface presentation mode.");
+    if (crashLine != 0)
+        crashHandler_crash_graceful(
+            CRASH_LOCATION_LINE(crashLine),
+            "The program cannot continue without a Vulkan surface presentation mode.");
     return presentMode;
 }
 
@@ -187,7 +196,7 @@ VkSurfaceCapabilitiesKHR window_surfaceCapabilities_get(const Context_t *pCONTEX
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pCONTEXT->physicalDevice, pWINDOW->surface, &capabilities) != VK_SUCCESS)
     {
         logs_log(LOG_ERROR, "Failed to query Vulkan physical device's surface capabilities!");
-        crashHandler_crash_graceful("The program cannot continue without having the Vulkan device's surface capabilities for presentation");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without having the Vulkan device's surface capabilities for presentation");
         return capabilities;
     }
 
@@ -298,7 +307,7 @@ void window_init(State_t *pState)
     callbacks_set(pState);
 
     if (!surface_create(pState))
-        crashHandler_crash_graceful("The program cannot continue without a surface to display to.");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a surface to display to.");
 }
 
 void window_destroy(State_t *pState)

@@ -12,9 +12,7 @@
 static FILE *s_pLogFile = NULL;
 static char s_pLogName[MAX_FILE_NAME_LENGTH];
 
-/// @brief Returns pointer with chars starting at the slash before the last occurence of 'src' Ex: .\src\foo\bar
-/// @return const *char
-static const char *logs_pathAfterSrc(const char *pFULL_PATH)
+const char *logs_pathAfterSrc(const char *pFULL_PATH)
 {
     if (!pFULL_PATH)
         return "(unknown)";
@@ -97,6 +95,9 @@ void logs_log(LogLevel_t level, const char *pFORMAT, ...)
         break;
     case LOG_ERROR:
         pPREFIX = "Eror";
+        break;
+    case LOG_CRASH:
+        pPREFIX = "Crash";
         break;
     case LOG_PHYSICS:
         pPREFIX = "Phys";

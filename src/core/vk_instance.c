@@ -571,10 +571,10 @@ void vulkan_init(State_t *pState)
 #endif
 
     if (!instance_create(pState))
-        crashHandler_crash_graceful("The program cannot continue without a Vulkan instance.");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a Vulkan instance.");
 
     if (!physicalDevice_select(pState) || !device_create(pState))
-        crashHandler_crash_graceful("The program cannot continue without a Vulkan physical device.");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a Vulkan physical device.");
 
     device_getQueue(pState);
 }

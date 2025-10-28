@@ -164,7 +164,8 @@ void rendering_create(State_t *pState)
 {
     // Must exist before anything that references it
     renderpass_create(pState);
-    descriptorSetLayoutCreate(pState);
+    // Must be created before the descriptor pool
+    descriptorSet_layout_create(pState);
     // Create all graphics pipelines and set the active (default) one
     pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
     gp_create(pState, GRAPHICS_PIPELINE_FILL, GRAPHICS_PIPELINE_TARGET_MODEL);
@@ -186,9 +187,7 @@ void rendering_create(State_t *pState)
     framebuffersCreate(pState);
 
     // Descriptor pool/sets AFTER UBO + atlas view + sampler exist
-    descriptorPoolCreate(pState);
-    // writes UBO & combined image sampler
-    descriptorSetsCreate(pState);
+    descriptorPool_create(pState);
 
     // Command buffers and sync last
     commandBufferAllocate(pState);
@@ -203,15 +202,14 @@ void rendering_destroy(State_t *pState)
     if (vkQueueWaitIdle(pState->context.graphicsQueue) != VK_SUCCESS)
     {
         logs_log(LOG_ERROR, "Failed to wait for the Vulkan graphics queue to be idle.");
-        crashHandler_crash_graceful("The program cannot continue due to a fatal CPU/GPU desync.");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue due to a fatal CPU/GPU desync.");
     }
 
     // Stop GPU use first
     syncObjectsDestroy(pState);
 
     // Descriptors before destroying underlying resources
-    descriptorSetsDestroy(pState);
-    descriptorPoolDestroy(pState);
+    descriptorPool_destroy(pState);
 
     // Framebuffer graph
     framebuffersDestroy(pState);

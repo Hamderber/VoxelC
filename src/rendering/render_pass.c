@@ -109,7 +109,7 @@ void renderpass_create(State_t *pState)
         return;
     } while (0);
 
-    crashHandler_crash_graceful("The program cannot continue without a render pass to use for image presentation!");
+    crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a render pass to use for image presentation!");
 };
 
 void renderpass_destroy(State_t *pState)

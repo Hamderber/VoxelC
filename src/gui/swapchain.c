@@ -14,6 +14,7 @@ void swapchain_image_acquireNext(State_t *pState)
     const uint64_t IMAGE_TIMEOUT = UINT64_MAX;
     const uint32_t FRAME_INDEX = pState->renderer.currentFrame;
 
+    int crashLine = 0;
     do
     {
         // Wait for the fence for this frame to ensure it’s not still in use
@@ -22,6 +23,7 @@ void swapchain_image_acquireNext(State_t *pState)
         if (vkWaitForFences(pState->context.device, fenceCount, &pState->renderer.inFlightFences[FRAME_INDEX], waitAll,
                             IMAGE_TIMEOUT) != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to wait for in-flight fence (frame %" PRIu32 ")", FRAME_INDEX);
             break;
         }
@@ -41,6 +43,7 @@ void swapchain_image_acquireNext(State_t *pState)
         }
         else if (result != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.");
             break;
         }
@@ -48,7 +51,9 @@ void swapchain_image_acquireNext(State_t *pState)
         return;
     } while (0);
 
-    crashHandler_crash_graceful("The program cannot continue without being able to successfully present images from the swapchain.");
+    crashHandler_crash_graceful(
+        CRASH_LOCATION_LINE(crashLine),
+        "The program cannot continue without being able to successfully present images from the swapchain.");
 }
 
 void swapchain_image_present(State_t *pState)
@@ -83,7 +88,7 @@ void swapchain_image_present(State_t *pState)
         return;
     } while (0);
 
-    crashHandler_crash_graceful("The program cannot continue without being able to successfully present images from the swapchain.");
+    crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without being able to successfully present images from the swapchain.");
 }
 #pragma endregion
 #pragma region Image Views
@@ -139,7 +144,7 @@ static void imageViews_create(State_t *pState)
     } while (0);
 
     free(pState->window.swapchain.pImageViews);
-    crashHandler_crash_graceful("The program cannot continue without having image views to display to the window.");
+    crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without having image views to display to the window.");
 }
 #pragma endregion
 #pragma region Frames-in-flight
@@ -203,11 +208,13 @@ static void images_allocate(State_t *pState)
 {
     pState->window.swapchain.pImages = NULL;
 
+    int crashLine = 0;
     do
     {
         if (vkGetSwapchainImagesKHR(pState->context.device, pState->window.swapchain.handle,
                                     &pState->window.swapchain.imageCount, NULL) != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to query the number of images in the swapchain!");
             break;
         }
@@ -217,6 +224,7 @@ static void images_allocate(State_t *pState)
 
         if (!pState->window.swapchain.pImages)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to allocate memory for the swapchain images!");
             break;
         }
@@ -224,6 +232,7 @@ static void images_allocate(State_t *pState)
         if (vkGetSwapchainImagesKHR(pState->context.device, pState->window.swapchain.handle,
                                     &pState->window.swapchain.imageCount, pState->window.swapchain.pImages) != VK_SUCCESS)
         {
+            crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to get the images for the swapchain!");
             break;
         }
@@ -232,7 +241,9 @@ static void images_allocate(State_t *pState)
     } while (0);
 
     free(pState->window.swapchain.pImages);
-    crashHandler_crash_graceful("The program cannot continue without having a storage location for the swapchain's images.");
+    crashHandler_crash_graceful(
+        CRASH_LOCATION_LINE(crashLine),
+        "The program cannot continue without having a storage location for the swapchain's images.");
 }
 #pragma endregion
 #pragma region Create Info
@@ -317,7 +328,7 @@ void swapchain_create(State_t *pState)
     if (vkCreateSwapchainKHR(pState->context.device, &createInfo, pState->context.pAllocator, &swapchain) != VK_SUCCESS)
     {
         logs_log(LOG_ERROR, "Failed to create the swapchain!");
-        crashHandler_crash_graceful("The program cannot continue without a swapchain to use for window presentation.");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a swapchain to use for window presentation.");
         return;
     }
 
@@ -333,7 +344,7 @@ void swapchain_create(State_t *pState)
     if (!pState->renderer.imagesInFlight)
     {
         logs_log(LOG_ERROR, "Failed to allocate memory for the swapchain's images-in-flight!");
-        crashHandler_crash_graceful("The program cannot continue without a place to store the images for display.");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a place to store the images for display.");
         return;
     }
 

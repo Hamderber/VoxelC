@@ -8,6 +8,7 @@ typedef enum
     LOG_INFO,
     LOG_WARN,
     LOG_ERROR,
+    LOG_CRASH,
     LOG_DEBUG,
     LOG_UNIT_TEST,
     LOG_PHYSICS,
@@ -17,6 +18,9 @@ typedef enum
 /// @param  isForFileName If the timestamp should include ':' (invalid for file names)
 /// @return *char[32]
 char *logs_timestampGet(bool isForFileName);
+
+/// @brief Returns pointer with chars starting at the slash before the last occurence of 'src' Ex: .\src\foo\bar
+const char *logs_pathAfterSrc(const char *pFULL_PATH);
 
 /// @brief Writes to the current .log file (or console if not available) the passed log level and formatted string.
 /// Debug/Unit test is only written when compiled in DEBUG mode.
