@@ -121,7 +121,7 @@ EventResult_t camera_onZoomPress(State_t *state, Event_t *event, void *ctx)
 
 void camera_eventsSubscribe(State_t *state)
 {
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, camera_onZoomPress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, camera_onZoomPress, false, false, NULL);
 }
 
 void camera_init(State_t *state)

@@ -207,8 +207,8 @@ void character_entityCreate(State_t *state, Character_t *character)
 
 void character_eventsSubscribe(State_t *state, Character_t *character)
 {
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, character_onAxialInput, false, false, NULL);
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, character_onSprintTogglePress, false, false, (void *)character);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, character_onAxialInput, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, character_onSprintTogglePress, false, false, (void *)character);
 }
 
 void character_init(State_t *state, Character_t *character)

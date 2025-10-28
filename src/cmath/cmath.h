@@ -156,6 +156,17 @@ static inline uint32_t cmath_clampU32t(uint32_t u, uint32_t min, uint32_t max)
         return u;
 }
 
+/// @brief Clamps s between [min, max]
+static inline size_t cmath_clampSizet(size_t s, size_t min, size_t max)
+{
+    if (s < min)
+        return min;
+    else if (s > max)
+        return max;
+    else
+        return s;
+}
+
 #pragma endregion
 
 #pragma region Unit Conversion

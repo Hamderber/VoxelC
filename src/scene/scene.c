@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
+#include "main.h"
 #include "core/logs.h"
 #include "core/types/state_t.h"
 #include "core/types/scene_t.h"
+#include "rendering/model_3d.h"
 #include "rendering/types/renderModel_t.h"
 
 // Grow strategy: x2, starting from 4
@@ -101,4 +103,15 @@ void scene_destroy(State_t *state)
     state->scene.models = NULL;
     state->scene.modelCapacity = 0;
     state->scene.modelCount = 0;
+}
+
+void scene_model_createAll(State_t *pState)
+{
+    RenderModel_t *mdl = m3d_load(pState,
+                                  MODEL_PATH "complex_test.glb",
+                                  RESOURCE_TEXTURE_PATH "complex_test.png");
+
+    mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, VEC3_LEFT);
+
+    scene_modelCreate(&pState->scene, mdl);
 }

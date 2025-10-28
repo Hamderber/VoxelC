@@ -14,11 +14,11 @@
 #include "entity/entityManager.h"
 #include "gui/guiController.h"
 #include "world/world.h"
-#include "rendering/types/renderModel_t.h"
-#include "rendering/model_3d.h"
-#include "scene/scene.h"
 #include "core/random.h"
 #include "gui/swapchain.h"
+#include "rendering/types/renderModel_t.h"
+#include "scene/scene.h"
+#include "rendering/model_3d.h"
 
 void app_init(State_t *pState)
 {
@@ -40,7 +40,7 @@ void app_init(State_t *pState)
     // MUST be called AFTER window_init because the Window_t is assigned there
     input_init(pState);
 
-    rend_create(pState);
+    rendering_create(pState);
 
     time_init(&pState->time);
 
@@ -52,13 +52,7 @@ void app_init(State_t *pState)
 
     world_load(pState);
 
-    RenderModel_t *mdl = m3d_load(pState,
-                                  MODEL_PATH "complex_test.glb",
-                                  RESOURCE_TEXTURE_PATH "complex_test.png");
-
-    mdl->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, VEC3_LEFT);
-
-    scene_modelCreate(&pState->scene, mdl);
+    scene_model_createAll(pState);
 }
 
 void app_loop_render(State_t *state)
@@ -75,10 +69,10 @@ void app_loop_render(State_t *state)
     // once the user STOPS the resize process.
     if (state->window.swapchain.recreate)
     {
-        rend_recreate(state);
+        rendering_recreate(state);
     }
 
-    rend_present(state);
+    rendering_present(state);
 
     time_update(&state->time);
 }
@@ -101,7 +95,7 @@ void app_cleanup(State_t *state)
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
     // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.
-    rend_destroy(state);
+    rendering_destroy(state);
     window_destroy(state);
     vulkan_instance_destroy(state);
     // Best practice to mitigate dangling pointers. Not strictly necessary, though

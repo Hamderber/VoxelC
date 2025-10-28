@@ -13,5 +13,3 @@ bool modelDescriptorSetsCreate(State_t *state, RenderModel_t *model);
 void modelDescriptorSetsDestroy(State_t *state, RenderModel_t *model);
 
 RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texturePath);
-
-void m3d_destroy(State_t *state);

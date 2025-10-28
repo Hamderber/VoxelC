@@ -429,10 +429,3 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
 
     return model;
 }
-/// @brief Placeholder
-/// @param state
-void m3d_destroy(State_t *state)
-{
-    // Placeholder. Model destruction currently handled by buffer destruction
-    state;
-}

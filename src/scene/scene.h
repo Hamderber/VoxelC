@@ -6,3 +6,4 @@
 
 void scene_modelCreate(Scene_t *scene, RenderModel_t *mdl);
 void scene_destroy(State_t *state);
+void scene_model_createAll(State_t *pState);

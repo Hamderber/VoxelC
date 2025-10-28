@@ -61,21 +61,21 @@ static void eventTests_subscribe(State_t *state, EventBus_t *bus)
     Event_t evt;
     EventTestPayload_t payload;
 
-    events_subscribe(bus, EVENT_CHANNEL_INPUT, onGenericPass, false, false, NULL);
-    events_subscribe(bus, EVENT_CHANNEL_INPUT, onConsumeListener, true, false, NULL);
-    events_subscribe(bus, EVENT_CHANNEL_INPUT, onConsumeEvent, false, true, NULL);
-    events_subscribe(bus, EVENT_CHANNEL_INPUT, onIntentionalError, false, false, NULL);
+    events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
+    events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onConsumeListener, true, false, NULL);
+    events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onConsumeEvent, false, true, NULL);
+    events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onIntentionalError, false, false, NULL);
 
-    EventSubscribeResult_t badSub = events_subscribe(bus, EVENT_CHANNEL_INPUT, NULL, false, false, NULL);
+    EventSubscribeResult_t badSub = events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, NULL, false, false, NULL);
     fails += ut_assert(badSub == EVENT_SUBSCRIBE_RESULT_FAIL, "Bad subscriber");
 
-    EventSubscribeResult_t badBus = events_subscribe(NULL, EVENT_CHANNEL_INPUT, onGenericPass, false, false, NULL);
+    EventSubscribeResult_t badBus = events_subscribe(NULL, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
     fails += ut_assert(badBus == EVENT_SUBSCRIBE_RESULT_FAIL, "Bad event bus");
 
     payload.testValue = 1;
     evt = (Event_t){.type = EVENT_TYPE_INPUT_RAW, .data.generic = &payload};
 
-    events_publish(state, bus, EVENT_CHANNEL_INPUT, evt);
+    events_publish(state, bus, EVENT_CHANNEL_INPUT_ACTIONS, evt);
 
     // after publish:
     // onGenericPass +1, onConsumeListener +10 (then unsubscribed), onConsumeEvent +100 (then stops others)
@@ -85,31 +85,31 @@ static void eventTests_subscribe(State_t *state, EventBus_t *bus)
     // The consumeListener function should have been unsubscribed automatically.
     payload.testValue = 5;
     evt.data.generic = &payload;
-    events_publish(state, bus, EVENT_CHANNEL_INPUT, evt);
+    events_publish(state, bus, EVENT_CHANNEL_INPUT_ACTIONS, evt);
 
     // Should no longer add +10 (only +1 from generic, +100 from consumeEvent)
     fails += ut_assert(payload.testValue == 106, "Event: only +1 from generic, +100 from consumeEvent (consume)");
 
-    events_unsubscribe(bus, EVENT_CHANNEL_INPUT, onGenericPass);
+    events_unsubscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass);
     payload.testValue = 0;
-    events_publish(state, bus, EVENT_CHANNEL_INPUT, evt);
+    events_publish(state, bus, EVENT_CHANNEL_INPUT_ACTIONS, evt);
     // only onConsumeEvent should fire (+100)
     fails += ut_assert(payload.testValue == 100, "Event: consume only");
 
     // Reset event channel for isolated error test
-    memset(&bus->channels[EVENT_CHANNEL_INPUT].eventSystem, 0, sizeof(EventSystem_t));
-    events_subscribe(bus, EVENT_CHANNEL_INPUT, onIntentionalError, false, false, NULL);
+    memset(&bus->channels[EVENT_CHANNEL_INPUT_ACTIONS].eventSystem, 0, sizeof(EventSystem_t));
+    events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onIntentionalError, false, false, NULL);
     payload.testValue = 999;
-    events_publish(state, bus, EVENT_CHANNEL_INPUT, evt);
+    events_publish(state, bus, EVENT_CHANNEL_INPUT_ACTIONS, evt);
     // onIntentionalError just returns ERROR no testValue change but should not crash
     fails += ut_assert(payload.testValue == 999, "Event: Catch subscriber error");
 
     // Clear channel again before duplicate test
-    memset(&bus->channels[EVENT_CHANNEL_INPUT].eventSystem, 0, sizeof(EventSystem_t));
-    events_subscribe(bus, EVENT_CHANNEL_INPUT, onGenericPass, false, false, NULL);
-    events_subscribe(bus, EVENT_CHANNEL_INPUT, onGenericPass, false, false, NULL);
+    memset(&bus->channels[EVENT_CHANNEL_INPUT_ACTIONS].eventSystem, 0, sizeof(EventSystem_t));
+    events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
+    events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
     payload.testValue = 1;
-    events_publish(state, bus, EVENT_CHANNEL_INPUT, evt);
+    events_publish(state, bus, EVENT_CHANNEL_INPUT_ACTIONS, evt);
     fails += ut_assert(payload.testValue == 2, "Duplicate subscriber");
 
     // cleanup

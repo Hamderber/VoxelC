@@ -10,6 +10,7 @@
 #include "events/context/CtxInputRaw_t.h"
 #include "events/context/CtxDescriptor_t.h"
 #include "input.h"
+#include "input/types/inputActionQuery_t.h"
 #pragma endregion
 #pragma region Key Names
 static const char *input_keyNameGet(const int KEY)
@@ -294,7 +295,7 @@ void input_inputAction_simulate(State_t *pState, InputActionMapping_t inputActio
     logs_log(LOG_DEBUG, "Simulating the input action %s -> %s", INPUT_ACTION_MAPPING_NAMES[(int)inputActionMapped],
              actionState == CTX_INPUT_ACTION_START ? "pressed" : "released");
 
-    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT, event);
+    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, event);
 }
 
 /// @brief Publishes this frame's keystrokes to the state's event system
@@ -308,7 +309,7 @@ static void keystrokes_publish(State_t *pState, int *pStrokeCount, Keystroke_t *
         .keystrokes = pKeystrokes,
     };
 
-    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT,
+    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_RAW,
                    (Event_t){
                        .type = EVENT_TYPE_INPUT_RAW,
                        .data.inputRaw = &ctxRaw,
@@ -327,7 +328,7 @@ static void inputActions_publish(State_t *pState, int *pActionCount, InputAction
         .inputActions = pInputActions,
     };
 
-    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT,
+    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_ACTIONS,
                    (Event_t){
                        .type = EVENT_TYPE_INPUT_MAPPED,
                        .data.inputMapped = &ctxMapped,
@@ -429,6 +430,40 @@ static void poll_key(State_t *pState, int *pStrokeCount, int *pActionCount,
 }
 #pragma endregion
 #pragma region Polling
+size_t input_inputAction_matchQuery(const Event_t *pEVENT, const InputActionQuery_t *pQUERY, size_t queryCount, InputAction_t *pResult)
+{
+    if (!pQUERY || !pResult || !pEVENT || queryCount == 0)
+        return false;
+
+    if (pEVENT->type != EVENT_TYPE_INPUT_MAPPED || pEVENT->data.inputMapped == NULL)
+        return false;
+
+    size_t outCount = 0;
+    queryCount = cmath_clampSizet(queryCount, 1, INPUT_ACTION_QUERY_COUNT_MAX);
+
+    bool actionFound[INPUT_ACTION_QUERY_COUNT_MAX] = {0};
+
+    for (size_t i = 0; i < pEVENT->data.inputMapped->actionCount; i++)
+    {
+        const InputAction_t ACTION = pEVENT->data.inputMapped->inputActions[i];
+
+        for (size_t j = 0; j < queryCount; j++)
+        {
+            if (actionFound[j])
+                continue;
+
+            if (ACTION.actionState == pQUERY[j].actionCtx && ACTION.action == pQUERY[j].mapping)
+            {
+                pResult[outCount++] = pEVENT->data.inputMapped->inputActions[i];
+                actionFound[j] = true;
+                break;
+            }
+        }
+    }
+
+    return outCount;
+}
+
 void input_poll(State_t *pState)
 {
     if (!pState)

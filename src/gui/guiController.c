@@ -156,8 +156,8 @@ void gui_init(State_t *state)
 {
     logs_log(LOG_DEBUG, "Initializing GUI Controller...");
 
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, gui_onMenuTogglePress, false, false, NULL);
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, gui_onFullscreenTogglePress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, gui_onMenuTogglePress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, gui_onFullscreenTogglePress, false, false, NULL);
 
     // Don't start with the cursor captured. Start in the pause menu
     bool centerCursor = state->config.resetCursorOnMenuExit;
@@ -169,5 +169,5 @@ void gui_init(State_t *state)
     // This is here because the renderer itself is mainly backend and this, while impacting the renderer, is more of a gui-facing effect.
     // Also rend_create happens before the event system is initialized
     // No need to unsubscribe because even though the renderer stuff is recreated, that is on the vulkan side and not this itself
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, rend_onWireframeTogglePress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, rendering_wireframe_onTogglePress, false, false, NULL);
 }

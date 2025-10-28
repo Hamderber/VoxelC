@@ -13,17 +13,17 @@ add_compile_options($<$<C_COMPILER_ID:MSVC>:/experimental:c11atomics>)
 # ======================================================================
 # Collect sources
 # ======================================================================
-file(GLOB_RECURSE ALL_SOURCES "${CMAKE_SOURCE_DIR}/src/*.c")
+file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 
 # Set your entry point (main) file explicitly:
-set(APP_MAIN "${CMAKE_SOURCE_DIR}/src/app.c")
+set(APP_MAIN "${CMAKE_SOURCE_DIR}/src/main.c")
 
 # Engine sources are everything except the entry point
 set(ENGINE_SOURCES ${ALL_SOURCES})
 list(REMOVE_ITEM ENGINE_SOURCES "${APP_MAIN}")
 
 # Tests
-file(GLOB_RECURSE TEST_SOURCES "${CMAKE_SOURCE_DIR}/tests/*.c")
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.c")
 
 # ======================================================================
 # Output configuration
