@@ -33,7 +33,7 @@ int32_t random_rangeNbit(int numBits)
     // Because of the mean re-centering below, numBits = 1 always returns 0. Correct that by just adding a bit to the call
     // and assigning it to -1 to maintain the distribution.
     if (numBits == 1)
-        return (random_nextU32t() & 1u) ? 1 : -1;
+        return (random_nextU32t() & 1) ? 1 : -1;
 
     uint64_t value = 0;
     int bitsRemaining = numBits;
@@ -43,7 +43,7 @@ int32_t random_rangeNbit(int numBits)
         // Build an unsigned integer with exactly numBits of entropy by taking chunks from random uint32s
         uint32_t chunk = random_nextU32t();
         take = bitsRemaining > 32 ? 32 : bitsRemaining;
-        value = (value << take) | (chunk & ((1U << take) - 1U));
+        value = (value << take) | (chunk & ((1U << take) - 1));
         bitsRemaining -= take;
     }
 
@@ -65,7 +65,7 @@ uint32_t random_rangeU32(uint32_t min, uint32_t max)
     }
 
     // Due to the modulo, without adding 1 the range would be [min, max - 1]
-    uint32_t range = max - min + 1u;
+    uint32_t range = max - min + 1;
 
     // Avoid modulo bias by rejecting numbers outside the largest multiple of range
     uint32_t limit = UINT32_MAX - (UINT32_MAX % range);

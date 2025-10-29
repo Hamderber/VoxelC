@@ -19,7 +19,7 @@ void swapchain_image_acquireNext(State_t *pState)
     {
         // Wait for the fence for this frame to ensure it’s not still in use
         bool waitAll = VK_TRUE;
-        uint32_t fenceCount = 1U;
+        uint32_t fenceCount = 1;
         if (vkWaitForFences(pState->context.device, fenceCount, &pState->renderer.inFlightFences[FRAME_INDEX], waitAll,
                             IMAGE_TIMEOUT) != VK_SUCCESS)
         {
@@ -61,9 +61,9 @@ void swapchain_image_present(State_t *pState)
     const VkPresentInfoKHR PRESENT_INFO = {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .pImageIndices = &pState->window.swapchain.imageAcquiredIndex,
-        .swapchainCount = 1U,
+        .swapchainCount = 1,
         .pSwapchains = &pState->window.swapchain.handle,
-        .waitSemaphoreCount = 1U,
+        .waitSemaphoreCount = 1,
         .pWaitSemaphores = &pState->renderer.renderFinishedSemaphores[pState->renderer.currentFrame],
     };
 
@@ -84,7 +84,7 @@ void swapchain_image_present(State_t *pState)
         }
 
         // Advance to the next frame-in-flight slot
-        pState->renderer.currentFrame = (pState->renderer.currentFrame + 1U) % pState->config.maxFramesInFlight;
+        pState->renderer.currentFrame = (pState->renderer.currentFrame + 1) % pState->config.maxFramesInFlight;
         return;
     } while (0);
 
@@ -177,7 +177,7 @@ static uint32_t minImageCount_get(const AppConfig_t *pCONFIG, const VkPresentMod
     // maxImageCount may not be assigned if GPU doesn't declare/is unbounded
     max = (max ? max : UINT32_MAX);
 
-    if (PRESENT_MODE == VK_PRESENT_MODE_MAILBOX_KHR && min + 1U <= max)
+    if (PRESENT_MODE == VK_PRESENT_MODE_MAILBOX_KHR && min + 1 <= max)
         // Mailbox
         return min + 1;
     else
@@ -279,7 +279,7 @@ static bool createInfo_get(State_t *pState, VkSwapchainCreateInfoKHR *pCreateInf
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = pState->window.surface,
         // Only using 1 queue family
-        .queueFamilyIndexCount = 1U,
+        .queueFamilyIndexCount = 1,
         // Skip making an array for this since only using 1 queue family
         .pQueueFamilyIndices = &pState->context.queueFamily,
         // Don't render pixels that are obscured by some other program window (ex: Chrome). If using some complex
@@ -289,7 +289,7 @@ static bool createInfo_get(State_t *pState, VkSwapchainCreateInfoKHR *pCreateInf
         // render some window behind this one through the alpha transparency sections. Obviously not applicable here, though
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         // >1 would be for something like a VR headset or something where you have the red and blue screen for 3D or something
-        .imageArrayLayers = 1U,
+        .imageArrayLayers = 1,
         // Only using 1 queue for the swapchain/rendering so there is no need for concurrency here. Exclusive has a value of 0
         // so it doesn't technically need to be here, but stating this explicitly is good for readability/etc.
         .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,

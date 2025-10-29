@@ -528,14 +528,14 @@ static bool instance_create(State_t *pState)
         .pLayerName = "VK_LAYER_KHRONOS_validation",
         .pSettingName = "printf_verbose",
         .type = VK_LAYER_SETTING_TYPE_BOOL32_EXT,
-        .valueCount = 1U,
+        .valueCount = 1,
         .pValues = &VERBOSE,
     };
 
     VkLayerSettingsCreateInfoEXT layerSettingsCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT,
         .pNext = VK_NULL_HANDLE,
-        .settingCount = 1U,
+        .settingCount = 1,
         .pSettings = &LAYER_SETTING,
     };
 

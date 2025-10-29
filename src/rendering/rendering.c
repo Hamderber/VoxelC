@@ -168,8 +168,9 @@ void rendering_create(State_t *pState)
     descriptorSet_layout_create(pState);
     // Create all graphics pipelines and set the active (default) one
     pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
-    gp_create(pState, GRAPHICS_PIPELINE_FILL, GRAPHICS_PIPELINE_TARGET_MODEL);
-    gp_create(pState, GRAPHICS_PIPELINE_WIREFRAME, GRAPHICS_PIPELINE_TARGET_MODEL);
+    // gp_create(pState, GRAPHICS_PIPELINE_FILL, GRAPHICS_TARGET_MODEL);
+    // gp_create(pState, GRAPHICS_PIPELINE_WIREFRAME, GRAPHICS_TARGET_MODEL);
+    graphicsPipeline_createAll(pState);
 
     // Needed for all staging/copies and one-time commands
     commandPoolCreate(pState);
@@ -223,9 +224,7 @@ void rendering_destroy(State_t *pState)
     commandPoolDestroy(pState);
 
     // Pipeline objects last
-    // Destroy all graphics pipeline types
-    gp_destroy(pState, GRAPHICS_PIPELINE_FILL);
-    gp_destroy(pState, GRAPHICS_PIPELINE_WIREFRAME);
+    graphicsPipeline_destroyAll(pState);
     renderpass_destroy(pState);
 }
 #pragma endregion

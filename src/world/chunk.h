@@ -18,7 +18,7 @@ typedef struct
 } ChunkPosUnpacked_t;
 
 #define CHUNK_BITS_PER_AXIS 21
-#define CHUNK_AXIS_MASK ((1ULL << CHUNK_BITS_PER_AXIS) - 1ULL)
+#define CHUNK_AXIS_MASK ((1ULL << CHUNK_BITS_PER_AXIS) - 1LL)
 #define CHUNK_FLAG_ISLOADED (1ULL << 63)
 
 /// @brief Packs signed 21-bit x/y/z coordinates and a 1-bit isLoaded flag into 64 bits.

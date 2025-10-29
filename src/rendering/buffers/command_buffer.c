@@ -190,20 +190,20 @@ void commandBufferSubmit(State_t *state)
     VkPipelineStageFlags stageFlags[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount = 1U,
+        .waitSemaphoreCount = 1,
         .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[frame],
         .pWaitDstStageMask = stageFlags,
-        .commandBufferCount = 1U,
+        .commandBufferCount = 1,
         .pCommandBuffers = &cmd,
-        .signalSemaphoreCount = 1U,
+        .signalSemaphoreCount = 1,
         .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[frame],
     };
 
     // Reset the fence *right before* submit (this is the only reset for this frame)
-    logs_logIfError(vkResetFences(state->context.device, 1U, &state->renderer.inFlightFences[frame]),
+    logs_logIfError(vkResetFences(state->context.device, 1, &state->renderer.inFlightFences[frame]),
                     "Failed to reset in-flight fence before submit (frame %u)", frame);
 
-    VkResult r = vkQueueSubmit(state->context.graphicsQueue, 1U, &submitInfo, state->renderer.inFlightFences[frame]);
+    VkResult r = vkQueueSubmit(state->context.graphicsQueue, 1, &submitInfo, state->renderer.inFlightFences[frame]);
 
     logs_logIfError(r,
                     "Failed to submit graphicsQueue to the command buffer.");

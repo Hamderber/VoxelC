@@ -6,14 +6,22 @@
 #include "..\\res\\shaders\\shader.vert.h"
 #include "..\\res\\shaders\\shader_voxel.vert.h"
 #include "rendering/types/shaderVertex_t.h"
+#include "rendering/graphics_pipeline.h"
 
 typedef enum
 {
     SHADER_STAGE_VERTEX = 0,
     SHADER_STAGE_FRAGMENT = 1,
+    SHADER_STAGE_COUNT,
 } ShaderStage_t;
 
-static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1U;
+typedef struct
+{
+    const uint32_t *pCODE;
+    size_t codeSize;
+} ShaderBlob_t;
+
+static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1;
 // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
 // of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
 static inline const VkVertexInputBindingDescription *shaderVertexGetBindingDescription(void)
@@ -52,7 +60,7 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
         {
             .binding = 0,
             // The location for the color in the vertex shader
-            .location = 1U,
+            .location = 1,
             .format = VK_FORMAT_R32G32B32_SFLOAT,
             // Position is first so sizeof(pos) type to get offset
             .offset = offsetof(ShaderVertex_t, color),

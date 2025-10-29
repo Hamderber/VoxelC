@@ -25,7 +25,7 @@ void framebuffersCreate(State_t *state)
         VkFramebufferCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             // Only one image layer for the current swapchain configuration
-            .layers = 1U,
+            .layers = 1,
             .renderPass = state->renderer.pRenderPass,
             .width = state->window.swapchain.imageExtent.width,
             .height = state->window.swapchain.imageExtent.height,
