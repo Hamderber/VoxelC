@@ -107,39 +107,6 @@ static void models_destroy(State_t *pState)
     vertexBufferDestroy(pState);
 }
 #pragma endregion
-#pragma region Atlas Texture
-/// @brief Creates the atlas texture
-static void atlasTexture_create(State_t *pState)
-{
-    // Atlas resources FIRST (image -> view -> sampler -> regions)
-    atlasTextureImageCreate(pState);
-    atlasTextureViewImageCreate(pState);
-    tex_samplerCreate(pState);
-
-    // Build a black gutter around each tile of the atlas. Gutter prevents oversampling during aniosotropic filtering
-    const uint32_t TILE_PX = pState->config.subtextureSize;
-    const uint32_t GUTTER_PX = pState->config.atlasGutterPx;
-    const uint32_t TILES_X = pState->renderer.atlasWidthInTiles;
-    const uint32_t TILES_Y = pState->renderer.atlasHeightInTiles;
-    const uint32_t STRIDE = TILE_PX + 2 * GUTTER_PX;
-
-    pState->renderer.pAtlasRegions = atlasCreate(
-        pState->renderer.pAtlasRegions,
-        pState->renderer.atlasRegionCount,
-        TILES_X, TILES_Y,
-        TILES_X * STRIDE, TILES_Y * STRIDE,
-        TILE_PX, GUTTER_PX);
-}
-
-/// @brief Destroys the atlas texture
-static void atlasTexture_destroy(State_t *pState)
-{
-    tex_samplerDestroy(pState);
-    atlasTextureImageViewDestroy(&pState->context, &pState->renderer);
-    atlasTextureImageDestroy(pState);
-    atlasDestroy(pState->renderer.pAtlasRegions);
-}
-#pragma endregion
 #pragma region Create
 void rendering_recreate(State_t *pState)
 {
@@ -164,17 +131,18 @@ void rendering_create(State_t *pState)
 {
     // Must exist before anything that references it
     renderpass_create(pState);
+
     // Must be created before the descriptor pool
     descriptorSet_layout_create(pState);
+
     // Create all graphics pipelines and set the active (default) one
     pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
-    // gp_create(pState, GRAPHICS_PIPELINE_FILL, GRAPHICS_TARGET_MODEL);
-    // gp_create(pState, GRAPHICS_PIPELINE_WIREFRAME, GRAPHICS_TARGET_MODEL);
     graphicsPipeline_createAll(pState);
 
     // Needed for all staging/copies and one-time commands
-    commandPoolCreate(pState);
+    commandPool_create(pState);
 
+    // Voxel texture atlas
     atlasTexture_create(pState);
 
     // Per-frame resources that descriptors will point at
@@ -221,7 +189,7 @@ void rendering_destroy(State_t *pState)
     atlasTexture_destroy(pState);
 
     // Command pool after any single-time buffers etc. are destroyed
-    commandPoolDestroy(pState);
+    commandPool_destroy(pState);
 
     // Pipeline objects last
     graphicsPipeline_destroyAll(pState);

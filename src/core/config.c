@@ -81,7 +81,7 @@ static AppConfig_t s_AppConfig = {
     .cameraFOV = 45.0F,
     .resetCursorOnMenuExit = true,
     .mouseSensitivity = 1.0,
-    .atlasGutterPx = 8,
+    .atlasPaddingPx = 8,
 };
 
 static Input_t s_Input = {0};

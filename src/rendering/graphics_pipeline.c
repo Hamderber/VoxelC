@@ -238,7 +238,8 @@ static void shader_load(State_t *pState, const GraphicsPipeline_t PIPELINE, cons
     int crashLine = 0;
     do
     {
-        logs_log(LOG_DEBUG, "Loading shaders for graphics target %s...", graphicsTarget_ToString(TARGET));
+        logs_log(LOG_DEBUG, "Loading %s for %s for %s...",
+                 shaderStage_ToString(STAGE), graphicsPipeline_ToString(PIPELINE), graphicsTarget_ToString(TARGET));
 
         if (!pShaderModule)
         {

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdalign.h>
 #include <vulkan/vulkan.h>
+#include "core/logs.h"
 #include "cmath/cmath.h"
 #include "rendering/uvs.h"
 #include "rendering/texture.h"

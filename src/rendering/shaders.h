@@ -15,6 +15,20 @@ typedef enum
     SHADER_STAGE_COUNT,
 } ShaderStage_t;
 
+/// @brief Converts the ShaderStage_t to string for debugging purposes
+static const char *shaderStage_ToString(const ShaderStage_t S)
+{
+    switch (S)
+    {
+    case SHADER_STAGE_VERTEX:
+        return "SHADER_STAGE_VERTEX";
+    case SHADER_STAGE_FRAGMENT:
+        return "SHADER_STAGE_FRAGMENT";
+    default:
+        return "SHADER_STAGE_UNKNOWN";
+    }
+}
+
 typedef struct
 {
     const uint32_t *pCODE;

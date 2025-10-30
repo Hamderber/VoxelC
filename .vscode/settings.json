@@ -49,6 +49,9 @@
         "eventtypes.h": "c",
         "inputactionquery_t.h": "c",
         "graphicspipeline_t.h": "c",
-        "swapchain.h": "c"
+        "swapchain.h": "c",
+        "crash_handler.h": "c",
+        "context_t.h": "c",
+        "algorithm": "c"
     }
 }
