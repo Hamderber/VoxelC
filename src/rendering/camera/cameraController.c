@@ -12,12 +12,15 @@
 
 static const float FOV_ZOOM_MULTIPLIER = 0.333F;
 
-void camera_dataCreate(State_t *state)
+void camera_dataCreate(State_t *pState)
 {
-    float fov = state->config.cameraFOV;
-    state->context.camera.fov = fov;
+    pState->context.camera.fov = pState->config.cameraFOV;
+    logs_log(LOG_DEBUG, "Camera has FOV %lf", pState->context.camera.fov);
 
-    logs_log(LOG_DEBUG, "Camera has FOV %lf", state->context.camera.fov);
+    pState->context.camera.farClippingPlane = pState->config.cameraFarClippingPlane;
+    pState->context.camera.nearClippingPlane = pState->config.cameraNearClippingPlane;
+    logs_log(LOG_DEBUG, "Camera has a clipping plane of %lf to %lf meters.",
+             pState->context.camera.nearClippingPlane, pState->context.camera.farClippingPlane);
 }
 
 void camera_rotationUpdateNow(State_t *state)

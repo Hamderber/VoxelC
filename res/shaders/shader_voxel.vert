@@ -1,11 +1,12 @@
 #version 460
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding = 0) uniform CameraUBO {
     mat4 view;
     mat4 proj;
-} ubo;
+} cam;
 
 layout(push_constant) uniform PushModel {
+    // per-draw (chunks), identity for models
     mat4 model;
 } pc;
 
@@ -17,7 +18,7 @@ layout(location=0) out vec3 fragColor;
 layout(location=1) out vec2 fragTexCoord;
 
 void main() {
-    gl_Position = ubo.proj * ubo.view * pc.model * vec4(inPosition, 1.0);
+    gl_Position = cam.proj * cam.view * pc.model * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTexCoord = inTexCoord;
 }

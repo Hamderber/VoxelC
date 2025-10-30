@@ -18,6 +18,8 @@ typedef struct
     bool windowResizable;
     bool windowFullscreen;
     float cameraFOV;
+    float cameraFarClippingPlane;
+    float cameraNearClippingPlane;
     bool vsync;
     int anisotropy;
     bool resetCursorOnMenuExit;

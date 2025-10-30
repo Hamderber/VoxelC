@@ -87,7 +87,7 @@ EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent
 #pragma region Presentation
 void rendering_present(State_t *pState)
 {
-    updateUniformBuffer(pState);
+    uniformBuffer_update(pState);
 
     swapchain_image_acquireNext(pState);
 
@@ -102,7 +102,7 @@ void rendering_present(State_t *pState)
 /// @brief Destroy UBO setup
 static void models_destroy(State_t *pState)
 {
-    uniformBuffersDestroy(pState);
+    uniformBuffers_destroy(pState);
     indexBufferDestroy(pState);
     vertexBufferDestroy(pState);
 }
@@ -146,8 +146,7 @@ void rendering_create(State_t *pState)
     atlasTexture_create(pState);
 
     // Per-frame resources that descriptors will point at
-    // UBOs (needed before descriptorSetsCreate)
-    uniformBuffersCreate(pState);
+    uniformBuffers_create(pState);
 
     // Depth & framebuffers must happen before recording
     // creates depth image + view
