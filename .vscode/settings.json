@@ -53,6 +53,8 @@
         "crash_handler.h": "c",
         "context_t.h": "c",
         "algorithm": "c",
-        "uniformbufferobject_t.h": "c"
+        "uniformbufferobject_t.h": "c",
+        "vk_instance.h": "c",
+        "vulkan.h": "c"
     }
 }

@@ -32,7 +32,7 @@ static void attachmentDescs_create(State_t *pState, VkAttachmentDescription *pAt
 
     // Depth
     pAttachmentDescs[1] = (VkAttachmentDescription){
-        .format = depth_formatGet(pState),
+        .format = depthFormat_get(pState),
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         // The depth data won't be stored because its not used after drawing

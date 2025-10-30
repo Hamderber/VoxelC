@@ -28,6 +28,8 @@ static inline Mat4c_t camera_projectionMatrix_get(const State_t *pSTATE)
     return cmath_perspective(cmath_deg2radF(FOV), ASPECT, NEAR_CLIPPING_PLANE, FAR_CLIPPING_PLANE);
 }
 
-void camera_rotationUpdateNow(State_t *pState);
+/// @brief Updates camera rotation using current mouse position
+void camera_rotation_updateNow(State_t *pState);
 
+/// @brief Initalizes the camera system
 void camera_init(State_t *pState);

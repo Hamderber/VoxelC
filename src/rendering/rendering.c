@@ -50,7 +50,7 @@ static void wireframe_toggle(State_t *pState)
     pState->renderer.activeGraphicsPipeline = target;
 }
 
-EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
+static EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (pEvent == NULL)
@@ -63,13 +63,13 @@ EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent
         },
     };
 
-    InputAction_t pQUERY_RESULT[sizeof pQUERY / sizeof pQUERY[0]];
-    const size_t SIZE = input_inputAction_matchQuery(pEvent, pQUERY, sizeof pQUERY / sizeof pQUERY[0], pQUERY_RESULT);
+    InputAction_t pQueryResult[sizeof pQUERY / sizeof pQUERY[0]];
+    const size_t SIZE = input_inputAction_matchQuery(pEvent, pQUERY, sizeof pQUERY / sizeof pQUERY[0], pQueryResult);
 
     if (SIZE > 0)
         for (size_t i = 0; i < SIZE; i++)
         {
-            const InputAction_t ACTION = pQUERY_RESULT[i];
+            const InputAction_t ACTION = pQueryResult[i];
 
             switch (ACTION.action)
             {
@@ -117,11 +117,11 @@ void rendering_recreate(State_t *pState)
     // Reset mouse input so that the camera does't jerk when the window is resized
     mouse_inputReset(pState);
 
-    depthResourcesDestroy(pState);
+    depthResources_destroy(pState);
     framebuffersDestroy(pState);
 
     swapchain_create(pState);
-    depthResourcesCreate(pState);
+    depthResources_create(pState);
     framebuffersCreate(pState);
 
     pState->window.swapchain.recreate = false;
@@ -150,7 +150,7 @@ void rendering_create(State_t *pState)
 
     // Depth & framebuffers must happen before recording
     // creates depth image + view
-    depthResourcesCreate(pState);
+    depthResources_create(pState);
     // needs swapchain views + depth view + render pass
     framebuffersCreate(pState);
 
@@ -181,7 +181,7 @@ void rendering_destroy(State_t *pState)
 
     // Framebuffer graph
     framebuffersDestroy(pState);
-    depthResourcesDestroy(pState);
+    depthResources_destroy(pState);
 
     models_destroy(pState);
 
