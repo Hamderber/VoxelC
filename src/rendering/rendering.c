@@ -103,7 +103,7 @@ static void models_destroy(State_t *pState)
 {
     uniformBuffers_destroy(pState);
     indexBuffer_destroy(pState);
-    vertexBufferDestroy(pState);
+    vertexBuffer_destroy(pState);
 }
 #pragma endregion
 #pragma region Create
@@ -158,7 +158,7 @@ void rendering_create(State_t *pState)
 
     // Command buffers and sync last
     commandBuffer_create(pState);
-    syncObjectsCreate(pState);
+    syncObjects_create(pState);
 }
 #pragma endregion
 #pragma region Destroy
@@ -173,7 +173,7 @@ void rendering_destroy(State_t *pState)
     }
 
     // Stop GPU use first
-    syncObjectsDestroy(pState);
+    syncObjects_destroy(pState);
 
     // Descriptors before destroying underlying resources
     descriptorPool_destroy(pState);
