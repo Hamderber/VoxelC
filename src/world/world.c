@@ -135,7 +135,7 @@ static RenderChunk_t *world_dummyChunkCreate(State_t *state, Vec3f_t position)
     }
 
     vertexBufferCreateFromData(state, vertices, (uint32_t)vertexCount);
-    indexBufferCreateFromData(state, indices, (uint32_t)indexCount);
+    indexBuffer_createFromData(state, indices, (uint32_t)indexCount);
 
     RenderChunk_t *chunk = (RenderChunk_t *)calloc(1, sizeof(RenderChunk_t));
     if (!chunk)

@@ -392,7 +392,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
 
     // (NOTE: your helpers populate renderer's shared buffers)
     vertexBufferCreateFromData(state, vertices, verticesCount);
-    indexBufferCreateFromData(state, indices, indexCount);
+    indexBuffer_createFromData(state, indices, indexCount);
 
     model->vertexBuffer = state->renderer.vertexBuffer;
     model->vertexMemory = state->renderer.vertexBufferMemory;

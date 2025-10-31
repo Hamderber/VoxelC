@@ -696,6 +696,33 @@ static inline Mat4c_t cmath_mat_rotate(Mat4c_t m, float rad, Vec3f_t axis)
     return cmath_mat_mult_mat(m, r);
 }
 
+/// @brief Rotate the given matrix by a quaternion (column-major)
+static inline Mat4c_t cmath_mat_rotate_quat(Mat4c_t m, Quaternionf_t q)
+{
+    q = cmath_quat_normalize(q);
+
+    const float x = q.qx, y = q.qy, z = q.qz, w = q.qw;
+    const float xx = x * x, yy = y * y, zz = z * z;
+    const float xy = x * y, xz = x * z, yz = y * z;
+    const float wx = w * x, wy = w * y, wz = w * z;
+
+    Mat4c_t r = MAT4_IDENTITY;
+
+    r.m[0].x = 1.0F - 2.0F * (yy + zz);
+    r.m[0].y = 2.0F * (xy + wz);
+    r.m[0].z = 2.0F * (xz - wy);
+
+    r.m[1].x = 2.0F * (xy - wz);
+    r.m[1].y = 1.0F - 2.0F * (xx + zz);
+    r.m[1].z = 2.0F * (yz + wx);
+
+    r.m[2].x = 2.0F * (xz + wy);
+    r.m[2].y = 2.0F * (yz - wx);
+    r.m[2].z = 1.0F - 2.0F * (xx + yy);
+
+    return cmath_mat_mult_mat(m, r);
+}
+
 /// @brief Compute the matrix representation of the vec3 eye looking at vec3 center with vec3 up orientation
 static inline Mat4c_t cmath_lookAt(Vec3f_t eye, Vec3f_t center, Vec3f_t up)
 {

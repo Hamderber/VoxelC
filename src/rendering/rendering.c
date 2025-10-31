@@ -102,7 +102,7 @@ void rendering_present(State_t *pState)
 static void models_destroy(State_t *pState)
 {
     uniformBuffers_destroy(pState);
-    indexBufferDestroy(pState);
+    indexBuffer_destroy(pState);
     vertexBufferDestroy(pState);
 }
 #pragma endregion

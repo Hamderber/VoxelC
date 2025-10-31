@@ -2,7 +2,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <math.h>
 #include "cmath/cmath.h"
+#define _USE_MATH_DEFINES
 
 /// @brief Gets the current PRNG state (changes each query)
 /// @return uint32_t
@@ -70,6 +72,30 @@ static inline Vec3f_t random_vec3f(float xMin, float xMax, float yMin, float yMa
         .z = random_rangeF32(zMin, zMax),
     };
 }
+
+/// @brief Generates a random rotation quaternion
+static inline Quaternionf_t random_quat(void)
+{
+    float u1 = random_rangeF32(0.0F, 1.0F);
+    float u2 = random_rangeF32(0.0F, 1.0F);
+    float u3 = random_rangeF32(0.0F, 1.0F);
+
+    float r1 = sqrtf(1.0F - u1);
+    float r2 = sqrtf(u1);
+    float t1 = PI_F * 2.0F * u2;
+    float t2 = PI_F * 2.0F * u3;
+
+    Quaternionf_t q = {
+        .qx = sinf(t1) * r1,
+        .qy = cosf(t1) * r1,
+        .qz = sinf(t2) * r2,
+        .qw = cosf(t2) * r2};
+
+    return cmath_quat_normalize(q);
+}
+
+/// @brief Generates a random column-major rotation matrix
+static inline Mat4c_t random_mat_rot(void) { return cmath_quat2mat(random_quat()); }
 
 /// @brief Initializes deterministic random using the provided seed or current time if seed = 0
 /// @param seed

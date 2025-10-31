@@ -82,7 +82,7 @@ static AppConfig_t s_AppConfig = {
     .resetCursorOnMenuExit = true,
     .mouseSensitivity = 1.0,
     .atlasPaddingPx = 8,
-    .cameraFarClippingPlane = 50.0F,
+    .cameraFarClippingPlane = 500.0F,
     .cameraNearClippingPlane = 0.1F,
 };
 
