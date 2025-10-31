@@ -55,6 +55,7 @@
         "algorithm": "c",
         "uniformbufferobject_t.h": "c",
         "vk_instance.h": "c",
-        "vulkan.h": "c"
+        "vulkan.h": "c",
+        "renderchunk_t.h": "c"
     }
 }

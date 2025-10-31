@@ -31,7 +31,7 @@ VkImageView imageViewCreate(State_t *state, VkImage image, VkFormat format, VkIm
 
 void imageLayoutTransition(State_t *state, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
-    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+    VkCommandBuffer commandBuffer = commandBuffer_singleTime_start(state);
 
     VkImageMemoryBarrier barrier = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -87,7 +87,7 @@ void imageLayoutTransition(State_t *state, VkImage image, VkImageLayout oldLayou
                          0, VK_NULL_HANDLE,
                          1, &barrier);
 
-    commandBufferSingleTimeEnd(state, commandBuffer);
+    commandBuffer_singleTime_end(state, commandBuffer);
 }
 
 void imageCreate(State_t *state, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,

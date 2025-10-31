@@ -1,256 +1,343 @@
+#pragma region Includes
 #include "core/logs.h"
 #include <stdlib.h>
 #include <string.h>
 #include <vulkan/vulkan.h>
+#include <inttypes.h>
 #include "core/types/state_t.h"
 #include "rendering/types/graphicsPipeline_t.h"
 #include "rendering/types/renderChunk_t.h"
 #include "rendering/types/renderModel_t.h"
-
-void commandBufferAllocate(State_t *state)
+#include "core/crash_handler.h"
+#include "rendering/types/graphicsPipeline_t.h"
+#include "rendering/chunk/chunkRendering.h"
+#include "scene/scene.h"
+#pragma endregion
+#pragma region Binding
+static void pipeline_bind(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout, const GraphicsTarget_t TARGET)
 {
-    // free previous commmand buffers if present
-    if (state->renderer.pCommandBuffers != NULL)
-    {
-        vkFreeCommandBuffers(state->context.device, state->renderer.commandPool,
-                             state->config.maxFramesInFlight, state->renderer.pCommandBuffers);
-        free(state->renderer.pCommandBuffers);
-        state->renderer.pCommandBuffers = NULL;
-    }
-
-    state->renderer.pCommandBuffers = malloc(sizeof(VkCommandBuffer) * state->config.maxFramesInFlight);
-    logs_logIfError(state->renderer.pCommandBuffers == NULL,
-                    "Failed to allocate memory for command buffers");
-
-    VkCommandBufferAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = state->renderer.commandPool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = state->config.maxFramesInFlight,
-    };
-
-    logs_logIfError(vkAllocateCommandBuffers(state->context.device, &allocateInfo, state->renderer.pCommandBuffers),
-                    "Failed to allocate command buffers");
-}
-
-void commandBufferRecord(State_t *state)
-{
-    // Skip this recording frame if the swapchain will be/is being recreated (avoids null pointers)
-    if (state->window.swapchain.recreate)
+    if (!pState || !pCmd || !pPipelineLayout)
         return;
 
-    VkRect2D renderArea = {
-        .extent = state->window.swapchain.imageExtent,
-    };
+    // Bind the render pipeline to the active graphics pipeline (instead of compute)
+    VkPipeline pPipelines[GRAPHICS_PIPELINE_COUNT];
+    VkPipelineLayout pPipelineLayouts[GRAPHICS_PIPELINE_COUNT];
+    switch (pState->renderer.activeGraphicsPipeline)
+    {
+    case GRAPHICS_PIPELINE_FILL:
+        pPipelines[GRAPHICS_TARGET_MODEL] = pState->renderer.graphicsPipelineFillModel;
+        pPipelineLayouts[GRAPHICS_TARGET_MODEL] = pState->renderer.pipelineLayoutFillModel;
+        pPipelines[GRAPHICS_TARGET_VOXEL] = pState->renderer.graphicsPipelineFillVoxel;
+        pPipelineLayouts[GRAPHICS_TARGET_VOXEL] = pState->renderer.pipelineLayoutFillVoxel;
+        break;
+    case GRAPHICS_PIPELINE_WIREFRAME:
+        pPipelines[GRAPHICS_TARGET_MODEL] = pState->renderer.graphicsPipelineWireframeModel;
+        pPipelineLayouts[GRAPHICS_TARGET_MODEL] = pState->renderer.pipelineLayoutWireframeModel;
+        pPipelines[GRAPHICS_TARGET_VOXEL] = pState->renderer.graphicsPipelineWireframeVoxel;
+        pPipelineLayouts[GRAPHICS_TARGET_VOXEL] = pState->renderer.pipelineLayoutWireframeVoxel;
+        break;
+    }
+
+    *pPipelineLayout = pPipelineLayouts[TARGET];
+    vkCmdBindPipeline(*pCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pPipelines[TARGET]);
+
+    const uint32_t FIRST_DESC_SET = 0;
+    const uint32_t DESC_SET_COUNT = 1;
+    const uint32_t DYNAMIC_OFFSET_COUNT = 0;
+    const uint32_t *pDYNAMIC_OFFSETS = VK_NULL_HANDLE;
+    vkCmdBindDescriptorSets(*pCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pPipelineLayout,
+                            FIRST_DESC_SET, DESC_SET_COUNT, &pState->renderer.pDescriptorSets[pState->renderer.currentFrame],
+                            DYNAMIC_OFFSET_COUNT, pDYNAMIC_OFFSETS);
+}
+#pragma endregion
+#pragma region Record
+void commandBuffer_record(State_t *pState)
+{
+    // Skip this recording frame if the swapchain will be/is being recreated (avoids null pointers)
+    if (pState->window.swapchain.recreate)
+        return;
+
+    const VkRect2D RENDER_AREA = {.extent = pState->window.swapchain.imageExtent};
 
     // Which color values to clear when using the clear operation defined in the attachments of the render pass.
     // Order of clear values must be equal to order of attachments
-    VkClearValue clearValues[] = {
-        // Clears image but leaves a background color
-        {
-            // Black
-            .color.float32 = {0.0F, 0.0F, 0.0F, 0.0F},
-        },
+    const VkClearValue pCLEAR_VALUES[] = {
+        // Clears image but leaves a background color (black)
+        {.color.float32 = {0.0F, 0.0F, 0.0F, 0.0F}},
         // Resets the depth stencil
-        {
-            .depthStencil = {1.0f, 0},
-        },
-    };
+        {.depthStencil = {1.0F, 0}}};
 
-    // Avoid access violations
-    if (!state->renderer.pFramebuffers || state->window.swapchain.imageAcquiredIndex >= state->renderer.framebufferCount)
-    {
-        logs_log(LOG_WARN, "Skipped an access violation during frame buffer access during commandBufferRecord!");
-        return;
-    }
+    const uint32_t CLEAR_VALUE_COUNT = sizeof(pCLEAR_VALUES) / sizeof(*pCLEAR_VALUES);
 
-    uint32_t frameIndex = state->renderer.currentFrame;
-    VkCommandBuffer cmd = state->renderer.pCommandBuffers[frameIndex];
-
-    VkCommandBufferBeginInfo commandBufferBeginInfo = {
+    const VkCommandBufferBeginInfo CMD_BEGIN_INFO = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = 0,
-    };
+        .flags = 0};
 
-    VkResult r = vkResetCommandBuffer(cmd, 0);
-    if (r != VK_SUCCESS)
+    const uint32_t FRAME_INDEX = pState->renderer.currentFrame;
+
+    int crashLine = 0;
+    do
     {
-        // Don't just do logs_logIfError because we want to early exit here
-        logs_log(LOG_ERROR, "vkResetCommandBuffer failed (%d) for frame %u", r, frameIndex);
-        return;
-    }
-
-    logs_logIfError(vkBeginCommandBuffer(cmd, &commandBufferBeginInfo),
-                    "Failed to begin command buffer (frame %u)", frameIndex);
-
-    // ALL vkCmd functions (commands) MUST go between the begin and end command buffer functions (obviously)
-    VkRenderPassBeginInfo renderPassBeginInfo = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = state->renderer.pRenderPass,
-        .framebuffer = state->renderer.pFramebuffers[state->window.swapchain.imageAcquiredIndex],
-        .renderArea = renderArea,
-        .clearValueCount = sizeof(clearValues) / sizeof(*clearValues),
-        .pClearValues = clearValues,
-    };
-
-    // If secondary command buffers are used, use VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
-    vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    // Required because the viewport is dynamic (resizeable)
-    VkViewport viewport = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = (float)state->window.swapchain.imageExtent.width,
-        .height = (float)state->window.swapchain.imageExtent.height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor = {
-        .offset = {0, 0},
-        .extent = state->window.swapchain.imageExtent,
-    };
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-    // Bind the render pipeline to the active graphics pipeline (instead of compute)
-    VkPipelineLayout pl = VK_NULL_HANDLE;
-    switch (state->renderer.activeGraphicsPipeline)
-    {
-    case GRAPHICS_PIPELINE_FILL:
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineFillModel);
-        pl = state->renderer.pipelineLayoutFillModel;
-        break;
-    case GRAPHICS_PIPELINE_WIREFRAME:
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->renderer.graphicsPipelineWireframeModel);
-        pl = state->renderer.pipelineLayoutWireframeModel;
-        break;
-    }
-
-    // No offset and 1 descriptor set bound for this frame
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pl,
-                            0, 1, &state->renderer.pDescriptorSets[state->renderer.currentFrame], 0, VK_NULL_HANDLE);
-
-    // DRAW ! ! ! ! !
-    // Chunks
-    {
-        for (uint32_t i = 0; i < state->worldState->renderChunkCount; ++i)
+        // Avoid access violations
+        if (!pState->renderer.pFramebuffers || pState->window.swapchain.imageAcquiredIndex >= pState->renderer.framebufferCount)
         {
-            RenderChunk_t *chunk = state->worldState->ppRenderChunks[i];
-            if (!chunk)
-                continue;
-
-            VkBuffer chunkVB[] = {chunk->vertexBuffer};
-            VkDeviceSize offs[] = {0};
-            vkCmdBindVertexBuffers(cmd, 0, 1, chunkVB, offs);
-            vkCmdBindIndexBuffer(cmd, chunk->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
-            vkCmdPushConstants(cmd, pl, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &chunk->modelMatrix);
-            vkCmdDrawIndexed(cmd, chunk->indexCount, 1, 0, 0, 0);
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Attempted access violation during frame buffer access while recording the command buffer!");
+            break;
         }
-    }
 
-    // Models
-    {
-        for (uint32_t i = 0; i < state->scene.modelCount; ++i)
+        VkCommandBuffer cmd = pState->renderer.pCommandBuffers[FRAME_INDEX];
+        const uint32_t FLAGS = 0;
+        if (vkResetCommandBuffer(cmd, FLAGS) != VK_SUCCESS)
         {
-            RenderModel_t *m = state->scene.models[i];
-            if (!m)
-                continue;
-
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pl,
-                                    0, 1, &m->pDescriptorSets[state->renderer.currentFrame],
-                                    0, NULL);
-
-            VkBuffer modelVBs[] = {m->vertexBuffer};
-            VkDeviceSize offs[] = {0};
-            vkCmdBindVertexBuffers(cmd, 0, 1, modelVBs, offs);
-            // 16 limits verticies to 65535 (consider once making own models and having a check?)
-            vkCmdBindIndexBuffer(cmd, m->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
-            vkCmdPushConstants(cmd, pl, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &m->modelMatrix);
-            // // Not using instanced rendering so just 1 instance with nothing for the offset
-            vkCmdDrawIndexed(cmd, m->indexCount, 1, 0, 0, 0);
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to reset the command buffer for frame %" PRIu32 "!", FRAME_INDEX);
+            break;
         }
-    }
 
-    // Must end the render pass if has begun (obviously)
-    vkCmdEndRenderPass(cmd);
+        if (vkBeginCommandBuffer(cmd, &CMD_BEGIN_INFO) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to begin command buffer for frame %" PRIu32 "!", FRAME_INDEX);
+            break;
+        }
 
-    // All errors generated from vkCmd functions will populate here. The vkCmd functions themselves are all void.
-    logs_logIfError(vkEndCommandBuffer(cmd),
-                    "Failed to end the command buffer for frame %d.", state->window.swapchain.imageAcquiredIndex);
+        // ALL vkCmd functions (commands) MUST go between the begin and end command buffer functions (obviously)
+        const VkRenderPassBeginInfo RP_BEGIN_INFO = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = pState->renderer.pRenderPass,
+            .framebuffer = pState->renderer.pFramebuffers[pState->window.swapchain.imageAcquiredIndex],
+            .renderArea = RENDER_AREA,
+            .clearValueCount = CLEAR_VALUE_COUNT,
+            .pClearValues = pCLEAR_VALUES,
+        };
+
+#pragma region Render Pass Begin
+        // If secondary command buffers are used, use VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
+        vkCmdBeginRenderPass(cmd, &RP_BEGIN_INFO, VK_SUBPASS_CONTENTS_INLINE);
+
+        // Required because the viewport is dynamic (resizeable)
+        const VkViewport VIEWPORT = {
+            .x = 0.0F,
+            .y = 0.0F,
+            .width = (float)pState->window.swapchain.imageExtent.width,
+            .height = (float)pState->window.swapchain.imageExtent.height,
+            .minDepth = 0.0F,
+            .maxDepth = 1.0F};
+        const uint32_t FIRST_VIEWPORT = 0;
+        const uint32_t VIEWPORT_COUNT = 1;
+        vkCmdSetViewport(cmd, FIRST_VIEWPORT, VIEWPORT_COUNT, &VIEWPORT);
+
+        const VkRect2D SCISSOR = {
+            .offset = {0, 0},
+            .extent = pState->window.swapchain.imageExtent};
+        const uint32_t FIRST_SCISSOR = 0;
+        const uint32_t SCISSOR_COUNT = 1;
+        vkCmdSetScissor(cmd, FIRST_SCISSOR, SCISSOR_COUNT, &SCISSOR);
+
+        // DRAW ! ! ! ! !
+        {
+            // Models
+            VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+            pipeline_bind(pState, &cmd, &pipelineLayout, GRAPHICS_TARGET_MODEL);
+            scene_drawModels(pState, &cmd, &pipelineLayout);
+        }
+
+        {
+            // Voxel
+            VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+            pipeline_bind(pState, &cmd, &pipelineLayout, GRAPHICS_TARGET_VOXEL);
+            chunk_drawChunks(pState, &cmd, &pipelineLayout);
+        }
+
+#pragma endregion
+#pragma region Render Pass End
+        // Must end the render pass if has begun (obviously)
+        vkCmdEndRenderPass(cmd);
+#pragma endregion
+
+        // All errors generated from vkCmd functions will populate here. The vkCmd functions themselves are all void.
+        if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "An error occured during execution of the command buffer for frame %" PRIu32 "!",
+                     FRAME_INDEX);
+        }
+    } while (0);
+
+    if (crashLine != 0)
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine),
+                                    "The program cannot continue with a failed command buffer.");
 }
-
-void commandBufferSubmit(State_t *state)
+#pragma endregion
+#pragma region Submit
+void commandBuffer_submit(State_t *pState)
 {
-    uint32_t frame = state->renderer.currentFrame;
-    VkCommandBuffer cmd = state->renderer.pCommandBuffers[frame];
-
-    VkPipelineStageFlags stageFlags[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSubmitInfo submitInfo = {
+    const uint32_t FRAME = pState->renderer.currentFrame;
+    const VkCommandBuffer CMD = pState->renderer.pCommandBuffers[FRAME];
+    const VkPipelineStageFlags pSTAGE_FLAGS[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    const VkSubmitInfo SUBMIT_INFO = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &state->renderer.imageAcquiredSemaphores[frame],
-        .pWaitDstStageMask = stageFlags,
+        .pWaitSemaphores = &pState->renderer.imageAcquiredSemaphores[FRAME],
+        .pWaitDstStageMask = pSTAGE_FLAGS,
         .commandBufferCount = 1,
-        .pCommandBuffers = &cmd,
+        .pCommandBuffers = &CMD,
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &state->renderer.renderFinishedSemaphores[frame],
+        .pSignalSemaphores = &pState->renderer.renderFinishedSemaphores[FRAME],
     };
 
-    // Reset the fence *right before* submit (this is the only reset for this frame)
-    logs_logIfError(vkResetFences(state->context.device, 1, &state->renderer.inFlightFences[frame]),
-                    "Failed to reset in-flight fence before submit (frame %u)", frame);
+    int crashLine = 0;
+    do
+    {
+        if (vkResetFences(pState->context.device, 1, &pState->renderer.inFlightFences[FRAME]) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to reset in-flight fence before submitting the command buffer for frame %" PRIu32 "!", FRAME);
+            break;
+        }
 
-    VkResult r = vkQueueSubmit(state->context.graphicsQueue, 1, &submitInfo, state->renderer.inFlightFences[frame]);
+        if (vkQueueSubmit(pState->context.graphicsQueue, 1, &SUBMIT_INFO, pState->renderer.inFlightFences[FRAME]) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to submit graphics queue to the command buffer!");
+            break;
+        }
+    } while (0);
 
-    logs_logIfError(r,
-                    "Failed to submit graphicsQueue to the command buffer.");
+    if (crashLine != 0)
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine),
+                                    "The program cannot continue without successfully submitting the command buffer.");
 }
-
-VkCommandBuffer commandBufferSingleTimeBegin(State_t *state)
+#pragma endregion
+#pragma region Single-time Cmd
+const uint32_t COMMAND_BUFFER_COUNT = 1;
+VkCommandBuffer commandBuffer_singleTime_start(State_t *pState)
 {
-    VkCommandBufferAllocateInfo allocateInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = state->renderer.commandPool,
-        .commandBufferCount = 1,
-    };
-
     VkCommandBuffer commandBuffer;
-    logs_logIfError(vkAllocateCommandBuffers(state->context.device, &allocateInfo, &commandBuffer),
-                    "Failed to allocate command buffer!");
 
-    VkCommandBufferBeginInfo beginInfo = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
+    int crashLine = 0;
+    do
+    {
+        const VkCommandBufferAllocateInfo ALLOCATE_INFO = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandPool = pState->renderer.commandPool,
+            .commandBufferCount = COMMAND_BUFFER_COUNT,
+        };
 
-    logs_logIfError(vkBeginCommandBuffer(commandBuffer, &beginInfo),
-                    "Failed to begin command buffer!");
+        const VkCommandBufferBeginInfo BEGIN_INFO = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        if (vkAllocateCommandBuffers(pState->context.device, &ALLOCATE_INFO, &commandBuffer) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to allocate the command buffer!");
+            break;
+        }
+
+        if (vkBeginCommandBuffer(commandBuffer, &BEGIN_INFO) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to begin the command buffer!");
+            break;
+        }
+    } while (0);
+
+    if (crashLine != 0)
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine),
+                                    "The program cannot continue without successful command buffer writes.");
 
     return commandBuffer;
 }
 
-void commandBufferSingleTimeEnd(State_t *state, VkCommandBuffer commandBuffer)
+void commandBuffer_singleTime_end(State_t *pState, VkCommandBuffer commandBuffer)
 {
-    logs_logIfError(vkEndCommandBuffer(commandBuffer),
-                    "Failed to end command buffer!");
+    int crashLine = 0;
+    do
+    {
+        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to end the command buffer!");
+            break;
+        }
 
-    VkSubmitInfo submitInfo = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &commandBuffer,
-    };
+        const VkSubmitInfo SUBMIT_INFO = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = COMMAND_BUFFER_COUNT,
+            .pCommandBuffers = &commandBuffer,
+        };
 
-    // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
-    // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
-    // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
-    logs_logIfError(vkQueueSubmit(state->context.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE),
-                    "Failed to submit graphicsQueue!");
-    logs_logIfError(vkQueueWaitIdle(state->context.graphicsQueue),
-                    "Failed to wait for graphics queue to idle!");
+        // A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete,
+        // instead of executing one at a time. That may give the driver more opportunities to optimize but is not
+        // implemented at this time. Fence is passed as null and we just wait for the transfer queue to be idle right now.
+        // CPU bottleneck
+        VkFence fence = VK_NULL_HANDLE;
+        if (vkQueueSubmit(pState->context.graphicsQueue, 1, &SUBMIT_INFO, fence) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to submit the graphics queue!");
+            break;
+        }
 
-    vkFreeCommandBuffers(state->context.device, state->renderer.commandPool, 1, &commandBuffer);
+        if (vkQueueWaitIdle(pState->context.graphicsQueue) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to wait for graphics queue to idle!");
+            break;
+        }
+
+        vkFreeCommandBuffers(pState->context.device, pState->renderer.commandPool, COMMAND_BUFFER_COUNT, &commandBuffer);
+    } while (0);
+
+    if (crashLine != 0)
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine),
+                                    "The program cannot continue without successful command buffer writing.");
 }
+#pragma endregion
+#pragma region Create
+void commandBuffer_create(State_t *pState)
+{
+    int crashLine = 0;
+    do
+    {
+        // free previous commmand buffers if present
+        if (pState->renderer.pCommandBuffers != NULL)
+        {
+            vkFreeCommandBuffers(pState->context.device, pState->renderer.commandPool,
+                                 pState->config.maxFramesInFlight, pState->renderer.pCommandBuffers);
+            free(pState->renderer.pCommandBuffers);
+            pState->renderer.pCommandBuffers = NULL;
+        }
+
+        pState->renderer.pCommandBuffers = malloc(sizeof(VkCommandBuffer) * pState->config.maxFramesInFlight);
+        if (!pState->renderer.pCommandBuffers)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to allocate memory for command buffers!");
+            break;
+        }
+
+        const VkCommandBufferAllocateInfo ALLOCATE_INFO = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = pState->renderer.commandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = pState->config.maxFramesInFlight,
+        };
+
+        if (vkAllocateCommandBuffers(pState->context.device, &ALLOCATE_INFO, pState->renderer.pCommandBuffers) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to allocate memory for command buffers!");
+            break;
+        }
+    } while (0);
+
+    if (crashLine != 0)
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine),
+                                    "The program cannot continue without a command buffer for GPU control.");
+}
+#pragma endregion

@@ -38,7 +38,7 @@ void bufferCreate(State_t *state, VkDeviceSize bufferSize, VkBufferUsageFlags us
 
 void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size)
 {
-    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+    VkCommandBuffer commandBuffer = commandBuffer_singleTime_start(state);
 
     VkBufferCopy copyRegion = {
         .srcOffset = 0,
@@ -49,12 +49,12 @@ void bufferCopy(State_t *state, VkBuffer sourceBuffer, VkBuffer destinationBuffe
     // Only copying one region
     vkCmdCopyBuffer(commandBuffer, sourceBuffer, destinationBuffer, 1, &copyRegion);
 
-    commandBufferSingleTimeEnd(state, commandBuffer);
+    commandBuffer_singleTime_end(state, commandBuffer);
 }
 
 void bufferCopyToImage(State_t *state, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
-    VkCommandBuffer commandBuffer = commandBufferSingleTimeBegin(state);
+    VkCommandBuffer commandBuffer = commandBuffer_singleTime_start(state);
 
     VkBufferImageCopy region = {
         // Byte offset
@@ -77,5 +77,5 @@ void bufferCopyToImage(State_t *state, VkBuffer buffer, VkImage image, uint32_t 
     // Assuming that the image has already been transitioned to a copy-optimal layout
     vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-    commandBufferSingleTimeEnd(state, commandBuffer);
+    commandBuffer_singleTime_end(state, commandBuffer);
 }

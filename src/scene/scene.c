@@ -7,6 +7,30 @@
 #include "rendering/model_3d.h"
 #include "rendering/types/renderModel_t.h"
 
+void scene_drawModels(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout)
+{
+    for (uint32_t i = 0; i < pState->scene.modelCount; ++i)
+    {
+        RenderModel_t *m = pState->scene.models[i];
+        if (!m)
+            continue;
+
+        vkCmdBindDescriptorSets(*pCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, *pPipelineLayout,
+                                0, 1, &m->pDescriptorSets[pState->renderer.currentFrame],
+                                0, NULL);
+
+        VkBuffer modelVBs[] = {m->vertexBuffer};
+        VkDeviceSize offs[] = {0};
+        vkCmdBindVertexBuffers(*pCmd, 0, 1, modelVBs, offs);
+        // 16 limits verticies to 65535 (consider once making own models and having a check?)
+        vkCmdBindIndexBuffer(*pCmd, m->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+        vkCmdPushConstants(*pCmd, *pPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &m->modelMatrix);
+        // // Not using instanced rendering so just 1 instance with nothing for the offset
+        vkCmdDrawIndexed(*pCmd, m->indexCount, 1, 0, 0, 0);
+    }
+}
+
 // Grow strategy: x2, starting from 4
 static inline uint32_t scene_next_capacity(uint32_t current)
 {

@@ -91,9 +91,8 @@ void rendering_present(State_t *pState)
 
     swapchain_image_acquireNext(pState);
 
-    commandBufferRecord(pState);
-
-    commandBufferSubmit(pState);
+    commandBuffer_record(pState);
+    commandBuffer_submit(pState);
 
     swapchain_image_present(pState);
 }
@@ -158,7 +157,7 @@ void rendering_create(State_t *pState)
     descriptorPool_create(pState);
 
     // Command buffers and sync last
-    commandBufferAllocate(pState);
+    commandBuffer_create(pState);
     syncObjectsCreate(pState);
 }
 #pragma endregion
