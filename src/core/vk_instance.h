@@ -24,7 +24,8 @@ uint32_t vulkan_device_physicalMemoryType_get(const State_t *pSTATE, uint32_t me
 void vulkan_deviceCapabilities_log(const VkPhysicalDeviceFeatures PHYSICAL_DEVICE_FEATURES, const VkSurfaceCapabilitiesKHR capabilities);
 
 /// @brief Finds the first (best) format for the physical device that matches all criteria
-VkFormat vulkan_instance_formatSupportedFind(State_t *state, VkFormat *candidates, size_t candidateCount, VkImageTiling tiling, VkFormatFeatureFlags features);
+const VkFormat vulkan_instance_formatSupportedFind(State_t *pState, const VkFormat *pCANDIDATES, size_t candidateCount,
+                                                   VkImageTiling tiling, VkFormatFeatureFlags features);
 
 /// @brief Creates the state's Vulkan instance and associated contexts
 void vulkan_init(State_t *state);

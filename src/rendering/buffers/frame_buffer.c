@@ -1,56 +1,75 @@
+#pragma region Includes
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include "core/logs.h"
 #include "core/types/state_t.h"
 #include <vulkan/vulkan.h>
 #include "rendering/buffers/buffers.h"
-
-void framebuffersCreate(State_t *state)
+#include "core/crash_handler.h"
+#pragma endregion
+#pragma region Create
+void framebuffers_create(State_t *pState)
 {
-    state->renderer.framebufferCount = state->window.swapchain.imageCount;
-    state->renderer.pFramebuffers = malloc(sizeof(VkFramebuffer) * state->renderer.framebufferCount);
-
-    logs_logIfError(!state->renderer.pFramebuffers,
-                    "Failed to allocate memory for the framebuffers.");
-
-    for (uint32_t framebufferIndex = 0; framebufferIndex < state->renderer.framebufferCount; framebufferIndex++)
+    int crashLine = 0;
+    do
     {
-        // Building the image view here by just attaching the depth image view to the original swapchain image view
-        VkImageView attachments[2] = {
-            state->window.swapchain.pImageViews[framebufferIndex],
-            state->renderer.depthImageView,
-        };
+        pState->renderer.framebufferCount = pState->window.swapchain.imageCount;
+        pState->renderer.pFramebuffers = malloc(sizeof(VkFramebuffer) * pState->renderer.framebufferCount);
+
+        if (!pState->renderer.pFramebuffers)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to allocate memory for frame buffers!");
+            break;
+        }
 
         VkFramebufferCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             // Only one image layer for the current swapchain configuration
             .layers = 1,
-            .renderPass = state->renderer.pRenderPass,
-            .width = state->window.swapchain.imageExtent.width,
-            .height = state->window.swapchain.imageExtent.height,
+            .renderPass = pState->renderer.pRenderPass,
+            .width = pState->window.swapchain.imageExtent.width,
+            .height = pState->window.swapchain.imageExtent.height,
             // The attachment count must be the same as the amount of attachment descriptions in the renderpass
-            .attachmentCount = state->renderer.renderpassAttachmentCount,
-            .pAttachments = attachments,
+            .attachmentCount = pState->renderer.renderpassAttachmentCount,
         };
 
-        logs_logIfError(vkCreateFramebuffer(state->context.device, &createInfo, state->context.pAllocator,
-                                            &state->renderer.pFramebuffers[framebufferIndex]),
-                        "Failed to create frame buffer %d.", framebufferIndex);
-    }
-}
+        for (uint32_t i = 0; i < pState->renderer.framebufferCount; i++)
+        {
+            // Building the image view here by just attaching the depth image view to the original swapchain image view
+            const VkImageView ATTACHMENTS[] = {
+                pState->window.swapchain.pImageViews[i],
+                pState->renderer.depthImageView,
+            };
 
-void framebuffersDestroy(State_t *state)
+            createInfo.pAttachments = ATTACHMENTS;
+
+            if (vkCreateFramebuffer(pState->context.device, &createInfo, pState->context.pAllocator,
+                                    &pState->renderer.pFramebuffers[i]) != VK_SUCCESS)
+            {
+                crashLine = __LINE__;
+                logs_log(LOG_ERROR, "Failed to create frame buffer %" PRIu32 "!", i);
+                break;
+            }
+        }
+    } while (0);
+
+    if (crashLine != 0)
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine),
+                                    "The program cannot continue without frame buffers!");
+}
+#pragma endregion
+#pragma region Destroy
+void framebuffers_destroy(State_t *pState)
 {
-    // There is a hypothtical situation where the cause of detroying framebuffers is due to changing the amount of swapchain
-    // images. In such a case, directly relying on state->window.swapchain.imageCount would be insufficient and cause a memory leak.
-    for (uint32_t i = 0; i < state->renderer.framebufferCount; i++)
-    {
-        vkDestroyFramebuffer(state->context.device, state->renderer.pFramebuffers[i], state->context.pAllocator);
-    }
+    for (uint32_t i = 0; i < pState->renderer.framebufferCount; i++)
+        vkDestroyFramebuffer(pState->context.device, pState->renderer.pFramebuffers[i], pState->context.pAllocator);
 
-    free(state->renderer.pFramebuffers);
+    free(pState->renderer.pFramebuffers);
 
-    state->renderer.pFramebuffers = NULL;
-    state->renderer.framebufferCount = 0;
+    pState->renderer.pFramebuffers = NULL;
+    pState->renderer.framebufferCount = 0;
 }
+#pragma endregion

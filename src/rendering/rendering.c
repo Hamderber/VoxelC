@@ -50,7 +50,7 @@ static void wireframe_toggle(State_t *pState)
     pState->renderer.activeGraphicsPipeline = target;
 }
 
-static EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (pEvent == NULL)
@@ -118,11 +118,11 @@ void rendering_recreate(State_t *pState)
     mouse_inputReset(pState);
 
     depthResources_destroy(pState);
-    framebuffersDestroy(pState);
+    framebuffers_destroy(pState);
 
     swapchain_create(pState);
     depthResources_create(pState);
-    framebuffersCreate(pState);
+    framebuffers_create(pState);
 
     pState->window.swapchain.recreate = false;
 }
@@ -152,7 +152,7 @@ void rendering_create(State_t *pState)
     // creates depth image + view
     depthResources_create(pState);
     // needs swapchain views + depth view + render pass
-    framebuffersCreate(pState);
+    framebuffers_create(pState);
 
     // Descriptor pool/sets AFTER UBO + atlas view + sampler exist
     descriptorPool_create(pState);
@@ -180,7 +180,7 @@ void rendering_destroy(State_t *pState)
     descriptorPool_destroy(pState);
 
     // Framebuffer graph
-    framebuffersDestroy(pState);
+    framebuffers_destroy(pState);
     depthResources_destroy(pState);
 
     models_destroy(pState);

@@ -30,19 +30,19 @@ uint32_t vulkan_device_physicalMemoryType_get(const State_t *pSTATE, uint32_t me
     return memoryType;
 }
 
-VkFormat vulkan_instance_formatSupportedFind(State_t *pState, VkFormat *pCandidates, size_t candidateCount,
-                                             VkImageTiling tiling, VkFormatFeatureFlags features)
+const VkFormat vulkan_instance_formatSupportedFind(State_t *pState, const VkFormat *pCANDIDATES, size_t candidateCount,
+                                                   VkImageTiling tiling, VkFormatFeatureFlags features)
 {
     VkFormatProperties properties;
     for (size_t i = 0; i < candidateCount; i++)
     {
-        vkGetPhysicalDeviceFormatProperties(pState->context.physicalDevice, pCandidates[i], &properties);
+        vkGetPhysicalDeviceFormatProperties(pState->context.physicalDevice, pCANDIDATES[i], &properties);
 
         // Iterate and compare flags for the current format candidate and try to return the first found that is best
         if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features)
-            return pCandidates[i];
+            return pCANDIDATES[i];
         else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features)
-            return pCandidates[i];
+            return pCANDIDATES[i];
     }
 
     logs_log(LOG_ERROR, "The physical device has no supported format!");
