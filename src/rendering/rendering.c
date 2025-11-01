@@ -1,8 +1,8 @@
-#pragma once
-
+#pragma region Includes
 #include <string.h>
 #include "stb_image.h"
 #include "cgltf.h"
+#include "main.h"
 #include "rendering/texture.h"
 #include "rendering/voxel.h"
 #include "rendering/render_pass.h"
@@ -27,171 +27,167 @@
 #include "input/input.h"
 #include "events/eventBus.h"
 #include "events/eventTypes.h"
-
-void rend_wireframeToggle(State_t *state)
+#include "input/types/inputActionQuery_t.h"
+#include "core/crash_handler.h"
+#include "rendering/types/renderModel_t.h"
+#include "scene/scene.h"
+#include "rendering/model_3d.h"
+#pragma endregion
+#pragma region Wireframe
+/// @brief Toggle wireframe pipeline
+static void wireframe_toggle(State_t *pState)
 {
-    if (!state->context.physicalDeviceEnabledFeatures.fillModeNonSolid)
+    if (!pState->context.physicalDeviceEnabledFeatures.fillModeNonSolid)
     {
         logs_log(LOG_WARN, "Attempted to toggle wireframe visiblity but the device doesn't support that feature.");
-        state->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
+        pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
         return;
     }
 
-    // is the active graphics pipeline fill? If yes set to wirefame otherwise (that means it is already wireframe)
-    // set it to fill
-    state->renderer.activeGraphicsPipeline =
-        state->renderer.activeGraphicsPipeline ==
-                GRAPHICS_PIPELINE_FILL
-            ? GRAPHICS_PIPELINE_WIREFRAME
-            : GRAPHICS_PIPELINE_FILL;
+    GraphicsPipeline_t current = pState->renderer.activeGraphicsPipeline;
+    GraphicsPipeline_t target = current == GRAPHICS_PIPELINE_FILL ? GRAPHICS_PIPELINE_WIREFRAME : GRAPHICS_PIPELINE_FILL;
+
+    pState->renderer.activeGraphicsPipeline = target;
 }
 
-EventResult_t rend_onWireframeTogglePress(struct State_t *state, Event_t *event, void *ctx)
+EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
-    ctx = NULL;
-    if (event == NULL)
-    {
+    pCtx;
+    if (pEvent == NULL)
         return EVENT_RESULT_ERROR;
-    }
 
-    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
-    {
-        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+    const InputActionQuery_t pQUERY[] = {
+        {.mapping = INPUT_ACTION_WIREFRAME_TOGGLE,
+         .actionCtx = CTX_INPUT_ACTION_START}};
+
+    InputAction_t pQueryResult[sizeof pQUERY / sizeof pQUERY[0]];
+    const size_t SIZE = input_inputAction_matchQuery(pEvent, pQUERY, sizeof pQUERY / sizeof pQUERY[0], pQueryResult);
+
+    if (SIZE > 0)
+        for (size_t i = 0; i < SIZE; i++)
         {
-            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            const InputAction_t ACTION = pQueryResult[i];
+
+            switch (ACTION.action)
             {
-                switch (event->data.inputMapped->inputActions[i].action)
-                {
-                case INPUT_ACTION_WIREFRAME_TOGGLE:
-                    logs_log(LOG_DEBUG, "Wireframe toggle (pressed)");
-                    rend_wireframeToggle(state);
-                    return EVENT_RESULT_CONSUME;
-                    break;
-                }
+            case INPUT_ACTION_WIREFRAME_TOGGLE:
+                logs_log(LOG_DEBUG, "Wireframe toggle (pressed)");
+                wireframe_toggle(pState);
+                return EVENT_RESULT_CONSUME;
+                break;
             }
         }
-    }
 
     return EVENT_RESULT_PASS;
 }
+#pragma endregion
+#pragma region Presentation
+void rendering_present(State_t *pState)
+{
+    uniformBuffer_update(pState);
 
-void rend_recreate(State_t *state)
+    swapchain_image_acquireNext(pState);
+
+    commandBuffer_record(pState);
+    commandBuffer_submit(pState);
+
+    swapchain_image_present(pState);
+}
+#pragma endregion
+#pragma region Models
+/// @brief Destroy UBO setup
+static void models_destroy(State_t *pState)
+{
+    uniformBuffers_destroy(pState);
+    indexBuffer_destroy(pState);
+    vertexBuffer_destroy(pState);
+}
+#pragma endregion
+#pragma region Create
+void rendering_recreate(State_t *pState)
 {
     // Make sure the GPU is idle. This could be a queue wait plus fence if more wait accuracy is needed
-    vkDeviceWaitIdle(state->context.device);
-    win_waitForValidFramebuffer(&state->window);
+    vkDeviceWaitIdle(pState->context.device);
+    window_waitForValidFramebuffer(&pState->window);
 
     // Reset mouse input so that the camera does't jerk when the window is resized
-    mouse_inputReset(state);
+    mouse_inputReset(pState);
 
-    depthResourcesDestroy(state);
-    framebuffersDestroy(state);
+    depthResources_destroy(pState);
+    framebuffers_destroy(pState);
 
-    sc_create(state);
-    depthResourcesCreate(state);
-    framebuffersCreate(state);
+    swapchain_create(pState);
+    depthResources_create(pState);
+    framebuffers_create(pState);
 
-    logs_log(LOG_DEBUG, "Re-created the swapchain.");
-    state->window.swapchain.recreate = false;
+    pState->window.swapchain.recreate = false;
 }
 
-void rend_present(State_t *state)
-{
-    updateUniformBuffer(state);
-    sc_imageAcquireNext(state);
-    commandBufferRecord(state);
-    commandBufferSubmit(state);
-    sc_imagePresent(state);
-}
-
-// https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
-void rend_create(State_t *state)
+void rendering_create(State_t *pState)
 {
     // Must exist before anything that references it
-    rp_create(state);
-    descriptorSetLayoutCreate(state);
+    renderpass_create(pState);
+
+    // Must be created before the descriptor pool
+    descriptorSet_layout_create(pState);
+
     // Create all graphics pipelines and set the active (default) one
-    state->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
-    gp_create(state, GRAPHICS_PIPELINE_FILL);
-    gp_create(state, GRAPHICS_PIPELINE_WIREFRAME);
+    pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
+    graphicsPipeline_createAll(pState);
 
     // Needed for all staging/copies and one-time commands
-    commandPoolCreate(state);
+    commandPool_create(pState);
 
-    // Atlas resources FIRST (image -> view -> sampler -> regions)
-    // so m3d_load can remap UVs using pAtlasRegions
-    // loads atlas.png, creates VkImage + memory
-    atlasTextureImageCreate(state);
-    // view for the atlas image
-    atlasTextureViewImageCreate(state);
-    // sampler used by descriptors
-    tex_samplerCreate(state);
-    // call the dynamic atlas region builder *after* you know width/height
-    // fills renderer.pAtlasRegions[0..N)
-    state->renderer.pAtlasRegions = atlasCreate(state->renderer.pAtlasRegions, state->renderer.atlasRegionCount,
-                                                state->renderer.atlasWidthInTiles, state->renderer.atlasHeightInTiles);
-
-    // Model upload that may use pAtlasRegions for UV remap
-    // builds vertex/index buffers
-    m3d_load(state);
+    // Voxel texture atlas
+    atlasTexture_create(pState);
 
     // Per-frame resources that descriptors will point at
-    // UBOs (needed before descriptorSetsCreate)
-    uniformBuffersCreate(state);
+    uniformBuffers_create(pState);
 
     // Depth & framebuffers must happen before recording
     // creates depth image + view
-    depthResourcesCreate(state);
+    depthResources_create(pState);
     // needs swapchain views + depth view + render pass
-    framebuffersCreate(state);
+    framebuffers_create(pState);
 
     // Descriptor pool/sets AFTER UBO + atlas view + sampler exist
-    descriptorPoolCreate(state);
-    // writes UBO & combined image sampler
-    descriptorSetsCreate(state);
+    descriptorPool_create(pState);
 
     // Command buffers and sync last
-    commandBufferAllocate(state);
-    syncObjectsCreate(state);
+    commandBuffer_create(pState);
+    syncObjects_create(pState);
 }
-
-void rend_destroy(State_t *state)
+#pragma endregion
+#pragma region Destroy
+void rendering_destroy(State_t *pState)
 {
     // The GPU could be working on stuff for the renderer in parallel, meaning the renderer could be
     // destroyed while the GPU is still working. We should wait for the GPU to finish its current tasks.
-    logs_logIfError(vkQueueWaitIdle(state->context.graphicsQueue),
-                    "Failed to wait for the Vulkan graphicsQueue to be idle.");
+    if (vkQueueWaitIdle(pState->context.graphicsQueue) != VK_SUCCESS)
+    {
+        logs_log(LOG_ERROR, "Failed to wait for the Vulkan graphics queue to be idle.");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue due to a fatal CPU/GPU desync.");
+    }
+
     // Stop GPU use first
-    syncObjectsDestroy(state);
+    syncObjects_destroy(pState);
 
     // Descriptors before destroying underlying resources
-    descriptorSetsDestroy(state);
-    descriptorPoolDestroy(state);
+    descriptorPool_destroy(pState);
 
     // Framebuffer graph
-    framebuffersDestroy(state);
-    depthResourcesDestroy(state);
+    framebuffers_destroy(pState);
+    depthResources_destroy(pState);
 
-    // Per-model buffers
-    uniformBuffersDestroy(state);
-    indexBufferDestroy(state);
-    vertexBufferDestroy(state);
-    m3d_destroy(state);
+    models_destroy(pState);
 
-    // Atlas GPU resources
-    tex_samplerDestroy(state);
-    atlasTextureImageViewDestroy(&state->context, &state->renderer);
-    atlasTextureImageDestroy(state);
-    // frees pAtlasRegions (heap)
-    // AtlasRegion_t *pAtlasRegions, uint32_t atlasRegionCount, uint32_t atlasWidthInTiles, uint32_t atlasHeightInTiles
-    atlasDestroy(state->renderer.pAtlasRegions);
+    atlasTexture_destroy(pState);
 
     // Command pool after any single-time buffers etc. are destroyed
-    commandPoolDestroy(state);
+    commandPool_destroy(pState);
 
     // Pipeline objects last
-    // Destroy all graphics pipeline types
-    gp_destroy(state, GRAPHICS_PIPELINE_FILL);
-    gp_destroy(state, GRAPHICS_PIPELINE_WIREFRAME);
-    rp_destroy(state);
+    graphicsPipeline_destroyAll(pState);
+    renderpass_destroy(pState);
 }
+#pragma endregion

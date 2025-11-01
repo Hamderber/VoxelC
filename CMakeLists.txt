@@ -1,24 +1,29 @@
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 cmake_minimum_required(VERSION 3.10)
 project(VoxelC VERSION 0.1.0 LANGUAGES C)
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /std:c17 /experimental:c11atomics")
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+add_compile_options($<$<C_COMPILER_ID:MSVC>:/experimental:c11atomics>)
+
 # ======================================================================
 # Collect sources
 # ======================================================================
-file(GLOB_RECURSE ALL_SOURCES "${CMAKE_SOURCE_DIR}/src/*.c")
+file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 
 # Set your entry point (main) file explicitly:
-set(APP_MAIN "${CMAKE_SOURCE_DIR}/src/app.c")
+set(APP_MAIN "${CMAKE_SOURCE_DIR}/src/main.c")
 
 # Engine sources are everything except the entry point
 set(ENGINE_SOURCES ${ALL_SOURCES})
 list(REMOVE_ITEM ENGINE_SOURCES "${APP_MAIN}")
 
 # Tests
-file(GLOB_RECURSE TEST_SOURCES "${CMAKE_SOURCE_DIR}/tests/*.c")
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.c")
 
 # ======================================================================
 # Output configuration

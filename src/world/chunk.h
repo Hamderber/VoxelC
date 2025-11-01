@@ -18,7 +18,7 @@ typedef struct
 } ChunkPosUnpacked_t;
 
 #define CHUNK_BITS_PER_AXIS 21
-#define CHUNK_AXIS_MASK ((1ULL << CHUNK_BITS_PER_AXIS) - 1ULL)
+#define CHUNK_AXIS_MASK ((1ULL << CHUNK_BITS_PER_AXIS) - 1LL)
 #define CHUNK_FLAG_ISLOADED (1ULL << 63)
 
 /// @brief Packs signed 21-bit x/y/z coordinates and a 1-bit isLoaded flag into 64 bits.
@@ -32,7 +32,7 @@ static inline uint64_t packChunkPos3D(int32_t x, int32_t y, int32_t z, bool isLo
     uint64_t ux = ((uint64_t)(x & CHUNK_AXIS_MASK)) << (CHUNK_BITS_PER_AXIS * 2); // bits 42–62
     uint64_t uy = ((uint64_t)(y & CHUNK_AXIS_MASK)) << (CHUNK_BITS_PER_AXIS * 1); // bits 21–41
     uint64_t uz = ((uint64_t)(z & CHUNK_AXIS_MASK));                              // bits 0–20
-    uint64_t flag = isLoaded ? CHUNK_FLAG_ISLOADED : 0ULL;
+    uint64_t flag = isLoaded ? CHUNK_FLAG_ISLOADED : 0LL;
     return flag | ux | uy | uz;
 }
 

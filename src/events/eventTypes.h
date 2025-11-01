@@ -70,8 +70,10 @@ typedef enum
 {
     // window resize, shutdown, etc.
     EVENT_CHANNEL_APP,
-    // mouse/keyboard
-    EVENT_CHANNEL_INPUT,
+    // input actions
+    EVENT_CHANNEL_INPUT_ACTIONS,
+    // keycode/mouse
+    EVENT_CHANNEL_INPUT_RAW,
     // rendering updates
     EVENT_CHANNEL_GRAPHICS,
     // collision events, triggers
@@ -86,7 +88,8 @@ typedef enum
 
 static const char *EVENT_CHANNEL_NAMES[] = {
     "EVENT_CHANNEL_APP",
-    "EVENT_CHANNEL_INPUT",
+    "EVENT_CHANNEL_INPUT_ACTIONS",
+    "EVENT_CHANNEL_INPUT_RAW",
     "EVENT_CHANNEL_GRAPHICS",
     "EVENT_CHANNEL_PHYSICS",
     "EVENT_CHANNEL_ENTITY",

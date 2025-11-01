@@ -1,5 +1,3 @@
-#pragma once
-
 #include "core/logs.h"
 #include "core/glfw_instance.h"
 #include "core/vk_instance.h"
@@ -14,80 +12,94 @@
 #include "entity/entityManager.h"
 #include "gui/guiController.h"
 #include "world/world.h"
+#include "core/random.h"
+#include "gui/swapchain.h"
+#include "rendering/types/renderModel_t.h"
+#include "scene/scene.h"
+#include "rendering/model_3d.h"
 
-void app_init(State_t *state)
+void app_init(State_t *pState)
 {
     logs_log(LOG_INFO, "Starting %s...", PROGRAM_NAME);
 
-    glfwi_init();
+    config_init(pState);
 
-    vki_create(state);
+    const uint32_t PRNG_SEED = 8675309U;
+    random_init(PRNG_SEED);
 
-    win_create(state);
+    glfwInstance_init();
 
-    // MUST be called AFTER win_create because the Window_t is assigned there
-    input_init(state);
+    vulkan_init(pState);
 
-    rend_create(state);
+    window_init(pState);
 
-    time_init(&state->time);
+    swapchain_create(pState);
 
-    events_init(&state->eventBus);
+    // MUST be called AFTER window_init because the Window_t is assigned there
+    input_init(pState);
 
-    em_init(state);
+    rendering_create(pState);
 
-    gui_init(state);
+    time_init(&pState->time);
 
-    world_load(state);
+    events_init(&pState->eventBus);
+
+    em_init(pState);
+
+    gui_init(pState);
+
+    world_load(pState);
+
+    scene_model_createAll(pState);
 }
 
-void app_renderLoop(State_t *state)
+void app_loop_render(State_t *pState)
 {
     // Handle the window events, including actually closing the window with the X
-    win_pollEvents();
+    window_events_poll();
 
     // Handle all inputs since the last frame displayed (GLFW)
-    input_update(state);
+    input_poll(pState);
 
     // Must call this after the window poll events (glfwPollEvents(); specifically) because resizing the window and the
     // associated callback would be generated from that function. This will only hit AFTER the user has LET GO of the
     // side of the window during resize. This means that each time the window changes, the swapchain will only be recreated
     // once the user STOPS the resize process.
-    if (state->window.swapchain.recreate)
+    if (pState->window.swapchain.recreate)
     {
-        rend_recreate(state);
+        rendering_recreate(pState);
     }
 
-    rend_present(state);
+    rendering_present(pState);
 
-    time_update(&state->time);
+    time_update(&pState->time);
 }
 
-void app_loop(State_t *state)
+void app_loop_main(State_t *state)
 {
     while (!win_shouldClose(&state->window))
     {
         phys_loop(state);
-        app_renderLoop(state);
+        app_loop_render(state);
         // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
     }
 }
 
 void app_cleanup(State_t *state)
 {
+    scene_destroy(state);
+    world_destroy(state);
+
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
-    // vki_instanceCreate() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
+    // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.
-    rend_destroy(state);
-    win_destroy(state);
-    vki_destroy(state);
+    rendering_destroy(state);
+    window_destroy(state);
+    vulkan_instance_destroy(state);
     // Best practice to mitigate dangling pointers. Not strictly necessary, though
     state->window.swapchain.handle = NULL;
     state->context.instance = NULL;
     state->context.pAllocator = NULL;
-
-    cfg_appDestroy();
-    cfg_keyBindingsDestroy();
 
     em_destroy(state);
 

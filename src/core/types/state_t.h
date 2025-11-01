@@ -11,6 +11,7 @@
 #include "input/types/input_t.h"
 #include "gui/guiState_t.h"
 #include "world/worldState_t.h"
+#include "core/types/scene_t.h"
 
 typedef struct State_t
 {
@@ -24,5 +25,7 @@ typedef struct State_t
     Input_t input;
     GUI_State_t gui;
 
-    WorldState_t *worldState;
+    // Contains data on non-voxel models for rendering
+    Scene_t scene;
+    WorldState_t *pWorldState;
 } State_t;

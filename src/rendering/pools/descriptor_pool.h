@@ -1,11 +1,12 @@
+#pragma once
+
 #include "core/types/state_t.h"
 
-void descriptorSetLayoutCreate(State_t *state);
+/// @brief Creates and binds the descriptor set layouts. Must be done before creating the descriptor pool and graphics pipelines.
+void descriptorSet_layout_create(State_t *pState);
 
-void descriptorPoolCreate(State_t *state);
+/// @brief Creates the descriptor pool
+void descriptorPool_create(State_t *pState);
 
-void descriptorPoolDestroy(State_t *state);
-
-void descriptorSetsCreate(State_t *state);
-
-void descriptorSetsDestroy(State_t *state);
+/// @brief Destroys the descriptor pool
+void descriptorPool_destroy(State_t *pState);

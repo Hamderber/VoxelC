@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string.h>
+#include <vulkan/vulkan.h>
 #include "cmath/cmath.h"
 #include "rendering/types/textureRotation_t.h"
 #include "core/types/state_t.h"
@@ -54,3 +55,10 @@ static inline void applyTextureRotation(Vec2f_t outUVs[4], const Vec2f_t inUVs[4
 void tex_samplerCreate(State_t *state);
 
 void tex_samplerDestroy(State_t *state);
+
+bool texture2DCreateFromFile(State_t *state,
+                             const char *imagePath,
+                             VkImage *outImage,
+                             VkDeviceMemory *outMemory,
+                             VkImageView *outView,
+                             VkSampler *outSampler);

@@ -2,6 +2,8 @@
 
 #include "core/types/state_t.h"
 
-void syncObjectsDestroy(State_t *state);
+/// @brief Destroy the GPU/CPU sync objects
+void syncObjects_destroy(State_t *pState);
 
-void syncObjectsCreate(State_t *state);
+/// @brief Create the GPU/CPU sync objects
+void syncObjects_create(State_t *pState);

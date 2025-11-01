@@ -4,9 +4,9 @@
 
 /// @brief Sets app (GLFW) time and state time to zero
 /// @param state
-void time_init(Time_t *time)
+void time_init(Time_t *pTime)
 {
-    *time = (Time_t){
+    *pTime = (Time_t){
         .fixedTimeAccumulated = 0.0,
         .frameTimeDelta = 0.0,
         .frameTimeLast = 0.0,
@@ -18,12 +18,12 @@ void time_init(Time_t *time)
 
 /// @brief Updates state time (including deltas) with current GLFW time
 /// @param state
-void time_update(Time_t *time)
+void time_update(Time_t *pTime)
 {
     double currentTime = glfwGetTime();
-    time->frameTimeDelta = currentTime - time->frameTimeLast;
-    time->frameTimeLast = currentTime;
-    time->fixedTimeAccumulated += time->frameTimeDelta;
-    time->frameTimeTotal += time->frameTimeDelta;
-    time->framesPerSecond = 1.0 / time->frameTimeDelta;
+    pTime->frameTimeDelta = currentTime - pTime->frameTimeLast;
+    pTime->frameTimeLast = currentTime;
+    pTime->fixedTimeAccumulated += pTime->frameTimeDelta;
+    pTime->frameTimeTotal += pTime->frameTimeDelta;
+    pTime->framesPerSecond = 1.0 / pTime->frameTimeDelta;
 }

@@ -1,98 +1,99 @@
+#pragma region Includes
 #include <vulkan/vulkan.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include "core/logs.h"
 #include "core/types/state_t.h"
 #include "rendering/types/uniformBufferObject_t.h"
 #include "rendering/buffers/buffers.h"
-
-void uniformBuffersCreate(State_t *state)
+#include "core/crash_handler.h"
+#include "character/character.h"
+#include "rendering/camera/cameraController.h"
+#pragma endregion
+#pragma region Update
+void uniformBuffer_update(State_t *pState)
 {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject_t);
-    state->renderer.pUniformBuffers = malloc(sizeof(VkBuffer) * state->config.maxFramesInFlight);
-    state->renderer.pUniformBufferMemories = malloc(sizeof(VkDeviceMemory) * state->config.maxFramesInFlight);
-    state->renderer.pUniformBuffersMapped = malloc(sizeof(void *) * state->config.maxFramesInFlight);
-
-    for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
+    do
     {
-        bufferCreate(state, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     &state->renderer.pUniformBuffers[i], &state->renderer.pUniformBufferMemories[i]);
+        if (!pState->renderer.ppUniformBuffersMapped)
+        {
+            logs_log(LOG_ERROR, "State has an invalid uniform buffer mapping pointer!");
+            break;
+        }
 
-        logs_logIfError(vkMapMemory(state->context.device, state->renderer.pUniformBufferMemories[i], 0, bufferSize, 0,
-                                    &state->renderer.pUniformBuffersMapped[i]),
-                        "Failed to map memory for uniform buffer!");
+        const UniformBufferObject_t CAMERA_UBO = {
+            .view = camera_viewMatrix_get(pState),
+            .projection = camera_projectionMatrix_get(pState)};
+
+        memcpy(pState->renderer.ppUniformBuffersMapped[pState->renderer.currentFrame], &CAMERA_UBO, sizeof(CAMERA_UBO));
+
+        return;
+    } while (0);
+
+    crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without mapped memory for updating uniform buffers.");
+}
+#pragma endregion
+#pragma region Create
+void uniformBuffers_create(State_t *pState)
+{
+    const VkDeviceSize BUFFER_SIZE = sizeof(UniformBufferObject_t);
+
+    int crashLine = 0;
+    do
+    {
+        pState->renderer.pUniformBuffers = malloc(sizeof(VkBuffer) * pState->config.maxFramesInFlight);
+        pState->renderer.pUniformBufferMemories = malloc(sizeof(VkDeviceMemory) * pState->config.maxFramesInFlight);
+        pState->renderer.ppUniformBuffersMapped = malloc(sizeof(void *) * pState->config.maxFramesInFlight);
+        if (!pState->renderer.pUniformBuffers || !pState->renderer.pUniformBufferMemories || !pState->renderer.ppUniformBuffersMapped)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to allocate memory for the uniform buffers!");
+            break;
+        }
+
+        for (size_t i = 0; i < pState->config.maxFramesInFlight; i++)
+        {
+            bufferCreate(pState, BUFFER_SIZE, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                         &pState->renderer.pUniformBuffers[i], &pState->renderer.pUniformBufferMemories[i]);
+
+            const uint32_t FLAGS = 0;
+            const uint32_t OFFSET = 0;
+            if (vkMapMemory(pState->context.device, pState->renderer.pUniformBufferMemories[i], OFFSET, BUFFER_SIZE, FLAGS,
+                            &pState->renderer.ppUniformBuffersMapped[i]) != VK_SUCCESS)
+            {
+                crashLine = __LINE__;
+                logs_log(LOG_ERROR, "Failed to map memory for uniform buffer %" PRIu32 "!");
+                break;
+            }
+        }
+    } while (0);
+
+    if (crashLine != 0)
+    {
+        // Don't bother with freeing the partially created UBOs because the program is crashing anyway.
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine),
+                                    "The program cannot continue without uniform buffers to update for rendering.");
     }
 }
-
-void uniformBuffersDestroy(State_t *state)
+#pragma endregion
+#pragma region Destroy
+void uniformBuffers_destroy(State_t *pState)
 {
-    for (size_t i = 0; i < state->config.maxFramesInFlight; i++)
+    for (size_t i = 0; i < pState->config.maxFramesInFlight; i++)
     {
-        vkDestroyBuffer(state->context.device, state->renderer.pUniformBuffers[i], state->context.pAllocator);
-        vkUnmapMemory(state->context.device, state->renderer.pUniformBufferMemories[i]);
-        vkFreeMemory(state->context.device, state->renderer.pUniformBufferMemories[i], state->context.pAllocator);
-        state->renderer.pUniformBuffersMapped[i] = NULL;
+        vkDestroyBuffer(pState->context.device, pState->renderer.pUniformBuffers[i], pState->context.pAllocator);
+        vkUnmapMemory(pState->context.device, pState->renderer.pUniformBufferMemories[i]);
+        vkFreeMemory(pState->context.device, pState->renderer.pUniformBufferMemories[i], pState->context.pAllocator);
+        pState->renderer.ppUniformBuffersMapped[i] = NULL;
     }
 
-    free(state->renderer.pUniformBuffers);
-    state->renderer.pUniformBuffers = NULL;
-    free(state->renderer.pUniformBufferMemories);
-    state->renderer.pUniformBufferMemories = NULL;
+    free(pState->renderer.pUniformBuffers);
+    pState->renderer.pUniformBuffers = NULL;
+    free(pState->renderer.pUniformBufferMemories);
+    pState->renderer.pUniformBufferMemories = NULL;
+    free(pState->renderer.ppUniformBuffersMapped);
+    pState->renderer.ppUniformBuffersMapped = NULL;
 }
-
-void updateUniformBuffer(State_t *state)
-{
-    // For animation we want the total time so that the shaders can rotate/etc objects and display them where they should be
-    // instead of having stutter with frames.
-
-    float rotateDegreesY = 0.0F;
-    float rotateDegreesX = 0.0F;
-    float rotateDegreesZ = 0.0F;
-    float farClippingPlane = 50.0F;
-
-    Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesY) * (float)state->time.frameTimeTotal, VEC3_Y_AXIS);
-    Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesX) * (float)state->time.frameTimeTotal, VEC3_X_AXIS);
-    Quaternionf_t qRoll = cmath_quat_fromAxisAngle(cmath_deg2radF(rotateDegreesZ) * (float)state->time.frameTimeTotal, VEC3_Z_AXIS);
-    Quaternionf_t qTemp = cmath_quat_mult_quat(qYaw, qPitch);
-    Quaternionf_t qCombined = cmath_quat_mult_quat(qTemp, qRoll);
-    Mat4c_t model = cmath_quat2mat(qCombined);
-
-    float fov = state->context.camera.fov;
-    Vec3f_t pos = VEC3_ZERO;
-    Quaternionf_t rot = state->context.camera.rotation;
-
-    // EntityComponentData_t *cameraData;
-    // if (em_entityDataGet(state->context.pCamera, ENTITY_COMPONENT_TYPE_CAMERA, &cameraData))
-    // {
-    //     fov = cameraData->cameraData->fov;
-    // }
-
-    EntityComponentData_t *playerPhysicsData;
-    if (em_entityDataGet(state->worldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &playerPhysicsData))
-    {
-        // Blend position for camera because its updated in physics but not required for rotation at this time
-        float alpha = (float)(state->time.fixedTimeAccumulated / state->config.fixedTimeStep);
-        alpha = cmath_clampF(alpha, 0.0F, 1.0F);
-
-        Vec3f_t posPrev = playerPhysicsData->physicsData->posOld;
-        Vec3f_t posCurr = playerPhysicsData->physicsData->pos;
-        pos = cmath_vec3f_lerpF(posPrev, posCurr, alpha);
-    }
-
-    // Derive forward/up vectors from quaternion orientation
-    Vec3f_t forward = cmath_quat_rotateVec3(rot, VEC3_FORWARD);
-    Vec3f_t up = cmath_quat_rotateVec3(rot, VEC3_UP);
-
-    Mat4c_t view = cmath_lookAt(pos, cmath_vec3f_add_vec3f(pos, forward), up);
-
-    UniformBufferObject_t ubo = {
-        .model = model,
-        .view = view,
-        .projection = cmath_perspective(cmath_deg2radF(fov),
-                                        state->window.swapchain.imageExtent.width / (float)state->window.swapchain.imageExtent.height,
-                                        0.1F, farClippingPlane),
-    };
-
-    memcpy(state->renderer.pUniformBuffersMapped[state->renderer.currentFrame], &ubo, sizeof(ubo));
-}
+#pragma endregion

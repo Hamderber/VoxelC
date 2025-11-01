@@ -3,3 +3,5 @@
 #include "core/types/state_t.h"
 
 void world_load(State_t *state);
+
+void world_destroy(State_t *state);

@@ -8,14 +8,13 @@ static const int NUM_TESTS = 5000;
 static int fails = 0;
 
 // Adapt the specific values output from the rand_ranges to all be the same type (for *func use)
-static int64_t rand_range7bit_adapt(int n) { return (int64_t)rand_range7bit(n); }
-static int64_t rand_range15bit_adapt(int n) { return (int64_t)rand_range15bit(n); }
-static int64_t rand_range31bit_adapt(int n) { return (int64_t)rand_range31bit(n); }
-static int64_t rand_rangeI32_adapt(int n) { return (int64_t)rand_rangeI32(-n, n); }
+static int64_t rand_range7bit_adapt(int n) { return (int64_t)random_range7bit(n); }
+static int64_t rand_range15bit_adapt(int n) { return (int64_t)random_range15bit(n); }
+static int64_t rand_rangeI32_adapt(int n) { return (int64_t)random_rangeI32(-n, n); }
 static int64_t rand_rangeU32_adapt(int n)
 {
     // recenter mean to 0
-    int32_t r = (int32_t)rand_rangeU32(0, (uint32_t)n);
+    int32_t r = (int32_t)random_rangeU32(0, (uint32_t)n);
     return (int64_t)(r - (n / 2));
 }
 
@@ -23,14 +22,14 @@ static double rand_rangeF32_adapt(double n)
 {
     if (n == 0)
         return 0.0;
-    return (double)rand_rangeF32(-1.0F * (float)n, (float)n);
+    return (double)random_rangeF32(-1.0F * (float)n, (float)n);
 }
 
 static double rand_rangeF64_adapt(double n)
 {
     if (n == 0)
         return 0.0;
-    return rand_rangeF64(-1.0 * n, n);
+    return random_rangeD64(-1.0 * n, n);
 }
 
 static double mean_window_ksigma(int numBits, int N, double k)
@@ -146,7 +145,7 @@ static void ut_randSpecific_float(double (*func)(double), float range)
 
 static void ut_deterministicRandom(void)
 {
-    rand_init(rand_nextU32t());
+    random_init(random_nextU32t());
 
     int numFailures = 0;
 
@@ -156,13 +155,9 @@ static void ut_deterministicRandom(void)
         {
             ut_randSpecific64(rand_range7bit_adapt, i);
         }
-        else if (i < 16)
-        {
-            ut_randSpecific64(rand_range15bit_adapt, i);
-        }
         else
         {
-            ut_randSpecific64(rand_range31bit_adapt, i);
+            ut_randSpecific64(rand_range15bit_adapt, i);
         }
     }
 

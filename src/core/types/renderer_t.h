@@ -6,16 +6,21 @@
 #include "core/config.h"
 #include "core/types/atlasRegion_t.h"
 #include "rendering/types/graphicsPipeline_t.h"
+#include "rendering/types/anisotropicFilteringOptions_t.h"
 
 typedef struct
 {
     // Normal rendering
-    VkPipeline graphicsPipelineFill;
-    VkPipelineLayout pipelineLayoutFill;
+    VkPipeline graphicsPipelineFillModel;
+    VkPipelineLayout pipelineLayoutFillModel;
+    VkPipeline graphicsPipelineFillVoxel;
+    VkPipelineLayout pipelineLayoutFillVoxel;
 
     // Vertex wireframe rendering
-    VkPipeline graphicsPipelineWireframe;
-    VkPipelineLayout pipelineLayoutWireframe;
+    VkPipeline graphicsPipelineWireframeModel;
+    VkPipelineLayout pipelineLayoutWireframeModel;
+    VkPipeline graphicsPipelineWireframeVoxel;
+    VkPipelineLayout pipelineLayoutWireframeVoxel;
 
     GraphicsPipeline_t activeGraphicsPipeline;
 
@@ -25,10 +30,10 @@ typedef struct
     VkFramebuffer *pFramebuffers;
     VkCommandPool commandPool;
     VkCommandBuffer *pCommandBuffers;
-    VkSemaphore *imageAcquiredSemaphores;
-    VkSemaphore *renderFinishedSemaphores;
-    VkFence *inFlightFences;
-    VkFence *imagesInFlight;
+    VkSemaphore *pImageAcquiredSemaphores;
+    VkSemaphore *pRenderFinishedSemaphores;
+    VkFence *pInFlightFences;
+    VkFence *pImagesInFlight;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
@@ -37,7 +42,7 @@ typedef struct
     VkBuffer *pUniformBuffers;
     VkDeviceMemory *pUniformBufferMemories;
     // Array of pointers that Vulkan uses to access uniform buffers and their memory
-    void **pUniformBuffersMapped;
+    void **ppUniformBuffersMapped;
     uint32_t currentFrame;
     VkDescriptorPool descriptorPool;
     VkDescriptorSet *pDescriptorSets;
@@ -46,12 +51,11 @@ typedef struct
     VkDeviceMemory atlasTextureImageMemory;
     VkImageView atlasTextureImageView;
     uint32_t anisotropicFilteringOptionsCount;
-    AnisotropicFilteringOptions_t *anisotropicFilteringOptions;
+    AnisotropicFilteringOptions_t *pAnisotropicFilteringOptions;
     VkSampler textureSampler;
     VkImage depthImage;
     VkDeviceMemory depthImageMemory;
     VkImageView depthImageView;
-    uint32_t modelIndexCount;
     uint32_t atlasRegionCount;
     uint32_t atlasWidthInTiles;
     uint32_t atlasHeightInTiles;

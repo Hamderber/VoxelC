@@ -2,8 +2,11 @@
 
 #include "core/types/state_t.h"
 
-VkFormat depth_formatGet(State_t *state);
+/// @brief Gets the best supported depth format
+VkFormat depthFormat_get(State_t *pState);
 
-void depthResourcesCreate(State_t *state);
+/// @brief Creates the depth resource
+void depthResources_create(State_t *pState);
 
-void depthResourcesDestroy(State_t *state);
+/// @brief Destroys the depth resource
+void depthResources_destroy(State_t *pState);

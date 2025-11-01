@@ -123,7 +123,7 @@ EventResult_t gui_onFullscreenTogglePress(struct State_t *state, Event_t *event,
                 {
                 case INPUT_ACTION_FULLSCREEN_TOGGLE:
                     logs_log(LOG_DEBUG, "Fullscreen toggle (pressed)");
-                    win_fullscreenToggle(state, !state->window.fullscreen);
+                    window_fullscreen_toggle(state, !state->window.fullscreen);
                     return EVENT_RESULT_CONSUME;
                     break;
                 }
@@ -156,18 +156,18 @@ void gui_init(State_t *state)
 {
     logs_log(LOG_DEBUG, "Initializing GUI Controller...");
 
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, gui_onMenuTogglePress, false, false, NULL);
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, gui_onFullscreenTogglePress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, gui_onMenuTogglePress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, gui_onFullscreenTogglePress, false, false, NULL);
 
     // Don't start with the cursor captured. Start in the pause menu
     bool centerCursor = state->config.resetCursorOnMenuExit;
     state->config.resetCursorOnMenuExit = false;
     gui_toggleCursorCapture(state, false);
-    input_inputActionSimulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
+    input_inputAction_simulate(state, INPUT_ACTION_MENU_TOGGLE, CTX_INPUT_ACTION_START);
     state->config.resetCursorOnMenuExit = centerCursor;
 
     // This is here because the renderer itself is mainly backend and this, while impacting the renderer, is more of a gui-facing effect.
     // Also rend_create happens before the event system is initialized
     // No need to unsubscribe because even though the renderer stuff is recreated, that is on the vulkan side and not this itself
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT, rend_onWireframeTogglePress, false, false, NULL);
+    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, rendering_wireframe_onTogglePress, false, false, NULL);
 }

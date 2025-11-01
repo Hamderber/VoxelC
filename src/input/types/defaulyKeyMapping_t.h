@@ -9,6 +9,8 @@ typedef struct
     int defaultKey;
 } DefaultKeyMapping_t;
 
+static const int DEFAULT_KEY_MAPPING_COUNT = 11;
+
 static const DefaultKeyMapping_t DEFAULT_KEY_MAPPINGS[] = {
     {INPUT_ACTION_FULLSCREEN_TOGGLE, GLFW_KEY_F11},
     {INPUT_ACTION_MOVE_FORWARD, GLFW_KEY_W},

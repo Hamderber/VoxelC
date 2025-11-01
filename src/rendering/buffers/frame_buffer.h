@@ -2,6 +2,6 @@
 
 #include "core/types/state_t.h"
 
-void framebuffersCreate(State_t *state);
+void framebuffers_create(State_t *state);
 
-void framebuffersDestroy(State_t *state);
+void framebuffers_destroy(State_t *state);

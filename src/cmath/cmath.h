@@ -108,6 +108,18 @@ static const Vec3f_t VEC3_X_AXIS = {1.0F, 0.0F, 0.0F};
 static const Vec3f_t VEC3_Y_AXIS = {0.0F, 1.0F, 0.0F};
 static const Vec3f_t VEC3_Z_AXIS = {0.0F, 0.0F, 1.0F};
 #pragma endregion
+
+#pragma region Rendering
+static const Vec3f_t VEC3_VOXEL_FRONT_BOT_LEFT = {0.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3_VOXEL_FRONT_BOT_RIGHT = {1.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3_VOXEL_FRONT_TOP_LEFT = {0.0F, 1.0F, 1.0F};
+static const Vec3f_t VEC3_VOXEL_FRONT_TOP_RIGHT = {1.0F, 1.0F, 1.0F};
+
+static const Vec3f_t VEC3_VOXEL_BACK_BOT_LEFT = {0.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3_VOXEL_BACK_BOT_RIGHT = {1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3_VOXEL_BACK_TOP_LEFT = {0.0F, 1.0F, 0.0F};
+static const Vec3f_t VEC3_VOXEL_BACK_TOP_RIGHT = {1.0F, 1.0F, 0.0F};
+#pragma endregion
 #pragma endregion
 
 #pragma region Fundamentals
@@ -142,6 +154,17 @@ static inline uint32_t cmath_clampU32t(uint32_t u, uint32_t min, uint32_t max)
         return max;
     else
         return u;
+}
+
+/// @brief Clamps s between [min, max]
+static inline size_t cmath_clampSizet(size_t s, size_t min, size_t max)
+{
+    if (s < min)
+        return min;
+    else if (s > max)
+        return max;
+    else
+        return s;
 }
 
 #pragma endregion
@@ -474,6 +497,30 @@ static inline Quaternionf_t cmath_quat_inverse(Quaternionf_t q)
 #pragma endregion
 
 #pragma region Matrix Math
+/// @brief Convert cgltf row major to colum major
+static inline Mat4c_t mat4_from_cgltf_colmajor(const float a[16])
+{
+    // a is treated as column-major; Mat4c_t stores 4 columns (Vec4f_t each).
+    Mat4c_t M = MAT4_IDENTITY;
+    M.m[0].x = a[0];
+    M.m[0].y = a[1];
+    M.m[0].z = a[2];
+    M.m[0].w = a[3];
+    M.m[1].x = a[4];
+    M.m[1].y = a[5];
+    M.m[1].z = a[6];
+    M.m[1].w = a[7];
+    M.m[2].x = a[8];
+    M.m[2].y = a[9];
+    M.m[2].z = a[10];
+    M.m[2].w = a[11];
+    M.m[3].x = a[12];
+    M.m[3].y = a[13];
+    M.m[3].z = a[14];
+    M.m[3].w = a[15];
+    return M;
+}
+
 /// @brief Converts a 4x4 column-major matrix into a quaternion
 static inline Quaternionf_t cmath_mat2quat(Mat4c_t m)
 {
@@ -544,7 +591,7 @@ static inline Vec4f_t cmath_mat_transformByVec4(Mat4c_t matrix, Vec4f_t v)
 }
 
 /// @brief Column-major matrix translation (position matrix, so w = 1)
-static inline Vec4f_t cmath_mat_translateByVec3(Mat4c_t matrix, Vec3f_t vector)
+static inline Vec4f_t cmath_mat_transformPoint(Mat4c_t matrix, Vec3f_t vector)
 {
     return (Vec4f_t){
         .x = matrix.m[0].x * vector.x + matrix.m[1].x * vector.y + matrix.m[2].x * vector.z + matrix.m[3].x,
@@ -554,10 +601,40 @@ static inline Vec4f_t cmath_mat_translateByVec3(Mat4c_t matrix, Vec3f_t vector)
     };
 }
 
+/// @brief Creates a matrix representing identity rotation and the passed translation
+static inline Mat4c_t cmath_mat_translationCreate(Vec3f_t t)
+{
+    Mat4c_t M = MAT4_IDENTITY;
+    M.m[3].x = t.x;
+    M.m[3].y = t.y;
+    M.m[3].z = t.z;
+    return M;
+}
+
+/// @brief Sets the matrix's world translation to t
+static inline Mat4c_t cmath_mat_setTranslation(Mat4c_t M, Vec3f_t t)
+{
+    M.m[3].x = t.x;
+    M.m[3].y = t.y;
+    M.m[3].z = t.z;
+    return M;
+}
+
+/// @brief Translate the matrix in local space
+static inline Mat4c_t cmath_mat_translateLocal(Mat4c_t M, Vec3f_t t)
+{
+    // M columns: m[0]=X axis, m[1]=Y axis, m[2]=Z axis, m[3]=translation
+    M.m[3].x += M.m[0].x * t.x + M.m[1].x * t.y + M.m[2].x * t.z;
+    M.m[3].y += M.m[0].y * t.x + M.m[1].y * t.y + M.m[2].y * t.z;
+    M.m[3].z += M.m[0].z * t.x + M.m[1].z * t.y + M.m[2].z * t.z;
+    // keep M.m[3].w as-is (usually 1)
+    return M;
+}
+
 /// @brief Column-major matrix transformation (not position matrix specific)
 static inline Vec3f_t cmath_mat_transformByVec3(Mat4c_t m, Vec3f_t v)
 {
-    Vec4f_t result4 = cmath_mat_translateByVec3(m, v);
+    Vec4f_t result4 = cmath_mat_transformPoint(m, v);
     return (Vec3f_t){result4.x, result4.y, result4.z};
 }
 
@@ -575,7 +652,7 @@ static inline Vec4f_t cmath_mat_scale(Mat4c_t matrix, Vec3f_t vector)
 /// @brief Column-major matrix a mult by b
 static inline Mat4c_t cmath_mat_mult_mat(Mat4c_t a, Mat4c_t b)
 {
-    Mat4c_t result;
+    Mat4c_t result = MAT4_IDENTITY;
 
     for (uint8_t col = 0; col < 4; ++col)
     {
@@ -615,6 +692,33 @@ static inline Mat4c_t cmath_mat_rotate(Mat4c_t m, float rad, Vec3f_t axis)
     r.m[2].x = t * axis.x * axis.z + axis.y * s;
     r.m[2].y = t * axis.y * axis.z - axis.x * s;
     r.m[2].z = t * axis.z * axis.z + c;
+
+    return cmath_mat_mult_mat(m, r);
+}
+
+/// @brief Rotate the given matrix by a quaternion (column-major)
+static inline Mat4c_t cmath_mat_rotate_quat(Mat4c_t m, Quaternionf_t q)
+{
+    q = cmath_quat_normalize(q);
+
+    const float x = q.qx, y = q.qy, z = q.qz, w = q.qw;
+    const float xx = x * x, yy = y * y, zz = z * z;
+    const float xy = x * y, xz = x * z, yz = y * z;
+    const float wx = w * x, wy = w * y, wz = w * z;
+
+    Mat4c_t r = MAT4_IDENTITY;
+
+    r.m[0].x = 1.0F - 2.0F * (yy + zz);
+    r.m[0].y = 2.0F * (xy + wz);
+    r.m[0].z = 2.0F * (xz - wy);
+
+    r.m[1].x = 2.0F * (xy - wz);
+    r.m[1].y = 1.0F - 2.0F * (xx + zz);
+    r.m[1].z = 2.0F * (yz + wx);
+
+    r.m[2].x = 2.0F * (xz + wy);
+    r.m[2].y = 2.0F * (yz - wx);
+    r.m[2].z = 1.0F - 2.0F * (xx + yy);
 
     return cmath_mat_mult_mat(m, r);
 }

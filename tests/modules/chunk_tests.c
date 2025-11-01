@@ -15,11 +15,11 @@ static void ut_chunkCoordPacking(void)
     for (int i = 0; i < NUM_TESTS; i++)
     {
         // Random coordinates within signed 21-bit range (safe for our packer)
-        int32_t x = rand_range31bit(21);
-        int32_t y = rand_range31bit(21);
-        int32_t z = rand_range31bit(21);
+        int32_t x = random_rangeNbit(21);
+        int32_t y = random_rangeNbit(21);
+        int32_t z = random_rangeNbit(21);
 
-        bool loaded = rand_5050();
+        bool loaded = random_5050();
 
         uint64_t packed = packChunkPos3D(x, y, z, loaded);
         ChunkPosUnpacked_t unpacked = unpackChunkPos3D(packed);
@@ -30,12 +30,12 @@ static void ut_chunkCoordPacking(void)
 static void ut_chunkFlagBehavior(void)
 {
     // Random starting coordinates within safe 21-bit range
-    int32_t x = rand_range31bit(21);
-    int32_t y = rand_range31bit(21);
-    int32_t z = rand_range31bit(21);
+    int32_t x = random_rangeNbit(21);
+    int32_t y = random_rangeNbit(21);
+    int32_t z = random_rangeNbit(21);
 
     // Randomly pick a starting state (0 or 1)
-    bool startLoaded = rand_5050();
+    bool startLoaded = random_5050();
 
     uint64_t packed = packChunkPos3D(x, y, z, startLoaded);
 
@@ -54,13 +54,13 @@ static void ut_chunkFlagBehavior(void)
 int chunk_tests_run(void)
 {
     // Preserve original seed before testing
-    originalRngSeed = rand_seedGet();
+    originalRngSeed = random_seedGet();
 
     ut_chunkCoordPacking();
     ut_chunkFlagBehavior();
 
     // Restore original seed after testing
-    rand_init(originalRngSeed);
+    random_init(originalRngSeed);
 
     return fails;
 }

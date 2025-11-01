@@ -1,9 +1,9 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include "core/types/state_t.h"
-#include "rendering/types/graphicsPipeline_t.h"
 
-void gp_create(State_t *state, GraphicsPipeline_t graphicsPipeline);
+/// @brief Create all graphics pipelines
+void graphicsPipeline_createAll(State_t *pState);
 
-void gp_destroy(State_t *state, GraphicsPipeline_t graphicsPipeline);
+/// @brief Destroy all graphics pipelines
+void graphicsPipeline_destroyAll(State_t *pState);

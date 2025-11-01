@@ -1,214 +1,263 @@
+#pragma region Includes
 #include <stdlib.h>
 #include <vulkan/vulkan.h>
+#include <inttypes.h>
 #include "core/logs.h"
 #include "core/types/state_t.h"
 #include "core/vk_instance.h"
 #include "gui/window.h"
-
-/// @brief Presents the current swapchain image to the window (adds to queue) and increments the current frame
-/// @param state
-void sc_imagePresent(State_t *state)
+#include "core/crash_handler.h"
+#pragma endregion
+#pragma region Presentation
+void swapchain_image_acquireNext(State_t *pState)
 {
-    VkPresentInfoKHR presentInfo = {
-        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pImageIndices = &state->window.swapchain.imageAcquiredIndex,
-        .swapchainCount = 1U,
-        .pSwapchains = &state->window.swapchain.handle,
-        .waitSemaphoreCount = 1U,
-        .pWaitSemaphores = &state->renderer.renderFinishedSemaphores[state->renderer.currentFrame],
-    };
+    const uint64_t IMAGE_TIMEOUT = UINT64_MAX;
+    const uint32_t FRAME_INDEX = pState->renderer.currentFrame;
 
-    // Can't just catch this result with the error logs_log. Actually have to handle it.
-    VkResult result = vkQueuePresentKHR(state->context.graphicsQueue, &presentInfo);
-
-    // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
-    // MUST be recreated immediately and presentation will just be attempted on the next frame.
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    int crashLine = 0;
+    do
     {
-        logs_log(LOG_WARN, "The swapchain is out of date and must be recreated! VkResult = %d", result);
-        state->window.swapchain.recreate = true;
-
-        // If this happens, does the CPU wait for a fence that will never compelte/reset?
-    }
-    else
-    {
-        logs_logIfError(result,
-                        "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.");
-    }
-
-    // Advance to the next frame-in-flight slot
-    state->renderer.currentFrame = (state->renderer.currentFrame + 1) % state->config.maxFramesInFlight;
-}
-
-/// @brief Gets the next image in the swapchain and assigns it in the state's renderer
-/// @param state
-void sc_imageAcquireNext(State_t *state)
-{
-    const uint64_t imageTimeout = UINT64_MAX;
-    const uint32_t frameIndex = state->renderer.currentFrame;
-
-    // Wait for the fence for this frame to ensure it’s not still in use
-    logs_logIfError(vkWaitForFences(state->context.device, 1U,
-                                    &state->renderer.inFlightFences[frameIndex],
-                                    VK_TRUE, UINT64_MAX),
-                    "Failed to wait for in-flight fence (frame %u)", frameIndex);
-
-    VkResult result = vkAcquireNextImageKHR(state->context.device,
-                                            state->window.swapchain.handle,
-                                            imageTimeout,
-                                            state->renderer.imageAcquiredSemaphores[frameIndex],
-                                            VK_NULL_HANDLE,
-                                            &state->window.swapchain.imageAcquiredIndex);
-
-    // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
-    // MUST be recreated immediately and presentation will just be attempted on the next frame.
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-    {
-        logs_log(LOG_WARN, "The swapchain is out of date or suboptimal and must be recreated! VkResult = %d", result);
-        state->window.swapchain.recreate = true;
-        return;
-    }
-    else
-    {
-        logs_logIfError(result,
-                        "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.");
-    }
-}
-
-/// @brief Destroy the swapchain's image views before allocating new ones. This is imporant because this method could be called
-/// after the swapchain has already been made. If this happens, then there would be a memory leak from where the previous
-/// swapchain image views were. The actual swapchain images themselves are deleted by the OS regardless.
-/// @param state
-static void sc_imagesFree(State_t *state)
-{
-    if (state->window.swapchain.handle != NULL && state->window.swapchain.pImageViews)
-    {
-        for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
+        // Wait for the fence for this frame to ensure it’s not still in use
+        bool waitAll = VK_TRUE;
+        uint32_t fenceCount = 1;
+        if (vkWaitForFences(pState->context.device, fenceCount, &pState->renderer.pInFlightFences[FRAME_INDEX], waitAll,
+                            IMAGE_TIMEOUT) != VK_SUCCESS)
         {
-            vkDestroyImageView(state->context.device, state->window.swapchain.pImageViews[i], state->context.pAllocator);
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to wait for in-flight fence (frame %" PRIu32 ")", FRAME_INDEX);
+            break;
         }
 
-        free(state->window.swapchain.pImageViews);
-        state->window.swapchain.pImageViews = NULL;
+        VkFence fence = VK_NULL_HANDLE;
+        VkResult result = vkAcquireNextImageKHR(pState->context.device, pState->window.swapchain.handle, IMAGE_TIMEOUT,
+                                                pState->renderer.pImageAcquiredSemaphores[FRAME_INDEX], fence,
+                                                &pState->window.swapchain.imageAcquiredIndex);
 
-        free(state->window.swapchain.pImages);
-        state->window.swapchain.pImages = NULL;
-    }
+        // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
+        // MUST be recreated immediately and presentation will just be attempted on the next frame.
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        {
+            logs_log(LOG_DEBUG, "The swapchain is out of date or suboptimal and must be recreated! VkResult = %d", (int)result);
+            pState->window.swapchain.recreate = true;
+            return;
+        }
+        else if (result != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.");
+            break;
+        }
+
+        return;
+    } while (0);
+
+    crashHandler_crash_graceful(
+        CRASH_LOCATION_LINE(crashLine),
+        "The program cannot continue without being able to successfully present images from the swapchain.");
 }
 
-/// @brief Allocates the memory and assigns the references for the swapchain images
-/// @param state
-static void sc_imagesGet(State_t *state)
+void swapchain_image_present(State_t *pState)
 {
-    // null so that we just get the number of formats
-    logs_logIfError(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
-                                            &state->window.swapchain.imageCount, NULL),
-                    "Failed to query the number of images in the swapchain.");
-    logs_log(LOG_DEBUG, "The swapchain will contain a buffer of %d images.", state->window.swapchain.imageCount);
-
-    state->window.swapchain.pImages = malloc(sizeof(VkImage) * state->window.swapchain.imageCount);
-    logs_logIfError(state->window.swapchain.pImages == NULL,
-                    "Unable to allocate memory for swapchain images.");
-
-    logs_logIfError(vkGetSwapchainImagesKHR(state->context.device, state->window.swapchain.handle,
-                                            &state->window.swapchain.imageCount, state->window.swapchain.pImages),
-                    "Failed to get the images in the swapchain.");
-}
-
-/// @brief Creates the image views for each swapchain image
-/// @param state
-static void sc_imageViewsCreate(State_t *state)
-{
-    state->window.swapchain.pImageViews = malloc(sizeof(VkImageView) * state->window.swapchain.imageCount);
-    logs_logIfError(state->window.swapchain.pImageViews == NULL,
-                    "Unable to allocate memory for swapchain image views.");
-
-    // Allows for supporting multiple image view layers for the same image etc.
-    VkImageSubresourceRange subresourceRange = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .layerCount = 1,
-        .levelCount = 1,
+    const VkPresentInfoKHR PRESENT_INFO = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pImageIndices = &pState->window.swapchain.imageAcquiredIndex,
+        .swapchainCount = 1,
+        .pSwapchains = &pState->window.swapchain.handle,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &pState->renderer.pRenderFinishedSemaphores[pState->renderer.currentFrame],
     };
 
-    for (uint32_t i = 0U; i < state->window.swapchain.imageCount; i++)
+    do
     {
-        // This is defined in the loop because of using i for the swapchain image
+        VkResult result = vkQueuePresentKHR(pState->context.graphicsQueue, &PRESENT_INFO);
+        // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
+        // MUST be recreated immediately and presentation will just be attempted on the next frame.
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        {
+            logs_log(LOG_DEBUG, "The swapchain is out of date and must be recreated! VkResult = %d", (int)result);
+            pState->window.swapchain.recreate = true;
+        }
+        else if (result != VK_SUCCESS)
+        {
+            logs_log(LOG_ERROR, "Failed to present the next image in the swapchain! This is NOT due to the swapchain being out of date.");
+            break;
+        }
+
+        // Advance to the next frame-in-flight slot
+        pState->renderer.currentFrame = (pState->renderer.currentFrame + 1) % pState->config.maxFramesInFlight;
+        return;
+    } while (0);
+
+    crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without being able to successfully present images from the swapchain.");
+}
+#pragma endregion
+#pragma region Image Views
+/// @brief Creates the image views for each swapchain image
+static void imageViews_create(State_t *pState)
+{
+    for (uint32_t i = 0; i < pState->window.swapchain.imageCount; ++i)
+        pState->renderer.pImagesInFlight[i] = VK_NULL_HANDLE;
+
+    pState->window.swapchain.pImageViews = NULL;
+    do
+    {
+        pState->window.swapchain.pImageViews = malloc(sizeof(VkImageView) * pState->window.swapchain.imageCount);
+        if (!pState->window.swapchain.pImageViews)
+        {
+            logs_log(LOG_ERROR, "Failed to allocate memory for the swapchain image views!");
+            break;
+        }
+
+        // Allows for supporting multiple image view layers for the same image etc.
+        const VkImageSubresourceRange SUB_RESOURCE_RANGE = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .layerCount = 1,
+            .levelCount = 1,
+        };
+
         VkImageViewCreateInfo createInfo = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .format = state->window.swapchain.format,
-            .image = state->window.swapchain.pImages[i],
+            .format = pState->window.swapchain.format,
             // You could map the green component to red to do color shifting if desired or something
-            .components = state->config.swapchainComponentMapping,
-            .subresourceRange = subresourceRange,
+            .components = pState->config.swapchainComponentMapping,
+            .subresourceRange = SUB_RESOURCE_RANGE,
             // The view type of the window itself. Obviously, a screen is 2D. Maybe 3D is for VR or something.
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
         };
-        // Pass the address of the specific spot in the array of swapchain image views
-        logs_logIfError(vkCreateImageView(state->context.device, &createInfo, state->context.pAllocator, &state->window.swapchain.pImageViews[i]),
-                        "Failed to create swapchain image view %d", i);
-    }
-}
 
+        bool fail = false;
+        for (uint32_t i = 0; i < pState->window.swapchain.imageCount && !fail; i++)
+        {
+            // This is defined in the loop because of using i for the swapchain image
+            createInfo.image = pState->window.swapchain.pImages[i];
+            // Pass the address of the specific spot in the array of swapchain image views
+            if (vkCreateImageView(pState->context.device, &createInfo, pState->context.pAllocator,
+                                  &pState->window.swapchain.pImageViews[i]) != VK_SUCCESS)
+            {
+                logs_log(LOG_ERROR, "Failed to create swapchain image view %" PRIu32 "!", i);
+                fail = true;
+            }
+        }
+
+        if (!fail)
+            return;
+    } while (0);
+
+    free(pState->window.swapchain.pImageViews);
+    crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without having image views to display to the window.");
+}
+#pragma endregion
+#pragma region Frames-in-flight
+/// @brief Frees all images in flight
+static void imagesInFlight_free(State_t *pState)
+{
+    if (pState->renderer.pImagesInFlight == NULL)
+        return;
+
+    for (uint32_t i = 0; i < pState->window.swapchain.imageCount; ++i)
+        pState->renderer.pImagesInFlight[i] = VK_NULL_HANDLE;
+
+    free(pState->renderer.pImagesInFlight);
+    pState->renderer.pImagesInFlight = NULL;
+}
+#pragma endregion
+#pragma region Image
 /// @brief Gets the minimum number of images available to be put in the swapchain for the present mode
-/// @param config
-/// @param presentMode
-/// @param min
-/// @param max
-/// @return uint32_t
-static uint32_t sc_minImageCountGet(const AppConfig_t *config, const VkPresentModeKHR presentMode, uint32_t min, uint32_t max)
+static uint32_t minImageCount_get(const AppConfig_t *pCONFIG, const VkPresentModeKHR PRESENT_MODE, uint32_t min, uint32_t max)
 {
     // It is good to add 1 to the minimum image count when using Mailbox so that the pipeline isn't blocked while the image is
     // still being presented. Also have to make sure that the max image count isn't exceeded.
     // This number is basically how many images should be able to be stored/queued/generated in the buffer while the screen is still
     // drawing. This has a *** HUGE *** impact on performance.
 
-    if (config->swapchainBuffering != SWAPCHAIN_BUFFERING_DEFAULT)
-    {
+    if (pCONFIG->swapchainBuffering != SWAPCHAIN_BUFFERING_DEFAULT)
         // If swapchainBuffering isn't default (0) then assign it ourselves
-        return config->swapchainBuffering;
-    }
+        return pCONFIG->swapchainBuffering;
 
     // maxImageCount may not be assigned if GPU doesn't declare/is unbounded
     max = (max ? max : UINT32_MAX);
 
-    if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR && min + 1U <= max)
-        return min + 1; // Mailbox
+    if (PRESENT_MODE == VK_PRESENT_MODE_MAILBOX_KHR && min + 1 <= max)
+        // Mailbox
+        return min + 1;
     else
+        // Not Mailbox (FIFO)
+        return min;
+}
+
+/// @brief Destroy the swapchain's image views before allocating new ones. This is imporant because this method could be called
+/// after the swapchain has already been made. If this happens, then there would be a memory leak from where the previous
+/// swapchain image views were. The actual swapchain images themselves are deleted by the OS regardless.
+static void images_free(State_t *pState)
+{
+    if (pState->window.swapchain.handle != NULL && pState->window.swapchain.pImageViews)
     {
-        return min; // Not Mailbox (FIFO)
+        for (uint32_t i = 0; i < pState->window.swapchain.imageCount; i++)
+            vkDestroyImageView(pState->context.device, pState->window.swapchain.pImageViews[i], pState->context.pAllocator);
+
+        free(pState->window.swapchain.pImageViews);
+        pState->window.swapchain.pImageViews = NULL;
+
+        free(pState->window.swapchain.pImages);
+        pState->window.swapchain.pImages = NULL;
     }
 }
 
-/// @brief Frees all images in flight
-/// @param state
-static void sc_imagesInFlightFree(State_t *state)
+/// @brief Allocates the memory and assigns the references for the swapchain images
+static void images_allocate(State_t *pState)
 {
-    if (state->renderer.imagesInFlight == NULL)
+    pState->window.swapchain.pImages = NULL;
+
+    int crashLine = 0;
+    do
     {
+        if (vkGetSwapchainImagesKHR(pState->context.device, pState->window.swapchain.handle,
+                                    &pState->window.swapchain.imageCount, NULL) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to query the number of images in the swapchain!");
+            break;
+        }
+
+        logs_log(LOG_DEBUG, "The swapchain will contain a buffer of %d images.", pState->window.swapchain.imageCount);
+        pState->window.swapchain.pImages = malloc(sizeof(VkImage) * pState->window.swapchain.imageCount);
+
+        if (!pState->window.swapchain.pImages)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to allocate memory for the swapchain images!");
+            break;
+        }
+
+        if (vkGetSwapchainImagesKHR(pState->context.device, pState->window.swapchain.handle,
+                                    &pState->window.swapchain.imageCount, pState->window.swapchain.pImages) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to get the images for the swapchain!");
+            break;
+        }
+
         return;
-    }
+    } while (0);
 
-    for (uint32_t i = 0; i < state->window.swapchain.imageCount; ++i)
-    {
-        state->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
-    }
-    free(state->renderer.imagesInFlight);
-    state->renderer.imagesInFlight = NULL;
+    free(pState->window.swapchain.pImages);
+    crashHandler_crash_graceful(
+        CRASH_LOCATION_LINE(crashLine),
+        "The program cannot continue without having a storage location for the swapchain's images.");
 }
-
-/// @brief Creates the actual swapchain
-/// @param state
-void sc_create(State_t *state)
+#pragma endregion
+#pragma region Create Info
+/// @brief Returns if the swapchain should be created based off of image extents. (Don't recreate the swapchain for a minimuzed)
+/// window.
+static bool createInfo_get(State_t *pState, VkSwapchainCreateInfoKHR *pCreateInfo)
 {
-    logs_log(LOG_DEBUG, "Creating the swapchain...");
+    VkSurfaceCapabilitiesKHR capabilities = window_surfaceCapabilities_get(&pState->context, &pState->window);
+    VkSurfaceFormatKHR surfaceFormat = window_surfaceFormats_select(&pState->context, &pState->window);
+    VkPresentModeKHR presentMode = window_surfacePresentModes_select(&pState->config, &pState->context, &pState->window);
 
-    VkSurfaceCapabilitiesKHR capabilities = win_surfaceCapabilitiesGet(&state->context, &state->window);
-
-    VkSurfaceFormatKHR surfaceFormat = win_surfaceFormatsSelect(&state->context, &state->window);
-
-    vki_logCapabilities(state->context.physicalDeviceSupportedFeatures, capabilities);
-
-    VkPresentModeKHR presentMode = win_surfacePresentModesSelect(&state->config, &state->context, &state->window);
+#if defined(DEBUG)
+    vulkan_deviceCapabilities_log(pState->context.physicalDeviceSupportedFeatures, capabilities);
+#endif
 
     // Prevent the image extend from somehow exceeding what the physical device is capable of
     VkExtent2D imageExtent = {
@@ -218,19 +267,21 @@ void sc_create(State_t *state)
 
     if (imageExtent.width == 0 || imageExtent.height == 0)
     {
-        logs_log(LOG_WARN, "Skipping swapchain recreation due to minimized window.");
-        return;
+        logs_log(LOG_DEBUG, "Skipping swapchain recreation due to minimized window.");
+        return false;
     }
 
-    state->window.swapchain.imageExtent = imageExtent;
-    state->window.swapchain.format = surfaceFormat.format;
-    state->window.swapchain.colorSpace = surfaceFormat.colorSpace;
+    pState->window.swapchain.imageExtent = imageExtent;
+    pState->window.swapchain.format = surfaceFormat.format;
+    pState->window.swapchain.colorSpace = surfaceFormat.colorSpace;
 
-    VkSwapchainCreateInfoKHR createInfo = {
+    *pCreateInfo = (VkSwapchainCreateInfoKHR){
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface = state->window.surface,
-        .queueFamilyIndexCount = 1U,                        // Only using 1 queue family
-        .pQueueFamilyIndices = &state->context.queueFamily, // Skip making an array for this since only using 1 queue family
+        .surface = pState->window.surface,
+        // Only using 1 queue family
+        .queueFamilyIndexCount = 1,
+        // Skip making an array for this since only using 1 queue family
+        .pQueueFamilyIndices = &pState->context.queueFamily,
         // Don't render pixels that are obscured by some other program window (ex: Chrome). If using some complex
         // post-processing or other things, this should be false because it requires the whole image to be processed regardless.
         .clipped = true,
@@ -238,7 +289,7 @@ void sc_create(State_t *state)
         // render some window behind this one through the alpha transparency sections. Obviously not applicable here, though
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         // >1 would be for something like a VR headset or something where you have the red and blue screen for 3D or something
-        .imageArrayLayers = 1U,
+        .imageArrayLayers = 1,
         // Only using 1 queue for the swapchain/rendering so there is no need for concurrency here. Exclusive has a value of 0
         // so it doesn't technically need to be here, but stating this explicitly is good for readability/etc.
         .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -246,51 +297,64 @@ void sc_create(State_t *state)
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         // The value is initially null but is still stored when the swapchain needs to be recreated.
         // Because this is a pointer in a pointer, the swapchain itself must exist first here. Otherwise just NULL directly.
-        .oldSwapchain = state->window.swapchain.handle ? state->window.swapchain.handle : NULL,
+        .oldSwapchain = pState->window.swapchain.handle ? pState->window.swapchain.handle : NULL,
         // Only really applicable to mobile devices. Phone screens etc. obviously have to support rotating 90/180 but this same
         // support is often not included with desktop/laptop GPUs. Identity just means keep the image the same.
         // Current transform is almost certainly VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
         .preTransform = capabilities.currentTransform,
-        .imageExtent = state->window.swapchain.imageExtent,
-        .minImageCount = sc_minImageCountGet(&state->config, presentMode, capabilities.minImageCount, capabilities.maxImageCount),
-        .imageFormat = state->window.swapchain.format,
-        .imageColorSpace = state->window.swapchain.colorSpace,
+        .imageExtent = pState->window.swapchain.imageExtent,
+        .minImageCount = minImageCount_get(&pState->config, presentMode, capabilities.minImageCount, capabilities.maxImageCount),
+        .imageFormat = pState->window.swapchain.format,
+        .imageColorSpace = pState->window.swapchain.colorSpace,
         .presentMode = presentMode,
     };
 
-    // Prevent memory leak by freeing previous swapchain's image views if they exist
-    sc_imagesFree(state);
-    VkSwapchainKHR swapchain;
+    return true;
+}
+#pragma endregion
+#pragma region Const/Dest-ructor
+void swapchain_create(State_t *pState)
+{
+    // False if window is 0x0 (minimized)
+    VkSwapchainCreateInfoKHR createInfo = {0};
+    if (!createInfo_get(pState, &createInfo))
+        return;
 
-    logs_logIfError(vkCreateSwapchainKHR(state->context.device, &createInfo, state->context.pAllocator, &swapchain),
-                    "Failed to create Vulkan swapchain!");
+    // Don't just call swapchain_destroy here. The old swapchain handle is passed to the new create info so that the images
+    // still in-flight can be processed.
+    logs_log(LOG_DEBUG, "(Re)creating the swapchain...");
 
-    // Even though the state's initial swapchain is obviously null, this sets us up to properly assign the new one (drivers/etc.)
-    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
-    state->window.swapchain.handle = swapchain;
-
-    sc_imagesGet(state);
-
-    // Free old images in flight
-    sc_imagesInFlightFree(state);
-
-    // Allocate the memory for the images in flight
-    state->renderer.imagesInFlight = malloc(sizeof(VkFence) * state->window.swapchain.imageCount);
-    logs_logIfError(state->renderer.imagesInFlight == NULL,
-                    "Failed to allocate memory for images in flight!");
-    for (uint32_t i = 0; i < state->window.swapchain.imageCount; ++i)
+    VkSwapchainKHR swapchain = {0};
+    if (vkCreateSwapchainKHR(pState->context.device, &createInfo, pState->context.pAllocator, &swapchain) != VK_SUCCESS)
     {
-        state->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
+        logs_log(LOG_ERROR, "Failed to create the swapchain!");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a swapchain to use for window presentation.");
+        return;
     }
 
-    sc_imageViewsCreate(state);
+    // Prevent memory leaks by freeing previous swapchain's image views if they exist
+    images_free(pState);
+    imagesInFlight_free(pState);
+    vkDestroySwapchainKHR(pState->context.device, pState->window.swapchain.handle, pState->context.pAllocator);
+    pState->window.swapchain.handle = swapchain;
+
+    images_allocate(pState);
+
+    pState->renderer.pImagesInFlight = malloc(sizeof(VkFence) * pState->window.swapchain.imageCount);
+    if (!pState->renderer.pImagesInFlight)
+    {
+        logs_log(LOG_ERROR, "Failed to allocate memory for the swapchain's images-in-flight!");
+        crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a place to store the images for display.");
+        return;
+    }
+
+    imageViews_create(pState);
 }
 
-/// @brief Destroys the swapchain
-/// @param state
-void sc_destroy(State_t *state)
+void swapchain_destroy(State_t *pState)
 {
-    sc_imagesInFlightFree(state);
-    sc_imagesFree(state);
-    vkDestroySwapchainKHR(state->context.device, state->window.swapchain.handle, state->context.pAllocator);
+    imagesInFlight_free(pState);
+    images_free(pState);
+    vkDestroySwapchainKHR(pState->context.device, pState->window.swapchain.handle, pState->context.pAllocator);
 }
+#pragma endregion

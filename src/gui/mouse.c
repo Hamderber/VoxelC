@@ -49,7 +49,7 @@ void mouse_onMove(GLFWwindow *window, double xpos, double ypos)
     // Only update camera if not in any menus
     if (state->gui.menuDepth == 0)
     {
-        camera_rotationUpdateNow(state);
+        camera_rotation_updateNow(state);
     }
 
     state->gui.mouse.dx = dx;

@@ -1,3 +1,4 @@
+#pragma region Includes
 #include <GLFW/glfw3.h>
 #include "core/types/state_t.h"
 #include "core/logs.h"
@@ -8,10 +9,13 @@
 #include "events/context/CtxInputMapped_t.h"
 #include "events/context/CtxInputRaw_t.h"
 #include "events/context/CtxDescriptor_t.h"
-
-const char *input_keyNameGet(int key)
+#include "input.h"
+#include "input/types/inputActionQuery_t.h"
+#pragma endregion
+#pragma region Key Names
+static const char *input_keyNameGet(const int KEY)
 {
-    switch (key)
+    switch (KEY)
     {
     case GLFW_KEY_SPACE:
         return "Space";
@@ -263,24 +267,17 @@ const char *input_keyNameGet(int key)
         return "Unknown";
     }
 }
-
-InputActionMapping_t input_keyActionGet(State_t *state, int key)
+#pragma endregion
+#pragma region Events
+void input_inputAction_simulate(State_t *pState, InputActionMapping_t inputActionMapped, CtxDescriptor_t actionState)
 {
-    return state->input.pInputKeys[key].inputMapping;
-}
+    if (!pState)
+    {
+        logs_log(LOG_ERROR, "Recieved an invalid refrence to state!");
+        return;
+    }
 
-/// @brief Checks if the keycode is mapped to INPUT_ACTION_UNMAPPED within the state
-/// @param state
-/// @param key
-/// @return bool
-bool input_keyHasInputAction(State_t *state, int key)
-{
-    return state->input.pInputKeys[key].inputMapping != INPUT_ACTION_UNMAPPED;
-}
-
-void input_inputActionSimulate(State_t *state, InputActionMapping_t inputActionMapped, CtxDescriptor_t actionState)
-{
-    InputAction_t inputAction = (InputAction_t){
+    InputAction_t inputAction = {
         .action = inputActionMapped,
         .actionState = actionState,
     };
@@ -295,159 +292,227 @@ void input_inputActionSimulate(State_t *state, InputActionMapping_t inputActionM
         .data.inputMapped = &data,
     };
 
-    logs_log(LOG_DEBUG, "Simulating the input action %s -> %s",
-             INPUT_ACTION_MAPPING_NAMES[(int)inputActionMapped], actionState == CTX_INPUT_ACTION_START ? "pressed" : "released");
-    events_publish(state, &state->eventBus, EVENT_CHANNEL_INPUT, event);
+    logs_log(LOG_DEBUG, "Simulating the input action %s -> %s", INPUT_ACTION_MAPPING_NAMES[(int)inputActionMapped],
+             actionState == CTX_INPUT_ACTION_START ? "pressed" : "released");
+
+    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, event);
 }
 
-void input_update(State_t *state)
+/// @brief Publishes this frame's keystrokes to the state's event system
+static void keystrokes_publish(State_t *pState, int *pStrokeCount, Keystroke_t *pKeystrokes)
 {
-    GLFWwindow *window = state->window.pWindow;
-    Input_t *input = &state->input;
+    if (!pState || !pStrokeCount || !pKeystrokes)
+        return;
+
+    CtxInputRaw_t ctxRaw = {
+        .keyCount = *pStrokeCount,
+        .keystrokes = pKeystrokes,
+    };
+
+    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_RAW,
+                   (Event_t){
+                       .type = EVENT_TYPE_INPUT_RAW,
+                       .data.inputRaw = &ctxRaw,
+                   });
+
+    memset(pKeystrokes, 0, sizeof(pKeystrokes));
+}
+
+static void inputActions_publish(State_t *pState, int *pActionCount, InputAction_t *pInputActions)
+{
+    if (!pState || !pActionCount || !pInputActions)
+        return;
+
+    CtxInputMapped_t ctxMapped = {
+        .actionCount = *pActionCount,
+        .inputActions = pInputActions,
+    };
+
+    events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_ACTIONS,
+                   (Event_t){
+                       .type = EVENT_TYPE_INPUT_MAPPED,
+                       .data.inputMapped = &ctxMapped,
+                   });
+
+    memset(pInputActions, 0, sizeof(pInputActions));
+}
+#pragma endregion
+#pragma region Keys
+/// @brief Handle key being released
+static void key_onRelease(State_t *pState, int *pStrokeCount, int *pActionCount,
+                          InputAction_t *pInputActions, Keystroke_t *pKeystrokes, const int KEYCODE)
+{
+    if (!pState || !pStrokeCount || !pActionCount || !pInputActions || !pKeystrokes)
+        return;
+    if (!pState->input.pInputKeys)
+        return;
+
+    InputKey_t *pKey = &pState->input.pInputKeys[KEYCODE];
+
+#if defined(DEBUG)
+    const char *pKEY_NAME = input_keyNameGet(KEYCODE);
+    const char *pACTION_NAME = INPUT_ACTION_MAPPING_NAMES[(int)pKey->inputMapping];
+    logs_log(LOG_DEBUG, "Key %3d (%-12s) up -> Action: %s", KEYCODE, pKEY_NAME, pACTION_NAME);
+#endif
+
+    pKey->keyDown = false;
+    pKey->keyUp = true;
+
+    pKeystrokes[(*pStrokeCount)++] = (Keystroke_t){
+        .direction = CTX_KEYSTROKE_UP,
+        .keyCode = KEYCODE,
+    };
+
+    if (input_key_HasInputActionMapping(pState, KEYCODE))
+        pInputActions[(*pActionCount)++] = (InputAction_t){
+            .action = pKey->inputMapping,
+            .actionState = CTX_INPUT_ACTION_END,
+        };
+}
+
+/// @brief Handle key being pressed
+static void key_onPress(State_t *pState, int *pStrokeCount, int *pActionCount,
+                        InputAction_t *pInputActions, Keystroke_t *pKeystrokes, const int KEYCODE)
+{
+    if (!pState || !pStrokeCount || !pActionCount || !pInputActions || !pKeystrokes)
+        return;
+    if (!pState->input.pInputKeys)
+        return;
+
+    InputKey_t *pKey = &pState->input.pInputKeys[KEYCODE];
+
+#if defined(DEBUG)
+    const char *pKEY_NAME = input_keyNameGet(KEYCODE);
+    const char *pACTION_NAME = INPUT_ACTION_MAPPING_NAMES[(int)pKey->inputMapping];
+    logs_log(LOG_DEBUG, "Key %3d (%-12s) down-> Action: %s", KEYCODE, pKEY_NAME, pACTION_NAME);
+#endif
+
+    pKey->keyUp = false;
+    pKey->keyDown = true;
+
+    pKeystrokes[(*pStrokeCount)++] = (Keystroke_t){
+        .direction = CTX_KEYSTROKE_DOWN,
+        .keyCode = KEYCODE,
+    };
+
+    if (input_key_HasInputActionMapping(pState, KEYCODE))
+        pInputActions[(*pActionCount)++] = (InputAction_t){
+            .action = pKey->inputMapping,
+            .actionState = CTX_INPUT_ACTION_START,
+        };
+}
+
+/// @brief Query the keycode for being pressed or released. Handles the associated state accordingly.
+static void poll_key(State_t *pState, int *pStrokeCount, int *pActionCount,
+                     InputAction_t *pInputActions, Keystroke_t *pKeystrokes, const int KEYCODE)
+{
+    if (!pState || !pState->input.pInputKeys)
+        return;
+
+    GLFWwindow *pWindow = pState->window.pWindow;
+    InputKey_t *pKey = &pState->input.pInputKeys[KEYCODE];
+
+    if (!pWindow || !pKey || !pStrokeCount || !pActionCount || !pInputActions || !pKeystrokes)
+        return;
+
+    // Query GLFW key state
+    bool isPressed = glfwGetKey(pWindow, KEYCODE) == GLFW_PRESS;
+
+    // Update pressed states
+    pKey->pressedLastFrame = pKey->pressedThisFrame;
+    pKey->pressedThisFrame = isPressed;
+
+    // Only act on transitions
+    if (pKey->pressedThisFrame && !pKey->pressedLastFrame)
+        key_onPress(pState, pStrokeCount, pActionCount, pInputActions, pKeystrokes, KEYCODE);
+    else if (!pKey->pressedThisFrame && pKey->pressedLastFrame)
+        key_onRelease(pState, pStrokeCount, pActionCount, pInputActions, pKeystrokes, KEYCODE);
+}
+#pragma endregion
+#pragma region Polling
+size_t input_inputAction_matchQuery(const Event_t *pEVENT, const InputActionQuery_t *pQUERY, size_t queryCount, InputAction_t *pResult)
+{
+    if (!pQUERY || !pResult || !pEVENT || queryCount == 0)
+        return false;
+
+    if (pEVENT->type != EVENT_TYPE_INPUT_MAPPED || pEVENT->data.inputMapped == NULL)
+        return false;
+
+    size_t outCount = 0;
+    queryCount = cmath_clampSizet(queryCount, 1, INPUT_ACTION_QUERY_COUNT_MAX);
+
+    bool actionFound[INPUT_ACTION_QUERY_COUNT_MAX] = {0};
+
+    for (size_t i = 0; i < pEVENT->data.inputMapped->actionCount; i++)
+    {
+        const InputAction_t ACTION = pEVENT->data.inputMapped->inputActions[i];
+
+        for (size_t j = 0; j < queryCount; j++)
+        {
+            if (actionFound[j])
+                continue;
+
+            if (ACTION.actionState == pQUERY[j].actionCtx && ACTION.action == pQUERY[j].mapping)
+            {
+                pResult[outCount++] = pEVENT->data.inputMapped->inputActions[i];
+                actionFound[j] = true;
+                break;
+            }
+        }
+    }
+
+    return outCount;
+}
+
+void input_poll(State_t *pState)
+{
+    if (!pState)
+    {
+        logs_log(LOG_ERROR, "Recieved an invalid refrence to state!");
+        return;
+    }
 
     // Track all keys pressed for this frame. There are 104 keys on a US keyboard so 120 is safe for special keys too.
     // Honestly pressing all keys at once deserves a crash anyway imo.
-    static int strokeIndex = 0;
-    static int strokeCount = 0;
-    static Keystroke_t keystrokes[120];
+    int strokeCount = 0;
+    static Keystroke_t pKeystrokes[120];
 
-    static int actionIndex = 0;
-    static int actionCount = 0;
+    int actionCount = 0;
     // This size is arbitrary right now. We'll see what happens. Since this is per-frame, the value can be relatively small
-    static InputAction_t inputActions[32];
+    static InputAction_t pInputActions[32];
 
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
-    {
-        InputKey_t *k = &input->pInputKeys[key];
+        poll_key(pState, &strokeCount, &actionCount, pInputActions, pKeystrokes, key);
 
-        // Query GLFW key state
-        bool isPressed = glfwGetKey(window, key) == GLFW_PRESS;
+    if (strokeCount > 0)
+        keystrokes_publish(pState, &strokeCount, pKeystrokes);
 
-        // Update pressed states
-        k->pressedLastFrame = k->pressedThisFrame;
-        k->pressedThisFrame = isPressed;
-
-        // Only act on transitions
-        if (k->pressedThisFrame && !k->pressedLastFrame)
-        {
-            const char *keyName = input_keyNameGet(key);
-            const char *actionName = INPUT_ACTION_MAPPING_NAMES[(int)k->inputMapping];
-
-            k->keyUp = false;
-            k->keyDown = true;
-
-            logs_log(LOG_DEBUG, "Key %3d (%-12s) down-> Action: %s", key, keyName, actionName);
-
-            keystrokes[strokeIndex++] = (Keystroke_t){
-                .direction = CTX_KEYSTROKE_DOWN,
-                .keyCode = key,
-            };
-            strokeCount++;
-
-            if (input_keyHasInputAction(state, key))
-            {
-                inputActions[actionIndex++] = (InputAction_t){
-                    .action = k->inputMapping,
-                    .actionState = CTX_INPUT_ACTION_START,
-                };
-            }
-            actionCount++;
-        }
-        else if (!k->pressedThisFrame && k->pressedLastFrame)
-        {
-            const char *keyName = input_keyNameGet(key);
-            const char *actionName = INPUT_ACTION_MAPPING_NAMES[(int)k->inputMapping];
-
-            k->keyDown = false;
-            k->keyUp = true;
-
-            logs_log(LOG_DEBUG, "Key %3d (%-12s) up -> Action: %s", key, keyName, actionName);
-
-            keystrokes[strokeIndex++] = (Keystroke_t){
-                .direction = CTX_KEYSTROKE_UP,
-                .keyCode = key,
-            };
-            strokeCount++;
-
-            if (input_keyHasInputAction(state, key))
-            {
-                inputActions[actionIndex++] = (InputAction_t){
-                    .action = k->inputMapping,
-                    .actionState = CTX_INPUT_ACTION_END,
-                };
-            }
-            actionCount++;
-        }
-    }
-
-    if (strokeIndex > 0)
-    {
-        CtxInputRaw_t ctxRaw = {
-            .keyCount = strokeCount,
-            .keystrokes = keystrokes,
-        };
-
-        events_publish(state, &state->eventBus, EVENT_CHANNEL_INPUT,
-                       (Event_t){
-                           .type = EVENT_TYPE_INPUT_RAW,
-                           .data.inputRaw = &ctxRaw,
-                       });
-
-        strokeIndex = 0;
-        strokeCount = 0;
-        memset(keystrokes, 0, sizeof(keystrokes));
-    }
-
-    if (actionIndex > 0)
-    {
-        CtxInputMapped_t ctxMapped = {
-            .actionCount = actionCount,
-            .inputActions = inputActions,
-        };
-
-        events_publish(state, &state->eventBus, EVENT_CHANNEL_INPUT,
-                       (Event_t){
-                           .type = EVENT_TYPE_INPUT_MAPPED,
-                           .data.inputMapped = &ctxMapped,
-                       });
-
-        actionIndex = 0;
-        actionCount = 0;
-        memset(inputActions, 0, sizeof(inputActions));
-    }
+    if (actionCount > 0)
+        inputActions_publish(pState, &actionCount, pInputActions);
 }
-
-void input_init(State_t *state)
+#pragma endregion
+#pragma region Init
+void input_init(const State_t *pSTATE)
 {
+#if defined(DEBUG)
     logs_log(LOG_DEBUG, "Initializing input system...");
-
-    state->input = cfg_inputInit();
-
+    // Log mapped keys. Actual mapping is handled by loading the keybindings cfg
+    InputActionMapping_t mapping = INPUT_ACTION_UNMAPPED;
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
-        const char *keyName = input_keyNameGet(key);
+        const char *pKEY_NAME = input_keyNameGet(key);
 
-        // Skip unknown keys entirely
-        if (!keyName || strcmp(keyName, "Unknown") == 0)
+        if (!pKEY_NAME || strcmp(pKEY_NAME, "Unknown") == 0)
             continue;
 
-        // Pull the configured mapping for this key
-        InputActionMapping_t mapping = state->input.pInputKeys[key].inputMapping;
-        const char *mappingName = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
-
-        // Assign a fully initialized key struct
-        state->input.pInputKeys[key] = (InputKey_t){
-            .key = key,
-            .keyDown = false,
-            .keyUp = false,
-            .pressedLastFrame = false,
-            .pressedThisFrame = false,
-            .inputMapping = mapping,
-        };
+        mapping = pSTATE->input.pInputKeys[key].inputMapping;
+        const char *pMAPPING_NAME = INPUT_ACTION_MAPPING_NAMES[(int)mapping];
 
         if (mapping != INPUT_ACTION_UNMAPPED)
-        {
-            logs_log(LOG_DEBUG, "Keycode %3d (%-12s) -> %s", key, keyName, mappingName);
-        }
+            logs_log(LOG_DEBUG, "Keycode %3d (%-12s) -> %s", key, pKEY_NAME, pMAPPING_NAME);
     }
+#else
+    pSTATE;
+#endif
 }
+#pragma endregion

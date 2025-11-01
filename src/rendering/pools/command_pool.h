@@ -2,6 +2,6 @@
 
 #include "core/types/state_t.h"
 
-void commandPoolCreate(State_t *state);
+void commandPool_create(State_t *pState);
 
-void commandPoolDestroy(State_t *state);
+void commandPool_destroy(State_t *pState);

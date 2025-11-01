@@ -3,12 +3,17 @@
 #include "core/types/state_t.h"
 #include "events/eventTypes.h"
 
-EventResult_t rend_onWireframeTogglePress(struct State_t *state, Event_t *event, void *ctx);
+/// @brief Event subscriber for toggling the wireframe pipeline
+EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx);
 
-void rend_recreate(State_t *state);
+/// @brief Recreate the rendering system
+void rendering_recreate(State_t *pState);
 
-void rend_present(State_t *state);
+/// @brief The primary function for consolidating data for the GPU to present something to the window
+void rendering_present(State_t *pState);
 
-void rend_create(State_t *state);
+/// @brief Create the rendering system
+void rendering_create(State_t *pState);
 
-void rend_destroy(State_t *state);
+/// @brief Destroy the rendering system
+void rendering_destroy(State_t *pState);

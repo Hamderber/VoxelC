@@ -4,15 +4,38 @@
 #include "..\\res\\shaders\\shader_fill.frag.h"
 #include "..\\res\\shaders\\shader_wireframe.frag.h"
 #include "..\\res\\shaders\\shader.vert.h"
+#include "..\\res\\shaders\\shader_voxel.vert.h"
 #include "rendering/types/shaderVertex_t.h"
+#include "rendering/graphics_pipeline.h"
 
 typedef enum
 {
     SHADER_STAGE_VERTEX = 0,
     SHADER_STAGE_FRAGMENT = 1,
+    SHADER_STAGE_COUNT,
 } ShaderStage_t;
 
-static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1U;
+/// @brief Converts the ShaderStage_t to string for debugging purposes
+static const char *shaderStage_ToString(const ShaderStage_t S)
+{
+    switch (S)
+    {
+    case SHADER_STAGE_VERTEX:
+        return "SHADER_STAGE_VERTEX";
+    case SHADER_STAGE_FRAGMENT:
+        return "SHADER_STAGE_FRAGMENT";
+    default:
+        return "SHADER_STAGE_UNKNOWN";
+    }
+}
+
+typedef struct
+{
+    const uint32_t *pCODE;
+    size_t codeSize;
+} ShaderBlob_t;
+
+static const uint32_t NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS = 1;
 // A vertex binding describes at which rate to load data from memory throughout the vertices. It specifies the number
 // of bytes between data entries and whether to move to the next data entry after each vertex or after each instance.
 static inline const VkVertexInputBindingDescription *shaderVertexGetBindingDescription(void)
@@ -37,9 +60,9 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
     static const VkVertexInputAttributeDescription descriptions[3] = {
         // Position
         {
-            .binding = 0U,
+            .binding = 0,
             // The location for the position in the vertex shader
-            .location = 0U,
+            .location = 0,
             // Type of data (format is data type so color is same format as pos)
             // a float would be VK_FORMAT_R32_SFLOAT but a vec4 (ex quaternion or rgba) would be VK_FORMAT_R32G32B32A32_SFLOAT
             .format = VK_FORMAT_R32G32B32_SFLOAT,
@@ -49,15 +72,15 @@ static inline const VkVertexInputAttributeDescription *shaderVertexGetInputAttri
         },
         // Color
         {
-            .binding = 0U,
+            .binding = 0,
             // The location for the color in the vertex shader
-            .location = 1U,
+            .location = 1,
             .format = VK_FORMAT_R32G32B32_SFLOAT,
             // Position is first so sizeof(pos) type to get offset
             .offset = offsetof(ShaderVertex_t, color),
         },
         {
-            .binding = 0U,
+            .binding = 0,
             .location = 2U,
             .format = VK_FORMAT_R32G32_SFLOAT,
             .offset = offsetof(ShaderVertex_t, texCoord),

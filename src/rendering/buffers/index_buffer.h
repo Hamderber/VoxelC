@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include "rendering/buffers/buffers.h"
 
-void indexBufferCreateFromData(State_t *state, uint16_t *indices, uint32_t indexCount);
+/// @brief Create the index buffer from the indicies. Adds this data to the existing index buffer
+void indexBuffer_createFromData(State_t *pState, uint16_t *pIndices, const uint32_t INDEX_COUNT);
 
-void indexBufferDestroy(State_t *state);
+/// @brief Destroy the index buffer
+void indexBuffer_destroy(State_t *pState);

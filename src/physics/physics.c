@@ -3,6 +3,7 @@
 #include "core/random.h"
 #include "cmath/cmath.h"
 #include "character/characterController.h"
+#include "scene/scene.h"
 
 void phys_applyForce(EntityDataPhysics_t *p, Vec3f_t force, float mass)
 {
@@ -118,6 +119,12 @@ void phys_entityPhysicsApply(State_t *state, float dt)
     }
 }
 
+void phys_modelsPhysicsApply(State_t *pState, float dt)
+{
+    float rad = PI_F / 4.0F * dt;
+    scene_debug_rotateAllRandom(&pState->scene, rad);
+}
+
 void phys_update(State_t *state)
 {
     float dt = (float)state->config.fixedTimeStep;
@@ -126,6 +133,7 @@ void phys_update(State_t *state)
     player_physicsIntentUpdate(state);
 
     phys_entityPhysicsApply(state, dt);
+    phys_modelsPhysicsApply(state, dt);
 }
 
 void phys_loop(State_t *state)

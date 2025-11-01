@@ -1,32 +1,15 @@
 #pragma once
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <vulkan/vulkan.h>
-#include "input/types/input_t.h"
-
-typedef enum
-{
-    AF_1 = 1,
-    AF_2 = 2,
-    AF_4 = 4,
-    AF_8 = 8,
-    AF_16 = 16,
-} AnisotropicFilteringOptions_t;
-
-typedef enum
-{
-    SWAPCHAIN_BUFFERING_DEFAULT = 0,
-    SWAPCHAIN_BUFFERING_SINGLE = 1,
-    SWAPCHAIN_BUFFERING_DOUBLE = 2,
-    SWAPCHAIN_BUFFERING_TRIPLE = 3,
-    SWAPCHAIN_BUFFERING_QUADRUPLE = 4,
-} SwapchainBuffering_t;
+#include "rendering/types/swapchainBuffering_t.h"
 
 typedef struct
 {
-    const char *pApplicationName;
-    const char *pEngineName;
-    const char *pWindowTitle;
+    const char *pAPPLICATION_NAME;
+    const char *pENGINE_NAME;
+    const char *pWINDOW_TITLE;
     uint32_t vkAPIVersion;
     SwapchainBuffering_t swapchainBuffering;
     VkComponentMapping swapchainComponentMapping;
@@ -35,6 +18,8 @@ typedef struct
     bool windowResizable;
     bool windowFullscreen;
     float cameraFOV;
+    float cameraFarClippingPlane;
+    float cameraNearClippingPlane;
     bool vsync;
     int anisotropy;
     bool resetCursorOnMenuExit;
@@ -48,14 +33,9 @@ typedef struct
     // Size in pixels of each subtexture on the texture atlas. Minecraft is 16px
     uint32_t subtextureSize;
     double mouseSensitivity;
+    uint32_t atlasPaddingPx;
 } AppConfig_t;
 
-void cfg_keyBindingsDestroy(void);
-
-void cfg_appDestroy(void);
-
-Input_t cfg_inputInit(void);
-
-AppConfig_t cfg_appInit(void);
-
-void cfg_init(void);
+struct State_t;
+/// @brief Loads configs and creates the directory and/or configs not found
+void config_init(struct State_t *pState);
