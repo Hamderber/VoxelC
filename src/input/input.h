@@ -36,7 +36,7 @@ size_t input_inputAction_matchQuery(const Event_t *pEVENT, const InputActionQuer
 EventResult_t zoom_onPress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
-    if (pEvent == NULL)
+    if (!pState || !pEvent)
         return EVENT_RESULT_ERROR;
 
     const InputActionQuery_t pQUERY[] = {

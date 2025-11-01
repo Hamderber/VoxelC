@@ -20,7 +20,7 @@ void swapchain_image_acquireNext(State_t *pState)
         // Wait for the fence for this frame to ensure it’s not still in use
         bool waitAll = VK_TRUE;
         uint32_t fenceCount = 1;
-        if (vkWaitForFences(pState->context.device, fenceCount, &pState->renderer.inFlightFences[FRAME_INDEX], waitAll,
+        if (vkWaitForFences(pState->context.device, fenceCount, &pState->renderer.pInFlightFences[FRAME_INDEX], waitAll,
                             IMAGE_TIMEOUT) != VK_SUCCESS)
         {
             crashLine = __LINE__;
@@ -30,7 +30,7 @@ void swapchain_image_acquireNext(State_t *pState)
 
         VkFence fence = VK_NULL_HANDLE;
         VkResult result = vkAcquireNextImageKHR(pState->context.device, pState->window.swapchain.handle, IMAGE_TIMEOUT,
-                                                pState->renderer.imageAcquiredSemaphores[FRAME_INDEX], fence,
+                                                pState->renderer.pImageAcquiredSemaphores[FRAME_INDEX], fence,
                                                 &pState->window.swapchain.imageAcquiredIndex);
 
         // If the swapchain gets out of date, it is impossible to present the image and it will hang. The swapchain
@@ -64,7 +64,7 @@ void swapchain_image_present(State_t *pState)
         .swapchainCount = 1,
         .pSwapchains = &pState->window.swapchain.handle,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &pState->renderer.renderFinishedSemaphores[pState->renderer.currentFrame],
+        .pWaitSemaphores = &pState->renderer.pRenderFinishedSemaphores[pState->renderer.currentFrame],
     };
 
     do
@@ -96,7 +96,7 @@ void swapchain_image_present(State_t *pState)
 static void imageViews_create(State_t *pState)
 {
     for (uint32_t i = 0; i < pState->window.swapchain.imageCount; ++i)
-        pState->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
+        pState->renderer.pImagesInFlight[i] = VK_NULL_HANDLE;
 
     pState->window.swapchain.pImageViews = NULL;
     do
@@ -151,14 +151,14 @@ static void imageViews_create(State_t *pState)
 /// @brief Frees all images in flight
 static void imagesInFlight_free(State_t *pState)
 {
-    if (pState->renderer.imagesInFlight == NULL)
+    if (pState->renderer.pImagesInFlight == NULL)
         return;
 
     for (uint32_t i = 0; i < pState->window.swapchain.imageCount; ++i)
-        pState->renderer.imagesInFlight[i] = VK_NULL_HANDLE;
+        pState->renderer.pImagesInFlight[i] = VK_NULL_HANDLE;
 
-    free(pState->renderer.imagesInFlight);
-    pState->renderer.imagesInFlight = NULL;
+    free(pState->renderer.pImagesInFlight);
+    pState->renderer.pImagesInFlight = NULL;
 }
 #pragma endregion
 #pragma region Image
@@ -340,8 +340,8 @@ void swapchain_create(State_t *pState)
 
     images_allocate(pState);
 
-    pState->renderer.imagesInFlight = malloc(sizeof(VkFence) * pState->window.swapchain.imageCount);
-    if (!pState->renderer.imagesInFlight)
+    pState->renderer.pImagesInFlight = malloc(sizeof(VkFence) * pState->window.swapchain.imageCount);
+    if (!pState->renderer.pImagesInFlight)
     {
         logs_log(LOG_ERROR, "Failed to allocate memory for the swapchain's images-in-flight!");
         crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without a place to store the images for display.");

@@ -118,23 +118,23 @@ static void device_anisotropicFilteringOptions_get(State_t *state)
     {
         logs_log(LOG_WARN, "Anisotropic filtering not supported (maxSamplerAnisotropy <= 1 x).");
         state->renderer.anisotropicFilteringOptionsCount = 0;
-        state->renderer.anisotropicFilteringOptions = NULL;
+        state->renderer.pAnisotropicFilteringOptions = NULL;
         return;
     }
 
     // 1x, 2x, 4x, 8x, 16x max supported (powers of 2)
     int size = (int)floorf(log2f(afMax)) + 1;
     state->renderer.anisotropicFilteringOptionsCount = size;
-    state->renderer.anisotropicFilteringOptions = malloc(sizeof(AnisotropicFilteringOptions_t) * size);
+    state->renderer.pAnisotropicFilteringOptions = malloc(sizeof(AnisotropicFilteringOptions_t) * size);
 
-    logs_logIfError(state->renderer.anisotropicFilteringOptions == NULL,
+    logs_logIfError(state->renderer.pAnisotropicFilteringOptions == NULL,
                     "Failed to allocate anisotropic filtering options!");
 
     // Fill the table (1x, 2x, 4x, 8x, 16x)
     for (int i = 0; i < size; i++)
     {
         // Binary shift increments in powers of 2
-        state->renderer.anisotropicFilteringOptions[i] = (AnisotropicFilteringOptions_t)(1 << i);
+        state->renderer.pAnisotropicFilteringOptions[i] = (AnisotropicFilteringOptions_t)(1 << i);
     }
 }
 
@@ -584,7 +584,7 @@ void vulkan_instance_destroy(State_t *pState)
     vkDestroyDevice(pState->context.device, pState->context.pAllocator);
     vkDestroyInstance(pState->context.instance, pState->context.pAllocator);
 
-    free(pState->renderer.anisotropicFilteringOptions);
-    pState->renderer.anisotropicFilteringOptions = NULL;
+    free(pState->renderer.pAnisotropicFilteringOptions);
+    pState->renderer.pAnisotropicFilteringOptions = NULL;
 }
 #pragma endregion

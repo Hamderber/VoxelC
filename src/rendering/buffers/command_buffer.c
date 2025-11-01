@@ -179,25 +179,25 @@ void commandBuffer_submit(State_t *pState)
     const VkSubmitInfo SUBMIT_INFO = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &pState->renderer.imageAcquiredSemaphores[FRAME],
+        .pWaitSemaphores = &pState->renderer.pImageAcquiredSemaphores[FRAME],
         .pWaitDstStageMask = pSTAGE_FLAGS,
         .commandBufferCount = 1,
         .pCommandBuffers = &CMD,
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &pState->renderer.renderFinishedSemaphores[FRAME],
+        .pSignalSemaphores = &pState->renderer.pRenderFinishedSemaphores[FRAME],
     };
 
     int crashLine = 0;
     do
     {
-        if (vkResetFences(pState->context.device, 1, &pState->renderer.inFlightFences[FRAME]) != VK_SUCCESS)
+        if (vkResetFences(pState->context.device, 1, &pState->renderer.pInFlightFences[FRAME]) != VK_SUCCESS)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to reset in-flight fence before submitting the command buffer for frame %" PRIu32 "!", FRAME);
             break;
         }
 
-        if (vkQueueSubmit(pState->context.graphicsQueue, 1, &SUBMIT_INFO, pState->renderer.inFlightFences[FRAME]) != VK_SUCCESS)
+        if (vkQueueSubmit(pState->context.graphicsQueue, 1, &SUBMIT_INFO, pState->renderer.pInFlightFences[FRAME]) != VK_SUCCESS)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to submit graphics queue to the command buffer!");

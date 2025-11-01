@@ -6,6 +6,8 @@
 static const float DEFAULT_UNIFORM_SPEED = 12.0F;
 static const float SPRINT_SPEED_MULTIPLIER = 1.5F;
 
-void player_physicsIntentUpdate(State_t *state);
+/// @brief Updates the player's physics intent via character controller's input
+void player_physicsIntentUpdate(State_t *pState);
 
-void character_init(State_t *state, Character_t *character);
+/// @brief Initializes the given character's controller
+void character_init(State_t *pState, Character_t *pCharacter);

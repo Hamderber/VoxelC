@@ -66,14 +66,14 @@ void scene_modelCreate(Scene_t *pScene, RenderModel_t *pMdl)
     if (pScene->modelCount >= pScene->modelCap)
     {
         uint32_t newCap = scene_next_capacity(pScene->modelCap);
-        void *pNewMem = realloc(pScene->pModels, sizeof(RenderModel_t *) * newCap);
+        void *pNewMem = realloc(pScene->ppModels, sizeof(RenderModel_t *) * newCap);
         if (!pNewMem)
             return;
-        pScene->pModels = pNewMem;
+        pScene->ppModels = pNewMem;
         pScene->modelCap = newCap;
     }
 
-    pScene->pModels[pScene->modelCount++] = pMdl; // just store pointer
+    pScene->ppModels[pScene->modelCount++] = pMdl; // just store pointer
     logs_log(LOG_DEBUG, "scene_modelCreate: model added (count=%u, cap=%u)",
              pScene->modelCount, pScene->modelCap);
 }
@@ -132,7 +132,7 @@ void scene_modelDestroy(State_t *pState, RenderModel_t *pMdl)
 
 void scene_destroy(State_t *state)
 {
-    if (!state || !state->scene.pModels)
+    if (!state || !state->scene.ppModels)
         return;
 
     vkDeviceWaitIdle(state->context.device);
@@ -140,14 +140,14 @@ void scene_destroy(State_t *state)
     size_t count = state->scene.modelCount;
     for (size_t i = 0; i < count; ++i)
     {
-        if (!state->scene.pModels[i])
+        if (!state->scene.ppModels[i])
             continue;
 
-        scene_modelDestroy(state, state->scene.pModels[i]);
+        scene_modelDestroy(state, state->scene.ppModels[i]);
     }
 
-    free(state->scene.pModels);
-    state->scene.pModels = NULL;
+    free(state->scene.ppModels);
+    state->scene.ppModels = NULL;
     state->scene.modelCap = 0;
     state->scene.modelCount = 0;
 }

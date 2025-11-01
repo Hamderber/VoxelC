@@ -57,11 +57,8 @@ EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent
         return EVENT_RESULT_ERROR;
 
     const InputActionQuery_t pQUERY[] = {
-        {
-            .mapping = INPUT_ACTION_WIREFRAME_TOGGLE,
-            .actionCtx = CTX_INPUT_ACTION_START,
-        },
-    };
+        {.mapping = INPUT_ACTION_WIREFRAME_TOGGLE,
+         .actionCtx = CTX_INPUT_ACTION_START}};
 
     InputAction_t pQueryResult[sizeof pQUERY / sizeof pQUERY[0]];
     const size_t SIZE = input_inputAction_matchQuery(pEvent, pQUERY, sizeof pQUERY / sizeof pQUERY[0], pQueryResult);

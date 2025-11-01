@@ -8,25 +8,22 @@
 #include "buffers/buffers.h"
 
 /// @brief Checks if the config's AF is available in the device options. Returns 0 if not.
-/// @param state
-/// @return float
-static float tex_AFGet(State_t *state)
+static float tex_AFGet(State_t *pState)
 {
-    for (size_t i = 0; i < state->renderer.anisotropicFilteringOptionsCount; i++)
-    {
-        if ((int)state->config.anisotropy == (int)state->renderer.anisotropicFilteringOptions[i])
+    for (size_t i = 0; i < pState->renderer.anisotropicFilteringOptionsCount; i++)
+        if ((int)pState->config.anisotropy == (int)pState->renderer.pAnisotropicFilteringOptions[i])
         {
-            logs_log(LOG_DEBUG, "Anisotropic filtering is set to %d x", (int)state->config.anisotropy);
-            return (float)state->renderer.anisotropicFilteringOptions[i];
+            logs_log(LOG_DEBUG, "Anisotropic filtering is set to %d x", (int)pState->config.anisotropy);
+            return (float)pState->renderer.pAnisotropicFilteringOptions[i];
         }
-    }
 
-    logs_log(LOG_WARN, "Configured anisotropic filtering (%d) is not supported. Anisotropic filtering will be set to minimum (1 x)!",
-             (int)state->config.anisotropy);
+    logs_log(LOG_WARN, "Configured anisotropic filtering (%d) is not supported. Anisotropic filtering will be set to minimum (1x)!",
+             (int)pState->config.anisotropy);
+
     return 1.0F;
 }
 
-void tex_samplerCreate(State_t *state)
+void tex_samplerCreate(State_t *pState)
 {
     VkSamplerCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -45,7 +42,7 @@ void tex_samplerCreate(State_t *state)
         .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         .anisotropyEnable = VK_TRUE,
-        .maxAnisotropy = tex_AFGet(state),
+        .maxAnisotropy = tex_AFGet(pState),
         // Which color is returned when sampling beyond the image with clamp to border addressing mode. It is possible to
         // return black, white or transparent in either float or int formats
         .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
@@ -58,12 +55,12 @@ void tex_samplerCreate(State_t *state)
         .compareOp = VK_COMPARE_OP_ALWAYS,
         // Mipmapping not implemneted at this time
         .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-        .mipLodBias = 0.0f,
-        .minLod = 0.0f,
-        .maxLod = 0.0f,
+        .mipLodBias = 0.0F,
+        .minLod = 0.0F,
+        .maxLod = 0.0F,
     };
 
-    logs_logIfError(vkCreateSampler(state->context.device, &createInfo, state->context.pAllocator, &state->renderer.textureSampler),
+    logs_logIfError(vkCreateSampler(pState->context.device, &createInfo, pState->context.pAllocator, &pState->renderer.textureSampler),
                     "Failed to create texture sampler!");
 }
 

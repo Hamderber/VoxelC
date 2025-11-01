@@ -8,6 +8,7 @@ typedef struct
     CharacterType_t type;
     // This does NOT include the null terminator
     size_t nameLength;
-    char *name;
+    char *pName;
+    bool sprintIntention;
     bool isSprinting;
 } Character_t;

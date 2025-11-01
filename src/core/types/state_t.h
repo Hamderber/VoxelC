@@ -27,5 +27,5 @@ typedef struct State_t
 
     // Contains data on non-voxel models for rendering
     Scene_t scene;
-    WorldState_t *worldState;
+    WorldState_t *pWorldState;
 } State_t;

@@ -1,3 +1,4 @@
+#pragma region Includes
 #include <stdbool.h>
 #include <stdlib.h>
 #include "core/types/state_t.h"
@@ -10,215 +11,284 @@
 #include "entity/entityManager.h"
 #include "characterController.h"
 #include "entity/entity_t.h"
-
-EventResult_t character_onAxialInput(State_t *state, Event_t *event, void *ctx)
+#include "input/types/inputActionQuery_t.h"
+#include "input/input.h"
+#pragma endregion
+#pragma region Axial Input
+EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCtx)
 {
+    pCtx;
+    if (!pState || !pEvent)
+        return EVENT_RESULT_ERROR;
+
     // Don't even bother with axial input if a menu of any type is open
-    if (state->gui.menuDepth != GUI_ID_NONE)
-    {
+    if (pState->gui.menuDepth != GUI_ID_NONE)
         return EVENT_RESULT_PASS;
-    }
 
-    ctx = NULL;
-    if (event == NULL)
-    {
-        // Null event? This should never happen
-        return EVENT_RESULT_ERROR;
-    }
+    const InputActionQuery_t pQUERY[] = {
+        {.mapping = INPUT_ACTION_JUMP,
+         .actionCtx = CTX_INPUT_ACTION_START},
+        {.mapping = INPUT_ACTION_JUMP,
+         .actionCtx = CTX_INPUT_ACTION_END},
+        {.mapping = INPUT_ACTION_CROUCH,
+         .actionCtx = CTX_INPUT_ACTION_START},
+        {.mapping = INPUT_ACTION_CROUCH,
+         .actionCtx = CTX_INPUT_ACTION_END},
+        {.mapping = INPUT_ACTION_MOVE_FORWARD,
+         .actionCtx = CTX_INPUT_ACTION_START},
+        {.mapping = INPUT_ACTION_MOVE_FORWARD,
+         .actionCtx = CTX_INPUT_ACTION_END},
+        {.mapping = INPUT_ACTION_MOVE_BACKWARD,
+         .actionCtx = CTX_INPUT_ACTION_START},
+        {.mapping = INPUT_ACTION_MOVE_BACKWARD,
+         .actionCtx = CTX_INPUT_ACTION_END},
+        {.mapping = INPUT_ACTION_MOVE_LEFT,
+         .actionCtx = CTX_INPUT_ACTION_START},
+        {.mapping = INPUT_ACTION_MOVE_LEFT,
+         .actionCtx = CTX_INPUT_ACTION_END},
+        {.mapping = INPUT_ACTION_MOVE_RIGHT,
+         .actionCtx = CTX_INPUT_ACTION_START},
+        {.mapping = INPUT_ACTION_MOVE_RIGHT,
+         .actionCtx = CTX_INPUT_ACTION_END}};
 
-    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
-    {
-        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+    InputAction_t pQueryResult[sizeof pQUERY / sizeof pQUERY[0]];
+    const size_t SIZE = input_inputAction_matchQuery(pEvent, pQUERY, sizeof pQUERY / sizeof pQUERY[0], pQueryResult);
+
+    if (SIZE > 0)
+        for (size_t i = 0; i < SIZE; i++)
         {
-            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            const InputAction_t ACTION = pQueryResult[i];
+
+            switch (ACTION.action)
             {
-                switch (event->data.inputMapped->inputActions[i].action)
+            case INPUT_ACTION_JUMP:
+                if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
-                case INPUT_ACTION_JUMP:
-                    logs_log(LOG_DEBUG, "Character moving up (pressed)");
-                    state->input.axialInput.y += 1.0F;
-                    break;
-                case INPUT_ACTION_CROUCH:
-                    logs_log(LOG_DEBUG, "Character moving down (pressed)");
-                    state->input.axialInput.y -= 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_FORWARD:
+                    logs_log(LOG_DEBUG, "Character jump (pressed)");
+                    // flight mode
+                    pState->input.axialInput.y += 1.0F;
+                }
+                else if (ACTION.actionState == CTX_INPUT_ACTION_END)
+                {
+                    logs_log(LOG_DEBUG, "Character jump (released)");
+                    // flight mode
+                    pState->input.axialInput.y -= 1.0F;
+                }
+                break;
+            case INPUT_ACTION_CROUCH:
+                if (ACTION.actionState == CTX_INPUT_ACTION_START)
+                {
+                    logs_log(LOG_DEBUG, "Character crouch (pressed)");
+                    // flight mode
+                    pState->input.axialInput.y -= 1.0F;
+                }
+                else if (ACTION.actionState == CTX_INPUT_ACTION_END)
+                {
+                    logs_log(LOG_DEBUG, "Character crouch (released)");
+                    // flight mode
+                    pState->input.axialInput.y += 1.0F;
+                }
+                break;
+            case INPUT_ACTION_MOVE_FORWARD:
+                if (ACTION.actionState == CTX_INPUT_ACTION_START)
+                {
                     logs_log(LOG_DEBUG, "Character moving forward (pressed)");
-                    state->input.axialInput.z -= 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_BACKWARD:
-                    logs_log(LOG_DEBUG, "Character moving backward (pressed)");
-                    state->input.axialInput.z += 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_LEFT:
-                    logs_log(LOG_DEBUG, "Character moving left (pressed)");
-                    state->input.axialInput.x -= 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_RIGHT:
-                    logs_log(LOG_DEBUG, "Character moving right (pressed)");
-                    state->input.axialInput.x += 1.0F;
-                    break;
-                default:
-                    // No-op on actions that aren't applicable. When there is any input action, they will all be iterated here
-                    break;
+                    pState->input.axialInput.z -= 1.0F;
                 }
-            }
-            else if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_END)
-            {
-                switch (event->data.inputMapped->inputActions[i].action)
+                else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
-                case INPUT_ACTION_JUMP:
-                    logs_log(LOG_DEBUG, "Character moving up (released)");
-                    state->input.axialInput.y -= 1.0F;
-                    break;
-                case INPUT_ACTION_CROUCH:
-                    logs_log(LOG_DEBUG, "Character moving down (released)");
-                    state->input.axialInput.y += 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_FORWARD:
                     logs_log(LOG_DEBUG, "Character moving forward (released)");
-                    state->input.axialInput.z += 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_BACKWARD:
-                    logs_log(LOG_DEBUG, "Character moving backward (released)");
-                    state->input.axialInput.z -= 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_LEFT:
-                    logs_log(LOG_DEBUG, "Character moving left (released)");
-                    state->input.axialInput.x += 1.0F;
-                    break;
-                case INPUT_ACTION_MOVE_RIGHT:
-                    logs_log(LOG_DEBUG, "Character moving right (released)");
-                    state->input.axialInput.x -= 1.0F;
-                    break;
-                default:
-                    break;
+                    pState->input.axialInput.z += 1.0F;
                 }
-            }
-        }
-
-        // Protect against faulty input events
-        state->input.axialInput.x = cmath_clampF(state->input.axialInput.x, -1.0F, 1.0F);
-        state->input.axialInput.y = cmath_clampF(state->input.axialInput.y, -1.0F, 1.0F);
-        state->input.axialInput.z = cmath_clampF(state->input.axialInput.z, -1.0F, 1.0F);
-    }
-
-    return EVENT_RESULT_PASS;
-}
-
-void character_sprintToggle(State_t *state, Character_t *character)
-{
-    EntityComponentData_t *componentData;
-    if (!em_entityDataGet(state->worldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
-        return;
-
-    character->isSprinting = !character->isSprinting;
-
-    float baseSpeed = componentData->physicsData->uniformSpeedBase;
-    float speed = componentData->physicsData->uniformSpeed;
-    componentData->physicsData->uniformSpeed = character->isSprinting ? speed * SPRINT_SPEED_MULTIPLIER : baseSpeed;
-
-    logs_log(LOG_DEBUG, "Sprint toggled. Character %s speed is %lfm/s", character->name, componentData->physicsData->uniformSpeed);
-}
-
-EventResult_t character_onSprintTogglePress(struct State_t *state, Event_t *event, void *ctx)
-{
-    if (event == NULL)
-    {
-        return EVENT_RESULT_ERROR;
-    }
-
-    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
-    {
-        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
-        {
-            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
-            {
-                switch (event->data.inputMapped->inputActions[i].action)
+                break;
+            case INPUT_ACTION_MOVE_BACKWARD:
+                if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
-                case INPUT_ACTION_SPRINT_TOGGLE:
-                    Character_t *character = (Character_t *)ctx;
-                    logs_log(LOG_DEBUG, "Sprint toggle (pressed)");
-                    character_sprintToggle(state, character);
-                    return EVENT_RESULT_PASS;
-                    break;
+                    logs_log(LOG_DEBUG, "Character moving backward (pressed)");
+                    pState->input.axialInput.z += 1.0F;
                 }
+                else if (ACTION.actionState == CTX_INPUT_ACTION_END)
+                {
+                    logs_log(LOG_DEBUG, "Character moving backward (released)");
+                    pState->input.axialInput.z -= 1.0F;
+                }
+                break;
+            case INPUT_ACTION_MOVE_LEFT:
+                if (ACTION.actionState == CTX_INPUT_ACTION_START)
+                {
+                    logs_log(LOG_DEBUG, "Character moving left (pressed)");
+                    pState->input.axialInput.x -= 1.0F;
+                }
+                else if (ACTION.actionState == CTX_INPUT_ACTION_END)
+                {
+                    logs_log(LOG_DEBUG, "Character moving left (released)");
+                    pState->input.axialInput.x += 1.0F;
+                }
+                break;
+            case INPUT_ACTION_MOVE_RIGHT:
+                if (ACTION.actionState == CTX_INPUT_ACTION_START)
+                {
+                    logs_log(LOG_DEBUG, "Character moving right (pressed)");
+                    pState->input.axialInput.x += 1.0F;
+                }
+                else if (ACTION.actionState == CTX_INPUT_ACTION_END)
+                {
+                    logs_log(LOG_DEBUG, "Character moving right (released)");
+                    pState->input.axialInput.x -= 1.0F;
+                }
+                break;
             }
         }
-    }
+
+    // Protect against faulty input events
+    pState->input.axialInput.x = cmath_clampF(pState->input.axialInput.x, -1.0F, 1.0F);
+    pState->input.axialInput.y = cmath_clampF(pState->input.axialInput.y, -1.0F, 1.0F);
+    pState->input.axialInput.z = cmath_clampF(pState->input.axialInput.z, -1.0F, 1.0F);
 
     return EVENT_RESULT_PASS;
 }
-
-void player_physicsIntentUpdate(State_t *state)
+#pragma endregion
+#pragma region Sprint
+void character_sprintToggle(State_t *pState, Character_t *pCharacter)
 {
-    EntityComponentData_t *componentData;
-    if (!em_entityDataGet(state->worldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
+    EntityComponentData_t *pComponentData;
+    if (!em_entityDataGet(pState->pWorldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &pComponentData))
         return;
 
-    EntityDataPhysics_t *phys = componentData->physicsData;
-    phys->moveIntention = state->input.axialInput;
+    pCharacter->isSprinting = !pCharacter->isSprinting;
+
+    float baseSpeed = pComponentData->physicsData->uniformSpeedBase;
+    float speed = pComponentData->physicsData->uniformSpeed;
+    pComponentData->physicsData->uniformSpeed = pCharacter->isSprinting ? speed * SPRINT_SPEED_MULTIPLIER : baseSpeed;
+
+    camera_sprintFOV_toggle(pState, pCharacter->isSprinting);
+
+    logs_log(LOG_DEBUG, "Sprint toggled. Character %s speed is %lfm/s", pCharacter->pName, pComponentData->physicsData->uniformSpeed);
+}
+
+EventResult_t character_onSprintTogglePress(struct State_t *pState, Event_t *pEvent, void *pCtx)
+{
+    if (pEvent == NULL)
+        return EVENT_RESULT_ERROR;
+
+    const InputActionQuery_t pQUERY[] = {
+        {.mapping = INPUT_ACTION_SPRINT_TOGGLE,
+         .actionCtx = CTX_INPUT_ACTION_START},
+        {.mapping = INPUT_ACTION_SPRINT_TOGGLE,
+         .actionCtx = CTX_INPUT_ACTION_END}};
+
+    InputAction_t pQueryResult[sizeof pQUERY / sizeof pQUERY[0]];
+    const size_t SIZE = input_inputAction_matchQuery(pEvent, pQUERY, sizeof pQUERY / sizeof pQUERY[0], pQueryResult);
+
+    if (SIZE > 0)
+        for (size_t i = 0; i < SIZE; i++)
+        {
+            const InputAction_t ACTION = pQueryResult[i];
+
+            switch (ACTION.action)
+            {
+            case INPUT_ACTION_SPRINT_TOGGLE:
+                if (ACTION.actionState == CTX_INPUT_ACTION_START)
+                {
+                    Character_t *pCharacter = (Character_t *)pCtx;
+                    logs_log(LOG_DEBUG, "Sprint toggle (pressed)");
+                    pCharacter->sprintIntention = true;
+                    character_sprintToggle(pState, pCharacter);
+                    return EVENT_RESULT_PASS;
+                }
+                if (ACTION.actionState == CTX_INPUT_ACTION_END)
+                {
+                    // Only toggle sprint intention, let movement intention hold sprinting active until z motion stops
+                    Character_t *pCharacter = (Character_t *)pCtx;
+                    pCharacter->sprintIntention = false;
+                    return EVENT_RESULT_PASS;
+                }
+                break;
+            }
+        }
+
+    return EVENT_RESULT_PASS;
+}
+#pragma endregion
+#pragma region Physics
+void player_physicsIntentUpdate(State_t *pState)
+{
+    EntityComponentData_t *componentData;
+    if (!em_entityDataGet(pState->pWorldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
+        return;
+
+    EntityDataPhysics_t *pPhys = componentData->physicsData;
+    pPhys->moveIntention = pState->input.axialInput;
     // For now, just directly rotate the player by the camera's rotation. Later will probably have to just do pitch
-    phys->rotation = state->context.camera.rotation;
+    pPhys->rotation = pState->context.camera.rotation;
 
     // Stop sprinting if no longer moving forward
-    if (state->worldState->world.pPlayer->isSprinting && fabsf(phys->moveIntention.z) < CMATH_EPSILON_F)
+    if (!pState->pWorldState->world.pPlayer->sprintIntention && pState->pWorldState->world.pPlayer->isSprinting &&
+        fabsf(pPhys->moveIntention.z) < CMATH_EPSILON_F)
     {
         logs_log(LOG_DEBUG, "Player stopped moving trying to move forward, automatically toggling sprinting.");
-        character_sprintToggle(state, state->worldState->world.pPlayer);
+        character_sprintToggle(pState, pState->pWorldState->world.pPlayer);
     }
 }
-
-void character_entityCreate(State_t *state, Character_t *character)
+#pragma endregion
+#pragma region Entity Create
+void character_entityCreate(State_t *pState, Character_t *pCharacter)
 {
-    Entity_t *characterEntity = em_entityCreateHeap();
-    characterEntity->type = ENTITY_TYPE_CREATURE;
+    Entity_t *pCharacterEntity = em_entityCreateHeap();
+    pCharacterEntity->type = ENTITY_TYPE_CREATURE;
 
-    em_entityAddToCollection(&state->entityManager.entityCollections[ENTITY_COLLECTION_PHYSICS], characterEntity);
+    em_entityAddToCollection(&pState->entityManager.entityCollections[ENTITY_COLLECTION_PHYSICS], pCharacterEntity);
 
-    characterEntity->componentCount = 1;
-    characterEntity->components = calloc(characterEntity->componentCount, sizeof(EntityComponent_t));
-    characterEntity->components[0] = (EntityComponent_t){
+    pCharacterEntity->componentCount = 1;
+    pCharacterEntity->components = calloc(pCharacterEntity->componentCount, sizeof(EntityComponent_t));
+
+    pCharacterEntity->components[0] = (EntityComponent_t){
         .data = calloc(1, sizeof(EntityComponentData_t)),
-        .type = ENTITY_COMPONENT_TYPE_PHYSICS,
-    };
-    characterEntity->components[0].data->physicsData = calloc(1, sizeof(EntityDataPhysics_t));
-    characterEntity->components[0].data->physicsData->uniformSpeed = DEFAULT_UNIFORM_SPEED;
-    characterEntity->components[0].data->physicsData->uniformSpeedBase = DEFAULT_UNIFORM_SPEED;
-    characterEntity->components[0].data->physicsData->useLocalAxes = true;
+        .type = ENTITY_COMPONENT_TYPE_PHYSICS};
+    pCharacterEntity->components[0].data->physicsData = calloc(1, sizeof(EntityDataPhysics_t));
+    pCharacterEntity->components[0].data->physicsData->uniformSpeed = DEFAULT_UNIFORM_SPEED;
+    pCharacterEntity->components[0].data->physicsData->uniformSpeedBase = DEFAULT_UNIFORM_SPEED;
+    pCharacterEntity->components[0].data->physicsData->useLocalAxes = true;
 
-    switch (character->type)
+    switch (pCharacter->type)
     {
     case CHARACTER_TYPE_PLAYER:
-
         Vec3f_t pos = (Vec3f_t){-3.0F, -3.0F, 15.0F};
-        characterEntity->components[0].data->physicsData->pos = pos;
+        pCharacterEntity->components[0].data->physicsData->pos = pos;
 
         // Adjust the drag to get the right "floatiness" while in flying
-        characterEntity->components[0].data->physicsData->drag = 2.0F;
+        pCharacterEntity->components[0].data->physicsData->drag = 2.0F;
 
-        state->worldState->pPlayerEntity = characterEntity;
+        pState->pWorldState->pPlayerEntity = pCharacterEntity;
         break;
     default:
-        characterEntity->components[0].data->physicsData->drag = 3.0F;
+        pCharacterEntity->components[0].data->physicsData->drag = 3.0F;
         break;
     }
 }
-
-void character_eventsSubscribe(State_t *state, Character_t *character)
+#pragma endregion
+#pragma region Init
+static void character_eventsSubscribe(State_t *pState, Character_t *pCharacter)
 {
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, character_onAxialInput, false, false, NULL);
-    events_subscribe(&state->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, character_onSprintTogglePress, false, false, (void *)character);
+    const bool CONSUME_LISTENER = false;
+    const bool CONSUME_EVENT = false;
+    const void *pSubCtx = NULL;
+
+    events_subscribe(&pState->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, character_onAxialInput,
+                     CONSUME_LISTENER, CONSUME_EVENT, &pSubCtx);
+
+    events_subscribe(&pState->eventBus, EVENT_CHANNEL_INPUT_ACTIONS, character_onSprintTogglePress,
+                     CONSUME_LISTENER, CONSUME_EVENT, (void *)pCharacter);
 }
 
-void character_init(State_t *state, Character_t *character)
+void character_init(State_t *pState, Character_t *pCharacter)
 {
-    switch (character->type)
+    switch (pCharacter->type)
     {
     case CHARACTER_TYPE_PLAYER:
-        camera_init(state);
-        character_entityCreate(state, character);
-        character_eventsSubscribe(state, character);
+        camera_init(pState);
+        character_entityCreate(pState, pCharacter);
+        character_eventsSubscribe(pState, pCharacter);
         break;
     case CHARACTER_TYPE_MOB:
     default:
@@ -226,3 +296,4 @@ void character_init(State_t *state, Character_t *character)
         break;
     }
 }
+#pragma endregion

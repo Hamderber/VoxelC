@@ -160,12 +160,12 @@ static RenderChunk_t *world_dummyChunkCreate(State_t *state, Vec3f_t position)
 
 void world_init(State_t *state)
 {
-    state->worldState = calloc(1, sizeof(WorldState_t));
+    state->pWorldState = calloc(1, sizeof(WorldState_t));
 
-    state->worldState->world.pPlayer = character_create(state, CHARACTER_TYPE_PLAYER);
+    state->pWorldState->world.pPlayer = character_create(state, CHARACTER_TYPE_PLAYER);
 
-    state->worldState->renderChunkCount = 27;
-    state->worldState->ppRenderChunks = calloc(state->worldState->renderChunkCount, sizeof(RenderChunk_t *));
+    state->pWorldState->renderChunkCount = 27;
+    state->pWorldState->ppRenderChunks = calloc(state->pWorldState->renderChunkCount, sizeof(RenderChunk_t *));
 
     for (int i = 0; i < 3; i++)
     {
@@ -175,7 +175,7 @@ void world_init(State_t *state)
             {
                 size_t idx = (size_t)i * 3 * 3 + (size_t)j * 3 + (size_t)k; // 27 slots
                 Vec3f_t pos = {(float)i, (float)j, (float)k};
-                state->worldState->ppRenderChunks[idx] = world_dummyChunkCreate(state, pos);
+                state->pWorldState->ppRenderChunks[idx] = world_dummyChunkCreate(state, pos);
                 logs_log(LOG_INFO, "Dummy voxel chunk created at (%f, %f, %f).", pos.x, pos.y, pos.z);
             }
         }
@@ -189,25 +189,25 @@ void world_load(State_t *state)
 
 void world_destroy(State_t *state)
 {
-    if (!state || !state->worldState || !state->worldState->ppRenderChunks)
+    if (!state || !state->pWorldState || !state->pWorldState->ppRenderChunks)
         return;
 
     // Ensure nothing is in-flight that still uses these buffers
     vkDeviceWaitIdle(state->context.device);
 
-    size_t count = state->worldState->renderChunkCount;
+    size_t count = state->pWorldState->renderChunkCount;
     for (size_t i = 0; i < count; ++i)
     {
-        RenderChunk_t *chunk = state->worldState->ppRenderChunks[i];
+        RenderChunk_t *chunk = state->pWorldState->ppRenderChunks[i];
         if (!chunk)
             continue;
 
         chunk_renderDestroy(state, chunk);
-        state->worldState->ppRenderChunks[i] = NULL;
+        state->pWorldState->ppRenderChunks[i] = NULL;
     }
 
     // Free the container array and reset counters
-    free(state->worldState->ppRenderChunks);
-    state->worldState->ppRenderChunks = NULL;
-    state->worldState->renderChunkCount = 0;
+    free(state->pWorldState->ppRenderChunks);
+    state->pWorldState->ppRenderChunks = NULL;
+    state->pWorldState->renderChunkCount = 0;
 }

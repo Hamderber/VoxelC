@@ -16,7 +16,7 @@ void uniformBuffer_update(State_t *pState)
 {
     do
     {
-        if (!pState->renderer.pUniformBuffersMapped)
+        if (!pState->renderer.ppUniformBuffersMapped)
         {
             logs_log(LOG_ERROR, "State has an invalid uniform buffer mapping pointer!");
             break;
@@ -26,7 +26,7 @@ void uniformBuffer_update(State_t *pState)
             .view = camera_viewMatrix_get(pState),
             .projection = camera_projectionMatrix_get(pState)};
 
-        memcpy(pState->renderer.pUniformBuffersMapped[pState->renderer.currentFrame], &CAMERA_UBO, sizeof(CAMERA_UBO));
+        memcpy(pState->renderer.ppUniformBuffersMapped[pState->renderer.currentFrame], &CAMERA_UBO, sizeof(CAMERA_UBO));
 
         return;
     } while (0);
@@ -44,8 +44,8 @@ void uniformBuffers_create(State_t *pState)
     {
         pState->renderer.pUniformBuffers = malloc(sizeof(VkBuffer) * pState->config.maxFramesInFlight);
         pState->renderer.pUniformBufferMemories = malloc(sizeof(VkDeviceMemory) * pState->config.maxFramesInFlight);
-        pState->renderer.pUniformBuffersMapped = malloc(sizeof(void *) * pState->config.maxFramesInFlight);
-        if (!pState->renderer.pUniformBuffers || !pState->renderer.pUniformBufferMemories || !pState->renderer.pUniformBuffersMapped)
+        pState->renderer.ppUniformBuffersMapped = malloc(sizeof(void *) * pState->config.maxFramesInFlight);
+        if (!pState->renderer.pUniformBuffers || !pState->renderer.pUniformBufferMemories || !pState->renderer.ppUniformBuffersMapped)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to allocate memory for the uniform buffers!");
@@ -61,7 +61,7 @@ void uniformBuffers_create(State_t *pState)
             const uint32_t FLAGS = 0;
             const uint32_t OFFSET = 0;
             if (vkMapMemory(pState->context.device, pState->renderer.pUniformBufferMemories[i], OFFSET, BUFFER_SIZE, FLAGS,
-                            &pState->renderer.pUniformBuffersMapped[i]) != VK_SUCCESS)
+                            &pState->renderer.ppUniformBuffersMapped[i]) != VK_SUCCESS)
             {
                 crashLine = __LINE__;
                 logs_log(LOG_ERROR, "Failed to map memory for uniform buffer %" PRIu32 "!");
@@ -86,14 +86,14 @@ void uniformBuffers_destroy(State_t *pState)
         vkDestroyBuffer(pState->context.device, pState->renderer.pUniformBuffers[i], pState->context.pAllocator);
         vkUnmapMemory(pState->context.device, pState->renderer.pUniformBufferMemories[i]);
         vkFreeMemory(pState->context.device, pState->renderer.pUniformBufferMemories[i], pState->context.pAllocator);
-        pState->renderer.pUniformBuffersMapped[i] = NULL;
+        pState->renderer.ppUniformBuffersMapped[i] = NULL;
     }
 
     free(pState->renderer.pUniformBuffers);
     pState->renderer.pUniformBuffers = NULL;
     free(pState->renderer.pUniformBufferMemories);
     pState->renderer.pUniformBufferMemories = NULL;
-    free(pState->renderer.pUniformBuffersMapped);
-    pState->renderer.pUniformBuffersMapped = NULL;
+    free(pState->renderer.ppUniformBuffersMapped);
+    pState->renderer.ppUniformBuffersMapped = NULL;
 }
 #pragma endregion

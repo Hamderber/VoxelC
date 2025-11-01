@@ -11,34 +11,34 @@
 void syncObjects_destroy(State_t *pState)
 {
     for (uint32_t i = 0; i < pState->config.maxFramesInFlight; i++)
-        if (pState->renderer.inFlightFences != NULL)
+        if (pState->renderer.pInFlightFences != NULL)
         {
-            vkDestroyFence(pState->context.device, pState->renderer.inFlightFences[i], pState->context.pAllocator);
-            pState->renderer.inFlightFences[i] = VK_NULL_HANDLE;
+            vkDestroyFence(pState->context.device, pState->renderer.pInFlightFences[i], pState->context.pAllocator);
+            pState->renderer.pInFlightFences[i] = VK_NULL_HANDLE;
         }
 
     for (uint32_t i = 0; i < pState->config.maxFramesInFlight; i++)
-        if (pState->renderer.renderFinishedSemaphores != NULL)
+        if (pState->renderer.pRenderFinishedSemaphores != NULL)
         {
-            vkDestroySemaphore(pState->context.device, pState->renderer.renderFinishedSemaphores[i], pState->context.pAllocator);
-            pState->renderer.renderFinishedSemaphores[i] = VK_NULL_HANDLE;
+            vkDestroySemaphore(pState->context.device, pState->renderer.pRenderFinishedSemaphores[i], pState->context.pAllocator);
+            pState->renderer.pRenderFinishedSemaphores[i] = VK_NULL_HANDLE;
         }
 
     for (uint32_t i = 0; i < pState->config.maxFramesInFlight; i++)
-        if (pState->renderer.imageAcquiredSemaphores != NULL)
+        if (pState->renderer.pImageAcquiredSemaphores != NULL)
         {
-            vkDestroySemaphore(pState->context.device, pState->renderer.imageAcquiredSemaphores[i], pState->context.pAllocator);
-            pState->renderer.imageAcquiredSemaphores[i] = VK_NULL_HANDLE;
+            vkDestroySemaphore(pState->context.device, pState->renderer.pImageAcquiredSemaphores[i], pState->context.pAllocator);
+            pState->renderer.pImageAcquiredSemaphores[i] = VK_NULL_HANDLE;
         }
 
-    free(pState->renderer.inFlightFences);
-    pState->renderer.inFlightFences = NULL;
+    free(pState->renderer.pInFlightFences);
+    pState->renderer.pInFlightFences = NULL;
 
-    free(pState->renderer.imageAcquiredSemaphores);
-    pState->renderer.imageAcquiredSemaphores = NULL;
+    free(pState->renderer.pImageAcquiredSemaphores);
+    pState->renderer.pImageAcquiredSemaphores = NULL;
 
-    free(pState->renderer.renderFinishedSemaphores);
-    pState->renderer.renderFinishedSemaphores = NULL;
+    free(pState->renderer.pRenderFinishedSemaphores);
+    pState->renderer.pRenderFinishedSemaphores = NULL;
 }
 #pragma endregion
 #pragma region Create
@@ -50,24 +50,24 @@ void syncObjects_create(State_t *pState)
         // Destroy the original sync objects if they existed first
         syncObjects_destroy(pState);
 
-        pState->renderer.imageAcquiredSemaphores = malloc(sizeof(VkSemaphore) * pState->config.maxFramesInFlight);
-        if (!pState->renderer.imageAcquiredSemaphores)
+        pState->renderer.pImageAcquiredSemaphores = malloc(sizeof(VkSemaphore) * pState->config.maxFramesInFlight);
+        if (!pState->renderer.pImageAcquiredSemaphores)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to allcoate memory for image acquired semaphors!");
             break;
         }
 
-        pState->renderer.renderFinishedSemaphores = malloc(sizeof(VkSemaphore) * pState->config.maxFramesInFlight);
-        if (!pState->renderer.renderFinishedSemaphores)
+        pState->renderer.pRenderFinishedSemaphores = malloc(sizeof(VkSemaphore) * pState->config.maxFramesInFlight);
+        if (!pState->renderer.pRenderFinishedSemaphores)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to allcoate memory for render finished semaphors!");
             break;
         }
 
-        pState->renderer.inFlightFences = malloc(sizeof(VkFence) * pState->config.maxFramesInFlight);
-        if (!pState->renderer.inFlightFences)
+        pState->renderer.pInFlightFences = malloc(sizeof(VkFence) * pState->config.maxFramesInFlight);
+        if (!pState->renderer.pInFlightFences)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to allcoate memory for in-flight fences!");
@@ -89,7 +89,7 @@ void syncObjects_create(State_t *pState)
         for (uint32_t i = 0; i < pState->config.maxFramesInFlight; i++)
         {
             if (vkCreateSemaphore(pState->context.device, &SEMAPHORE_CREATE_INFO, pState->context.pAllocator,
-                                  &pState->renderer.imageAcquiredSemaphores[i]) != VK_SUCCESS)
+                                  &pState->renderer.pImageAcquiredSemaphores[i]) != VK_SUCCESS)
             {
                 crashLine = __LINE__;
                 logs_log(LOG_ERROR, "Failed to create image acquired semaphore!");
@@ -97,7 +97,7 @@ void syncObjects_create(State_t *pState)
             }
 
             if (vkCreateSemaphore(pState->context.device, &SEMAPHORE_CREATE_INFO, pState->context.pAllocator,
-                                  &pState->renderer.renderFinishedSemaphores[i]) != VK_SUCCESS)
+                                  &pState->renderer.pRenderFinishedSemaphores[i]) != VK_SUCCESS)
             {
                 crashLine = __LINE__;
                 logs_log(LOG_ERROR, "Failed to create render finished semaphore!");
@@ -105,7 +105,7 @@ void syncObjects_create(State_t *pState)
             }
 
             if (vkCreateFence(pState->context.device, &FENCE_CREATE_INFO, pState->context.pAllocator,
-                              &pState->renderer.inFlightFences[i]) != VK_SUCCESS)
+                              &pState->renderer.pInFlightFences[i]) != VK_SUCCESS)
             {
                 crashLine = __LINE__;
                 logs_log(LOG_ERROR, "Failed to create in-flight fence!");

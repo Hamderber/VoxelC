@@ -109,6 +109,17 @@ static EventResult_t zoom_onPress(State_t *pState, Event_t *pEvent, void *pCtx)
     return EVENT_RESULT_PASS;
 }
 #pragma endregion
+#pragma region Sprint FOV
+const float SPRINT_FOV_INCREASE = 20.0F;
+void camera_sprintFOV_toggle(State_t *pState, const bool TOGGLE)
+{
+    if (TOGGLE)
+        pState->context.camera.fov += SPRINT_FOV_INCREASE;
+    else
+        pState->context.camera.fov -= SPRINT_FOV_INCREASE;
+}
+
+#pragma endregion
 #pragma region Create
 /// @brief Subscribe events for camera
 static inline void eventsSubscribe(State_t *pState)

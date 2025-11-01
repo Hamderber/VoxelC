@@ -1,5 +1,3 @@
-#pragma once
-
 #include "core/logs.h"
 #include "core/glfw_instance.h"
 #include "core/vk_instance.h"
@@ -55,26 +53,26 @@ void app_init(State_t *pState)
     scene_model_createAll(pState);
 }
 
-void app_loop_render(State_t *state)
+void app_loop_render(State_t *pState)
 {
     // Handle the window events, including actually closing the window with the X
     window_events_poll();
 
     // Handle all inputs since the last frame displayed (GLFW)
-    input_poll(state);
+    input_poll(pState);
 
     // Must call this after the window poll events (glfwPollEvents(); specifically) because resizing the window and the
     // associated callback would be generated from that function. This will only hit AFTER the user has LET GO of the
     // side of the window during resize. This means that each time the window changes, the swapchain will only be recreated
     // once the user STOPS the resize process.
-    if (state->window.swapchain.recreate)
+    if (pState->window.swapchain.recreate)
     {
-        rendering_recreate(state);
+        rendering_recreate(pState);
     }
 
-    rendering_present(state);
+    rendering_present(pState);
 
-    time_update(&state->time);
+    time_update(&pState->time);
 }
 
 void app_loop_main(State_t *state)

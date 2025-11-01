@@ -6,9 +6,9 @@
 
 void chunk_drawChunks(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout)
 {
-    for (uint32_t i = 0; i < pState->worldState->renderChunkCount; ++i)
+    for (uint32_t i = 0; i < pState->pWorldState->renderChunkCount; ++i)
     {
-        RenderChunk_t *chunk = pState->worldState->ppRenderChunks[i];
+        RenderChunk_t *chunk = pState->pWorldState->ppRenderChunks[i];
         if (!chunk)
             continue;
 

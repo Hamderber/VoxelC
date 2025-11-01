@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/core.h"
+#include "core/types/state_t.h"
 
 /// @brief The render pass is basically the blueprint for the graphics operation in the graphics pipeline
 void renderpass_create(State_t *pState);

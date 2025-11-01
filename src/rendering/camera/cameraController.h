@@ -31,5 +31,8 @@ static inline Mat4c_t camera_projectionMatrix_get(const State_t *pSTATE)
 /// @brief Updates camera rotation using current mouse position
 void camera_rotation_updateNow(State_t *pState);
 
+/// @brief Adds or subtracts the FOV change associated with sprinting
+void camera_sprintFOV_toggle(State_t *pState, const bool TOGGLE);
+
 /// @brief Initalizes the camera system
 void camera_init(State_t *pState);
