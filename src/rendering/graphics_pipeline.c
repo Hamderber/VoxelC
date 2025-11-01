@@ -47,7 +47,8 @@ static void layout_createInfo_get(State_t *pState, const GraphicsPipeline_t GRAP
 
         switch (GRAPHICS_PIPELINE)
         {
-        case GRAPHICS_PIPELINE_FILL:
+        case GRAPHICS_PIPELINE_VOXEL_FILL:
+        case GRAPHICS_PIPELINE_MODEL_FILL:
             switch (TARGET)
             {
             case GRAPHICS_TARGET_MODEL:
@@ -114,7 +115,8 @@ static void colorBlendState_createInfo_get(State_t *pState, const GraphicsPipeli
 
         switch (GRAPHICS_PIPELINE)
         {
-        case GRAPHICS_PIPELINE_FILL:
+        case GRAPHICS_PIPELINE_VOXEL_FILL:
+        case GRAPHICS_PIPELINE_MODEL_FILL:
             // Default
             break;
         case GRAPHICS_PIPELINE_WIREFRAME:
@@ -152,7 +154,8 @@ static void rasterizationState_createInfo_get(State_t *pState, const GraphicsPip
         VkPolygonMode polygonMode;
         switch (GRAPHICS_PIPELINE)
         {
-        case GRAPHICS_PIPELINE_FILL:
+        case GRAPHICS_PIPELINE_VOXEL_FILL:
+        case GRAPHICS_PIPELINE_MODEL_FILL:
             polygonMode = VK_POLYGON_MODE_FILL;
             break;
         case GRAPHICS_PIPELINE_WIREFRAME:
@@ -232,7 +235,8 @@ static void shader_load(State_t *pState, const GraphicsPipeline_t PIPELINE, cons
     pVertexBlobs[GRAPHICS_TARGET_VOXEL] = (ShaderBlob_t){shaderVoxelVertCode, shaderVoxelVertCodeSize};
 
     ShaderBlob_t pFragmentBlobs[GRAPHICS_PIPELINE_COUNT];
-    pFragmentBlobs[GRAPHICS_PIPELINE_FILL] = (ShaderBlob_t){shaderFillFragCode, shaderFillFragCodeSize};
+    pFragmentBlobs[GRAPHICS_PIPELINE_MODEL_FILL] = (ShaderBlob_t){shaderModelFillFragCode, shaderModelFillFragCodeSize};
+    pFragmentBlobs[GRAPHICS_PIPELINE_VOXEL_FILL] = (ShaderBlob_t){shaderVoxelFillFragCode, shaderVoxelFillFragCodeSize};
     pFragmentBlobs[GRAPHICS_PIPELINE_WIREFRAME] = (ShaderBlob_t){shaderWireframeFragCode, shaderWireframeFragCodeSize};
 
     int crashLine = 0;
@@ -337,10 +341,22 @@ static void create(State_t *pState, const GraphicsPipeline_t PIPELINE, const Gra
 
     VkPipelineVertexInputStateCreateInfo VERTEX_INPUT_STATE = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS,
-        .pVertexBindingDescriptions = shaderVertexGetBindingDescription(),
-        .vertexAttributeDescriptionCount = NUM_SHADER_VERTEX_ATTRIBUTES,
-        .pVertexAttributeDescriptions = shaderVertexGetInputAttributeDescriptions()};
+        .vertexBindingDescriptionCount =
+            TARGET == GRAPHICS_TARGET_MODEL
+                ? NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS_MODEL
+                : NUM_SHADER_VERTEX_BINDING_DESCRIPTIONS_VOXEL,
+        .pVertexBindingDescriptions =
+            TARGET == GRAPHICS_TARGET_MODEL
+                ? shaderVertexGetBindingDescriptionModel()
+                : shaderVertexGetBindingDescriptionVoxel(),
+        .vertexAttributeDescriptionCount =
+            TARGET == GRAPHICS_TARGET_MODEL
+                ? NUM_SHADER_VERTEX_ATTRIBUTES_MODEL
+                : NUM_SHADER_VERTEX_ATTRIBUTES_VOXEL,
+        .pVertexAttributeDescriptions =
+            TARGET == GRAPHICS_TARGET_MODEL
+                ? shaderVertexGetInputAttributeDescriptionsModel()
+                : shaderVertexGetInputAttributeDescriptionsVoxel()};
 
     VkPipelineInputAssemblyStateCreateInfo INPUT_ASSEMBLY_STATE = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -410,7 +426,8 @@ static void create(State_t *pState, const GraphicsPipeline_t PIPELINE, const Gra
 
         switch (PIPELINE)
         {
-        case GRAPHICS_PIPELINE_FILL:
+        case GRAPHICS_PIPELINE_VOXEL_FILL:
+        case GRAPHICS_PIPELINE_MODEL_FILL:
             switch (TARGET)
             {
             case GRAPHICS_TARGET_MODEL:
@@ -462,14 +479,14 @@ static void create(State_t *pState, const GraphicsPipeline_t PIPELINE, const Gra
 /// @brief Create the voxels' graphics pipelines
 static void voxel_create(State_t *pState)
 {
-    create(pState, GRAPHICS_PIPELINE_FILL, GRAPHICS_TARGET_VOXEL);
+    create(pState, GRAPHICS_PIPELINE_VOXEL_FILL, GRAPHICS_TARGET_VOXEL);
     create(pState, GRAPHICS_PIPELINE_WIREFRAME, GRAPHICS_TARGET_VOXEL);
 }
 
 /// @brief Create the models' graphics pipelines
 static void models_create(State_t *pState)
 {
-    create(pState, GRAPHICS_PIPELINE_FILL, GRAPHICS_TARGET_MODEL);
+    create(pState, GRAPHICS_PIPELINE_MODEL_FILL, GRAPHICS_TARGET_MODEL);
     create(pState, GRAPHICS_PIPELINE_WIREFRAME, GRAPHICS_TARGET_MODEL);
 }
 

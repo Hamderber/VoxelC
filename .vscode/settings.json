@@ -56,6 +56,16 @@
         "uniformbufferobject_t.h": "c",
         "vk_instance.h": "c",
         "vulkan.h": "c",
-        "renderchunk_t.h": "c"
+        "renderchunk_t.h": "c",
+        "chunkrendering.h": "c",
+        "vertex_buffer.h": "c",
+        "atlasface_t.h": "c",
+        "shadervertex_t.h": "c",
+        "facetexture_t.h": "c",
+        "render_pass.h": "c",
+        "shader_voxel.vert.h": "c",
+        "graphics_pipeline.h": "c",
+        "string.h": "c",
+        "shadervertexmodel_t.h": "c"
     }
 }

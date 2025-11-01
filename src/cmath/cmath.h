@@ -50,6 +50,12 @@ typedef struct
     float x, y, z;
 } Vec3f_t;
 
+/// @brief 3-dimensional value representation (int)
+typedef struct
+{
+    int x, y, z;
+} Vec3i_t;
+
 /// @brief 4-dimensional value representation (float). A w of 1 means position and non-1 means rotation.
 typedef struct
 {

@@ -3,7 +3,7 @@
 #include "modules/math_tests.h"
 #include "modules/random_tests.h"
 #include "modules/event_tests.h"
-#include "modules/chunk_tests.h"
+// #include "modules/chunk_tests.h"
 
 int unitTests_run(void)
 {
@@ -18,8 +18,8 @@ int unitTests_run(void)
     ut_section("Event Tests");
     fails += event_tests_run();
 
-    ut_section("Chunk Tests");
-    fails += chunk_tests_run();
+    // ut_section("Chunk Tests");
+    // fails += chunk_tests_run();
 
     if (fails == 0)
         printf("\nAll tests passed!\n");

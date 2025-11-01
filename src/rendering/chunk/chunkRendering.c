@@ -6,16 +6,16 @@
 
 void chunk_drawChunks(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout)
 {
-    for (uint32_t i = 0; i < pState->pWorldState->renderChunkCount; ++i)
+    for (uint32_t i = 0; i < pState->pWorldState->chunkCount; ++i)
     {
-        RenderChunk_t *chunk = pState->pWorldState->ppRenderChunks[i];
+        RenderChunk_t *chunk = pState->pWorldState->ppChunks[i]->pRenderChunk;
         if (!chunk)
             continue;
 
         VkBuffer chunkVB[] = {chunk->vertexBuffer};
         VkDeviceSize offs[] = {0};
         vkCmdBindVertexBuffers(*pCmd, 0, 1, chunkVB, offs);
-        vkCmdBindIndexBuffer(*pCmd, chunk->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(*pCmd, chunk->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
         vkCmdPushConstants(*pCmd, *pPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &chunk->modelMatrix);
         vkCmdDrawIndexed(*pCmd, chunk->indexCount, 1, 0, 0, 0);
