@@ -169,7 +169,7 @@ void scene_model_createAll(State_t *pState)
 
     scene_modelCreate(&pState->scene, mdl);
 
-    for (int i = 0; i < 250; i++)
+    for (int i = 0; i < 0; i++)
         scene_modelAdd(&pState->scene, mdl,
                        cmath_mat_setTranslation(random_mat_rot(), random_vec3f(-50.0F, 50.0F, -50.0F, 50.0F, -50.0F, 50.0F)));
 }

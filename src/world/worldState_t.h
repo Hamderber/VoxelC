@@ -13,4 +13,5 @@ typedef struct
     Entity_t *pPlayerEntity;
     Chunk_t **ppChunks;
     uint32_t chunkCount;
+    uint32_t chunkCapacity;
 } WorldState_t;

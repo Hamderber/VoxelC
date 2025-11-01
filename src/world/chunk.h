@@ -18,5 +18,15 @@ typedef struct
 {
     RenderChunk_t *pRenderChunk;
     BlockVoxel_t *pBlockVoxels;
-    ChunkPos_t coordinate;
+    ChunkPos_t chunkPos;
 } Chunk_t;
+
+static inline bool chunk_chunkPos_equals(ChunkPos_t left, ChunkPos_t right)
+{
+    return left.x == right.x && left.y == right.y && left.z == right.z;
+}
+
+static inline uint32_t xyz_to_chunkBlockIndex(int x, int y, int z)
+{
+    return x * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH + y * CHUNK_AXIS_LENGTH + z;
+}
