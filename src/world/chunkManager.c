@@ -11,6 +11,11 @@
 #include "rendering/chunk/chunkRendering.h"
 #include "core/random.h"
 #include "world/world.h"
+#include "core/randomNoise.h"
+#include "cmath/weightedMap_t.h"
+#include "chunkGenerator.h"
+#include "core/logs.h"
+#include "cmath/weightedMaps.h"
 #pragma endregion
 #pragma region Get Chunk
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const ChunkPos_t CHUNK_POS)
@@ -217,7 +222,36 @@ static bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
 #pragma endregion
 #pragma endregion
 #pragma region Generate Voxels
-static bool chunk_generate_voxels(Chunk_t *pChunk)
+// The order of these determines what will occur adjacent (blending)
+static const BlockID_t gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
+    BLOCK_ID_STONE,
+    BLOCK_ID_ANDESITE,
+    BLOCK_ID_CHERT,
+    BLOCK_ID_LIMESTONE,
+    BLOCK_ID_SANDSTONE_YELLOW,
+    BLOCK_ID_GRANITE,
+    BLOCK_ID_JASPER,
+    BLOCK_ID_SANDSTONE_RED,
+    BLOCK_ID_SLATE,
+    BLOCK_ID_SHALE,
+    BLOCK_ID_MARBLE_BLACK,
+    BLOCK_ID_DIORITE,
+    BLOCK_ID_CHALK,
+    BLOCK_ID_MARBLE_WHITE,
+};
+
+static const BlockID_t mapNoiseToStone(const State_t *pSTATE, const float noise)
+{
+    const uint32_t stoneIdx = weightedMap_pick(&pSTATE->weightedMaps.pWeightMaps[WEIGHTED_MAP_STONE], noise);
+    const BlockID_t blockID = gStoneIDs[stoneIdx];
+
+    // logs_log(LOG_DEBUG, "Noise: %.6f -> idx %u -> %s",
+    //          noise, stoneIdx, pBLOCK_NAMES[blockID]);
+
+    return blockID;
+}
+
+static bool chunk_generate_voxels(const State_t *pSTATE, Chunk_t *pChunk)
 {
     const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();
 
@@ -229,7 +263,12 @@ static bool chunk_generate_voxels(Chunk_t *pChunk)
             {
                 BlockVoxel_t *pBlock = &pChunk->pBlockVoxels[xyz_to_chunkBlockIndex(x, y, z)];
 
-                pBlock->pBLOCK_DEFINITION = pBLOCK_DEFINITIONS[random_rangeI32(BLOCK_ID_STONE, BLOCK_ID_COUNT - 1)];
+                float n = randomNoise_stoneSampleXYZ(pChunk, (int)x, (int)y, (int)z);
+                BlockID_t stoneID = mapNoiseToStone(pSTATE, n);
+
+                pBlock->pBLOCK_DEFINITION = pBLOCK_DEFINITIONS[stoneID];
+
+                // pBlock->pBLOCK_DEFINITION = pBLOCK_DEFINITIONS[random_rangeI32(BLOCK_ID_STONE, BLOCK_ID_COUNT - 1)];
 
                 pBlock->x = (short)x;
                 pBlock->y = (short)y;
@@ -242,7 +281,7 @@ static bool chunk_generate_voxels(Chunk_t *pChunk)
 }
 #pragma endregion
 #pragma region Allocate Voxels
-static Chunk_t *chunk_voxels_allocate(const ChunkPos_t CHUNK_POS)
+static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const ChunkPos_t CHUNK_POS)
 {
     Chunk_t *pChunk = malloc(sizeof(Chunk_t));
     if (!pChunk)
@@ -251,7 +290,7 @@ static Chunk_t *chunk_voxels_allocate(const ChunkPos_t CHUNK_POS)
     pChunk->pBlockVoxels = calloc(CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
     pChunk->chunkPos = CHUNK_POS;
 
-    if (!chunk_generate_voxels(pChunk))
+    if (!chunk_generate_voxels(pSTATE, pChunk))
         return NULL;
 
     return pChunk;
@@ -267,7 +306,7 @@ bool chunkManager_chunk_createBatch(State_t *pState, const ChunkPos_t *pCHUNK_PO
 
     for (size_t i = 0; i < COUNT; i++)
     {
-        ppChunks[i] = chunk_voxels_allocate(pCHUNK_POS[i]);
+        ppChunks[i] = chunk_voxels_allocate(pState, pCHUNK_POS[i]);
         world_chunk_addToCollection(pState, ppChunks[i]);
     }
 

@@ -10,6 +10,7 @@
 #include "chunk.h"
 #include "core/random.h"
 #include "world/chunkManager.h"
+#include "chunkGenerator.h"
 #pragma endregion
 #pragma region Defrag
 void world_chunk_defrag(State_t *pState)
@@ -81,7 +82,7 @@ void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
 #pragma region Chunks Init
 static void world_chunks_init(State_t *pState)
 {
-    int chunksPerAxis = 6;
+    int chunksPerAxis = 5;
     uint32_t chunkCount = chunksPerAxis * chunksPerAxis * chunksPerAxis;
     pState->pWorldState->chunkCapacity = chunkCount;
     pState->pWorldState->ppChunks = calloc(pState->pWorldState->chunkCapacity, sizeof(Chunk_t *));
@@ -103,7 +104,7 @@ static void world_chunks_init(State_t *pState)
 }
 #pragma endregion
 #pragma region Create
-static void Init(State_t *pState)
+static void init(State_t *pState)
 {
     pState->pWorldState = calloc(1, sizeof(WorldState_t));
 
@@ -114,7 +115,7 @@ static void Init(State_t *pState)
 
 void world_load(State_t *pState)
 {
-    Init(pState);
+    init(pState);
 }
 #pragma endregion
 #pragma region Destroy

@@ -7,6 +7,7 @@
 typedef enum
 {
     BLOCK_ID_AIR = 0,
+    // Don't change these IDs without addressing where they are used as array indexes
     BLOCK_ID_STONE = 1,
     BLOCK_ID_DIORITE = 2,
     BLOCK_ID_ANDESITE = 3,
@@ -17,6 +18,10 @@ typedef enum
     BLOCK_ID_LIMESTONE = 8,
     BLOCK_ID_JASPER = 9,
     BLOCK_ID_SLATE = 10,
+    BLOCK_ID_SANDSTONE_YELLOW = 11,
+    BLOCK_ID_SANDSTONE_RED = 12,
+    BLOCK_ID_MARBLE_BLACK = 13,
+    BLOCK_ID_MARBLE_WHITE = 14,
     BLOCK_ID_COUNT
 } BlockID_t;
 
@@ -32,6 +37,10 @@ static const char *pBLOCK_NAMES[] = {
     "BLOCK_LIMESTONE",
     "BLOCK_JASPER",
     "BLOCK_SLATE",
+    "BLOCK_SANDSTONE_YELLOW",
+    "BLOCK_SANDSTONE_RED",
+    "BLOCK_MARBLE_BLACK",
+    "BLOCK_MARBLE_WHITE",
 };
 
 typedef enum
@@ -55,6 +64,7 @@ typedef struct
 } BlockVoxel_t;
 
 #pragma region Blocks
+#define BLOCK_DEFS_STONE_COUNT 14
 static const BlockDefinition_t sBLOCK_DEF_AIR = {
     .BLOCK_ID = BLOCK_ID_AIR,
     .BLOCK_RENDER_TYPE = BLOCK_RENDER_ALPHA,
@@ -178,6 +188,50 @@ static const BlockDefinition_t sBLOCK_DEF_SLATE = {
         [FACE_FRONT] = {ATLAS_FACE_SLATE, TEX_ROT_0},
         [FACE_BACK] = {ATLAS_FACE_SLATE, TEX_ROT_0},
     }};
+static const BlockDefinition_t sBLOCK_DEF_SANDSTONE_YELLOW = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_SANDSTONE_RED = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_MARBLE_BLACK = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_MARBLE_WHITE = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+    }};
 #pragma endregion
 #pragma region All Blocks
 /* Get a collection of pointers to all block definitions.
@@ -196,6 +250,10 @@ static const BlockDefinition_t *const *block_defs_getAll(void)
         &sBLOCK_DEF_LIMESTONE,
         &sBLOCK_DEF_JASPER,
         &sBLOCK_DEF_SLATE,
+        &sBLOCK_DEF_SANDSTONE_YELLOW,
+        &sBLOCK_DEF_SANDSTONE_RED,
+        &sBLOCK_DEF_MARBLE_BLACK,
+        &sBLOCK_DEF_MARBLE_WHITE,
     };
 
     return pBLOCK_DEFS;

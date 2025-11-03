@@ -17,6 +17,8 @@
 #include "rendering/types/renderModel_t.h"
 #include "scene/scene.h"
 #include "rendering/model_3d.h"
+#include "core/randomNoise.h"
+#include "cmath/weightedMaps.h"
 
 void app_init(State_t *pState)
 {
@@ -26,6 +28,8 @@ void app_init(State_t *pState)
 
     const uint32_t PRNG_SEED = 8675309U;
     random_init(PRNG_SEED);
+    randomNoise_init(PRNG_SEED);
+    weightedMaps_init(pState);
 
     glfwInstance_init();
 
@@ -75,33 +79,35 @@ void app_loop_render(State_t *pState)
     time_update(&pState->time);
 }
 
-void app_loop_main(State_t *state)
+void app_loop_main(State_t *pState)
 {
-    while (!win_shouldClose(&state->window))
+    while (!win_shouldClose(&pState->window))
     {
-        phys_loop(state);
-        app_loop_render(state);
+        phys_loop(pState);
+        app_loop_render(pState);
         // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
     }
 }
 
-void app_cleanup(State_t *state)
+void app_cleanup(State_t *pState)
 {
-    scene_destroy(state);
-    world_destroy(state);
+    scene_destroy(pState);
+    world_destroy(pState);
 
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
     // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
     // The window doesn't need to be destroyed because GLFW handles it on its own. Stated explicitly for legibility.
-    rendering_destroy(state);
-    window_destroy(state);
-    vulkan_instance_destroy(state);
+    rendering_destroy(pState);
+    window_destroy(pState);
+    vulkan_instance_destroy(pState);
     // Best practice to mitigate dangling pointers. Not strictly necessary, though
-    state->window.swapchain.handle = NULL;
-    state->context.instance = NULL;
-    state->context.pAllocator = NULL;
+    pState->window.swapchain.handle = NULL;
+    pState->context.instance = NULL;
+    pState->context.pAllocator = NULL;
 
-    em_destroy(state);
+    em_destroy(pState);
+
+    weightedMaps_destroy(pState);
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

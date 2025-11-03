@@ -6,7 +6,7 @@
 #include "world/chunk.h"
 
 /// @brief Gets the chunk at the chunk position. Returns null if not found.
-Chunk_t *chunkManager_getChunk(State_t *pState, ChunkPos_t chunkPos);
+Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const ChunkPos_t CHUNK_POS);
 
 /// @brief Create chunks at the passed positions and add them directly to the world
 bool chunkManager_chunk_createBatch(State_t *pState, const ChunkPos_t *pCHUNK_POS, const size_t COUNT);

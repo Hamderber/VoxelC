@@ -12,6 +12,7 @@
 #include "gui/guiState_t.h"
 #include "world/worldState_t.h"
 #include "core/types/scene_t.h"
+#include "cmath/weightedMap_t.h"
 
 typedef struct State_t
 {
@@ -28,4 +29,7 @@ typedef struct State_t
     // Contains data on non-voxel models for rendering
     Scene_t scene;
     WorldState_t *pWorldState;
+
+    // Math
+    WeightMaps_t weightedMaps;
 } State_t;

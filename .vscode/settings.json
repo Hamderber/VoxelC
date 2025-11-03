@@ -66,6 +66,10 @@
         "shader_voxel.vert.h": "c",
         "graphics_pipeline.h": "c",
         "string.h": "c",
-        "shadervertexmodel_t.h": "c"
+        "shadervertexmodel_t.h": "c",
+        "shadervertexvoxel_t.h": "c",
+        "fastnoiselite.h": "c",
+        "weightedmap_t.h": "c",
+        "weightedmaps.h": "c"
     }
 }
