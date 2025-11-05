@@ -70,6 +70,7 @@
         "shadervertexvoxel_t.h": "c",
         "fastnoiselite.h": "c",
         "weightedmap_t.h": "c",
-        "weightedmaps.h": "c"
+        "weightedmaps.h": "c",
+        "cubeface_t.h": "c"
     }
 }

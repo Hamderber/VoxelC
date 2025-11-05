@@ -61,12 +61,9 @@ static bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
     size_t vertexCursor = 0;
     size_t indexCursor = 0;
 
-    // Written to be accessed using CubeFace enum
-    static const Vec3i_t spNEIGHBOR_OFFSETS[6] = {{-1, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
-
-    for (uint32_t x = 0; x < CHUNK_AXIS_LENGTH; x++)
-        for (uint32_t y = 0; y < CHUNK_AXIS_LENGTH; y++)
-            for (uint32_t z = 0; z < CHUNK_AXIS_LENGTH; z++)
+    for (uint8_t x = 0; x < CHUNK_AXIS_LENGTH; x++)
+        for (uint8_t y = 0; y < CHUNK_AXIS_LENGTH; y++)
+            for (uint8_t z = 0; z < CHUNK_AXIS_LENGTH; z++)
             {
                 const BlockDefinition_t *pBLOCK = pChunk->pBlockVoxels[xyz_to_chunkBlockIndex(x, y, z)].pBLOCK_DEFINITION;
 
@@ -92,7 +89,7 @@ static bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
 
                     if (neighborInChunk)
                     {
-                        neighbor = chunkManager_getBlock(pChunk, (Vec3i_t){nx, ny, nz});
+                        neighbor = chunkManager_getBlock(pChunk, (Vec3u8_t){(uint8_t)nx, (uint8_t)ny, (uint8_t)nz});
                         if (neighbor.pBLOCK_DEFINITION->BLOCK_RENDER_TYPE == BLOCK_RENDER_SOLID)
                             drawFace = false;
                     }
@@ -120,10 +117,10 @@ static bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
                         if (pNeighborChunk)
                         {
                             // Prevent out of bounds
-                            Vec3i_t localPos = {
-                                (nx + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH,
-                                (ny + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH,
-                                (nz + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH};
+                            Vec3u8_t localPos = {
+                                (uint8_t)(nx + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH,
+                                (uint8_t)(ny + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH,
+                                (uint8_t)(nz + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH};
 
                             neighbor = chunkManager_getBlock(pNeighborChunk, localPos);
 
@@ -221,67 +218,8 @@ static bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
 }
 #pragma endregion
 #pragma endregion
-#pragma region Generate Voxels
-// The order of these determines what will occur adjacent (blending)
-static const BlockID_t gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
-    BLOCK_ID_STONE,
-    BLOCK_ID_ANDESITE,
-    BLOCK_ID_CHERT,
-    BLOCK_ID_LIMESTONE,
-    BLOCK_ID_SANDSTONE_YELLOW,
-    BLOCK_ID_GRANITE,
-    BLOCK_ID_JASPER,
-    BLOCK_ID_SANDSTONE_RED,
-    BLOCK_ID_SLATE,
-    BLOCK_ID_SHALE,
-    BLOCK_ID_MARBLE_BLACK,
-    BLOCK_ID_DIORITE,
-    BLOCK_ID_CHALK,
-    BLOCK_ID_MARBLE_WHITE,
-};
-
-static const BlockID_t mapNoiseToStone(const State_t *pSTATE, const float noise)
-{
-    const uint32_t stoneIdx = weightedMap_pick(&pSTATE->weightedMaps.pWeightMaps[WEIGHTED_MAP_STONE], noise);
-    const BlockID_t blockID = gStoneIDs[stoneIdx];
-
-    // logs_log(LOG_DEBUG, "Noise: %.6f -> idx %u -> %s",
-    //          noise, stoneIdx, pBLOCK_NAMES[blockID]);
-
-    return blockID;
-}
-
-static bool chunk_generate_voxels(const State_t *pSTATE, Chunk_t *pChunk)
-{
-    const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();
-
-    // fill with stone for now
-    uint32_t blockCount = 0;
-    for (uint32_t x = 0; x < CHUNK_AXIS_LENGTH; x++)
-        for (uint32_t y = 0; y < CHUNK_AXIS_LENGTH; y++)
-            for (uint32_t z = 0; z < CHUNK_AXIS_LENGTH; z++)
-            {
-                BlockVoxel_t *pBlock = &pChunk->pBlockVoxels[xyz_to_chunkBlockIndex(x, y, z)];
-
-                float n = randomNoise_stoneSampleXYZ(pChunk, (int)x, (int)y, (int)z);
-                BlockID_t stoneID = mapNoiseToStone(pSTATE, n);
-
-                pBlock->pBLOCK_DEFINITION = pBLOCK_DEFINITIONS[stoneID];
-
-                // pBlock->pBLOCK_DEFINITION = pBLOCK_DEFINITIONS[random_rangeI32(BLOCK_ID_STONE, BLOCK_ID_COUNT - 1)];
-
-                pBlock->x = (short)x;
-                pBlock->y = (short)y;
-                pBlock->z = (short)z;
-
-                blockCount++;
-            }
-
-    return true;
-}
-#pragma endregion
 #pragma region Allocate Voxels
-static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const ChunkPos_t CHUNK_POS)
+static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const BlockDefinition_t *const *pBLOCK_DEFINITIONS, const ChunkPos_t CHUNK_POS)
 {
     Chunk_t *pChunk = malloc(sizeof(Chunk_t));
     if (!pChunk)
@@ -290,7 +228,7 @@ static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const ChunkPos_t CH
     pChunk->pBlockVoxels = calloc(CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
     pChunk->chunkPos = CHUNK_POS;
 
-    if (!chunk_generate_voxels(pSTATE, pChunk))
+    if (!chunkGen_genChunk(pSTATE, pBLOCK_DEFINITIONS, pChunk))
         return NULL;
 
     return pChunk;
@@ -303,10 +241,11 @@ bool chunkManager_chunk_createBatch(State_t *pState, const ChunkPos_t *pCHUNK_PO
         return false;
 
     Chunk_t **ppChunks = calloc(COUNT, sizeof(Chunk_t *));
+    const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();
 
     for (size_t i = 0; i < COUNT; i++)
     {
-        ppChunks[i] = chunk_voxels_allocate(pState, pCHUNK_POS[i]);
+        ppChunks[i] = chunk_voxels_allocate(pState, pBLOCK_DEFINITIONS, pCHUNK_POS[i]);
         world_chunk_addToCollection(pState, ppChunks[i]);
     }
 

@@ -5,6 +5,9 @@
 #include "core/types/state_t.h"
 #include "world/chunk.h"
 
+// Written to be accessed using CubeFace enum
+static const Vec3i_t spNEIGHBOR_OFFSETS[6] = {{-1, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+
 /// @brief Gets the chunk at the chunk position. Returns null if not found.
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const ChunkPos_t CHUNK_POS);
 
@@ -12,7 +15,7 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const ChunkPos_t CHUNK_POS
 bool chunkManager_chunk_createBatch(State_t *pState, const ChunkPos_t *pCHUNK_POS, const size_t COUNT);
 
 /// @brief Gets the the block in the chunk's local coord system
-const inline BlockVoxel_t chunkManager_getBlock(const Chunk_t *pCHUNK, const Vec3i_t LOCAL_POS)
+const inline BlockVoxel_t chunkManager_getBlock(const Chunk_t *pCHUNK, const Vec3u8_t LOCAL_POS)
 {
     return pCHUNK->pBlockVoxels[xyz_to_chunkBlockIndex(LOCAL_POS.x, LOCAL_POS.y, LOCAL_POS.z)];
 }

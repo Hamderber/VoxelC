@@ -26,9 +26,9 @@ void app_init(State_t *pState)
 
     config_init(pState);
 
-    const uint32_t PRNG_SEED = 8675309U;
+    const uint32_t PRNG_SEED = 0; // 8675309U;
     random_init(PRNG_SEED);
-    randomNoise_init(PRNG_SEED);
+    randomNoise_init(random_seedGet());
     weightedMaps_init(pState);
 
     glfwInstance_init();

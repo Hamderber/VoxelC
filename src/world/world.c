@@ -82,23 +82,27 @@ void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
 #pragma region Chunks Init
 static void world_chunks_init(State_t *pState)
 {
-    int chunksPerAxis = 5;
-    uint32_t chunkCount = chunksPerAxis * chunksPerAxis * chunksPerAxis;
-    pState->pWorldState->chunkCapacity = chunkCount;
+    // Temporary generation for testing
+    const int CHUNKS_PER_AXIS = 30;
+    const int MIN_X = -CHUNKS_PER_AXIS / 2;
+    const int MIN_Y = -CHUNKS_PER_AXIS / 10;
+    const int MIN_Z = -CHUNKS_PER_AXIS / 2;
+    const int MAX_X = MIN_X + CHUNKS_PER_AXIS - 1;
+    const int MAX_Y = MIN_Y + CHUNKS_PER_AXIS / 5 - 1;
+    const int MAX_Z = MIN_Z + CHUNKS_PER_AXIS - 1;
+
+    const uint32_t CHUNK_COUNT = (uint32_t)(CHUNKS_PER_AXIS * CHUNKS_PER_AXIS * CHUNKS_PER_AXIS);
+    pState->pWorldState->chunkCapacity = CHUNK_COUNT;
     pState->pWorldState->ppChunks = calloc(pState->pWorldState->chunkCapacity, sizeof(Chunk_t *));
+    ChunkPos_t *pChunkPos = calloc(CHUNK_COUNT, sizeof(ChunkPos_t));
 
-    ChunkPos_t *pChunkPos = calloc(pState->pWorldState->chunkCapacity, sizeof(ChunkPos_t));
+    size_t idx = 0;
+    for (int i = MIN_X; i <= MAX_X; ++i)
+        for (int j = MIN_Y; j <= MAX_Y; ++j)
+            for (int k = MIN_Z; k <= MAX_Z; ++k)
+                pChunkPos[idx++] = (ChunkPos_t){i, j, k};
 
-    for (int i = 0; i < chunksPerAxis; i++)
-        for (int j = 0; j < chunksPerAxis; j++)
-            for (int k = 0; k < chunksPerAxis; k++)
-            {
-                size_t idx = (size_t)i * chunksPerAxis * chunksPerAxis + (size_t)j * chunksPerAxis + (size_t)k;
-                ChunkPos_t pos = {i, j, k};
-                pChunkPos[idx] = pos;
-            }
-
-    chunkManager_chunk_createBatch(pState, pChunkPos, chunkCount);
+    chunkManager_chunk_createBatch(pState, pChunkPos, (uint32_t)idx);
 
     free(pChunkPos);
 }

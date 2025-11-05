@@ -1,9 +1,11 @@
+#pragma region Includes
 #pragma once
-
 #include <stdint.h>
+#include "world/chunk.h"
 #include "world/voxel/cubeFace_t.h"
 #include "rendering/types/faceTexture_t.h"
-
+#pragma endregion
+#pragma region Definitions
 typedef enum
 {
     BLOCK_ID_AIR = 0,
@@ -59,10 +61,10 @@ typedef struct
 typedef struct
 {
     const BlockDefinition_t *pBLOCK_DEFINITION;
-    // 12 bits needed to pack 16x16x16 pos (future)
-    short x, y, z;
+    // 12 bits needed to pack 16x16x16 pos
+    uint16_t blockPosPacked12;
 } BlockVoxel_t;
-
+#pragma endregion
 #pragma region Blocks
 #define BLOCK_DEFS_STONE_COUNT 14
 static const BlockDefinition_t sBLOCK_DEF_AIR = {
