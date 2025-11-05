@@ -27,6 +27,7 @@
 #define APP_CFG_VSYNC "vsync"
 #define APP_CFG_ANISOTROPY "anisotropy"
 #define APP_CFG_FOV "fov"
+#define APP_CFG_CHUNK_RENDER_DISTANCE "chunkRenderDistance"
 
 typedef enum
 {
@@ -84,6 +85,7 @@ static AppConfig_t s_AppConfig = {
     .atlasPaddingPx = 8,
     .cameraFarClippingPlane = 500.0F,
     .cameraNearClippingPlane = 0.1F,
+    .chunkRenderDistance = 12,
 };
 
 static Input_t s_Input = {0};
@@ -203,6 +205,7 @@ static void config_app_save(const AppConfig_t *pCFG, cJSON *pRoot)
     cJSON_AddBoolToObject(pRenderer, APP_CFG_VSYNC, pCFG->vsync);
     cJSON_AddNumberToObject(pRenderer, APP_CFG_ANISOTROPY, pCFG->anisotropy);
     cJSON_AddNumberToObject(pRenderer, APP_CFG_FOV, pCFG->cameraFOV);
+    cJSON_AddNumberToObject(pRenderer, APP_CFG_CHUNK_RENDER_DISTANCE, pCFG->chunkRenderDistance);
 }
 
 static bool config_keyBindings_load(Input_t *pInput, const cJSON *pROOT)
@@ -292,6 +295,10 @@ static bool config_app_load(AppConfig_t *pCfg, const cJSON *pROOT)
         cJSON *pFOV = cJSON_GetObjectItem(pRenderer, APP_CFG_FOV);
         if (cJSON_IsNumber(pFOV))
             pCfg->cameraFOV = (float)pFOV->valuedouble;
+
+        cJSON *pChunkRenderDistance = cJSON_GetObjectItem(pRenderer, APP_CFG_CHUNK_RENDER_DISTANCE);
+        if (cJSON_IsNumber(pChunkRenderDistance))
+            pCfg->chunkRenderDistance = (uint32_t)pChunkRenderDistance->valueint;
     }
     else
         return false;

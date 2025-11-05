@@ -83,12 +83,12 @@ void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
 static void world_chunks_init(State_t *pState)
 {
     // Temporary generation for testing
-    const int CHUNKS_PER_AXIS = 30;
+    const int CHUNKS_PER_AXIS = 10;
     const int MIN_X = -CHUNKS_PER_AXIS / 2;
-    const int MIN_Y = -CHUNKS_PER_AXIS / 10;
+    const int MIN_Y = -CHUNKS_PER_AXIS;
     const int MIN_Z = -CHUNKS_PER_AXIS / 2;
     const int MAX_X = MIN_X + CHUNKS_PER_AXIS - 1;
-    const int MAX_Y = MIN_Y + CHUNKS_PER_AXIS / 5 - 1;
+    const int MAX_Y = MIN_Y + CHUNKS_PER_AXIS - 1;
     const int MAX_Z = MIN_Z + CHUNKS_PER_AXIS - 1;
 
     const uint32_t CHUNK_COUNT = (uint32_t)(CHUNKS_PER_AXIS * CHUNKS_PER_AXIS * CHUNKS_PER_AXIS);

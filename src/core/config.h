@@ -20,6 +20,7 @@ typedef struct
     float cameraFOV;
     float cameraFarClippingPlane;
     float cameraNearClippingPlane;
+    uint32_t chunkRenderDistance;
     bool vsync;
     int anisotropy;
     bool resetCursorOnMenuExit;
