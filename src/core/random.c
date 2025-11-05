@@ -1,7 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include <time.h>
 #include <float.h>
+#include <stdlib.h>
+#include <time.h>
 #include "cmath/cmath.h"
 #include "core/logs.h"
 #include <inttypes.h>
@@ -147,8 +148,13 @@ void random_init(uint32_t seed)
 {
     if (seed == 0)
     {
-        // Use current time for a nondeterministic seed
-        seed = (uint32_t)time(NULL);
+        time_t seconds;
+        time(&seconds);
+        seed = (uint32_t)seconds;
+
+        s_seed = seed;
+        s_state = seed;
+        seed = random_nextU32t();
     }
 
     s_state = seed;

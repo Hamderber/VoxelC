@@ -1,213 +1,152 @@
+#pragma region Includes
 #include <string.h>
 #include <stdlib.h>
-#include "rendering/buffers/vertex_buffer.h"
-#include "rendering/buffers/index_buffer.h"
 #include "core/logs.h"
 #include "core/types/state_t.h"
 #include "world/world_t.h"
 #include "character/characterType_t.h"
 #include "character/character.h"
-#include "rendering/types/shaderVertex_t.h"
 #include "rendering/chunk/chunkRendering.h"
-#include "core/types/atlasRegion_t.h"
-#include "core/types/atlasFace_t.h"
-#include "rendering/voxel.h"
-#include "rendering/types/faceTexture_t.h"
-#include "rendering/uvs.h"
 #include "chunk.h"
-#include "rendering/chunk/chunkRendering.h"
-
-static RenderChunk_t *world_dummyChunkCreate(State_t *state, Vec3f_t position)
+#include "core/random.h"
+#include "world/chunkManager.h"
+#include "chunkGenerator.h"
+#pragma endregion
+#pragma region Defrag
+void world_chunk_defrag(State_t *pState)
 {
-    const int vertsPerFace = 4;
-    const int indicesPerFace = 6;
-    const int faceCount = 6;
-    const size_t vertexCount = (size_t)faceCount * (size_t)vertsPerFace;  // 24
-    const size_t indexCount = (size_t)faceCount * (size_t)indicesPerFace; // 36
+    if (!pState || !pState->pWorldState || !pState->pWorldState->ppChunks)
+        return;
 
-    const FaceTexture_t FACE_TEXTURES[6] = {
-        [FACE_LEFT] = {OBSIDIAN, TEX_ROT_0},
-        [FACE_RIGHT] = {OBSIDIAN, TEX_ROT_0},
-        [FACE_TOP] = {OBSIDIAN, TEX_ROT_0},
-        [FACE_BOTTOM] = {OBSIDIAN, TEX_ROT_0},
-        [FACE_FRONT] = {OBSIDIAN, TEX_ROT_0},
-        [FACE_BACK] = {OBSIDIAN, TEX_ROT_0},
-    };
-
-    // ORDER REQUIRED: [0]=TL, [1]=BL, [2]=TR, [3]=BR (viewed from OUTSIDE), CCW
-    const Vec3f_t FACE_POSITIONS[6][4] = {
-        // LEFT  (-X), view from -X → +X
-        [FACE_LEFT] = {
-            VEC3_VOXEL_BACK_TOP_LEFT,  // TL (0,1,0)
-            VEC3_VOXEL_BACK_BOT_LEFT,  // BL (0,0,0)
-            VEC3_VOXEL_FRONT_TOP_LEFT, // TR (0,1,1)
-            VEC3_VOXEL_FRONT_BOT_LEFT  // BR (0,0,1)
-        },
-        // RIGHT (+X), view from +X → -X
-        [FACE_RIGHT] = {
-            VEC3_VOXEL_FRONT_TOP_RIGHT, // TL (1,1,1)
-            VEC3_VOXEL_FRONT_BOT_RIGHT, // BL (1,0,1)
-            VEC3_VOXEL_BACK_TOP_RIGHT,  // TR (1,1,0)
-            VEC3_VOXEL_BACK_BOT_RIGHT   // BR (1,0,0)
-        },
-        // TOP (+Y), view from +Y (down), screen-up = -Z, screen-right = +X
-        [FACE_TOP] = {
-            VEC3_VOXEL_BACK_TOP_LEFT,  // TL (0,1,0)
-            VEC3_VOXEL_FRONT_TOP_LEFT, // BL (0,1,1)
-            VEC3_VOXEL_BACK_TOP_RIGHT, // TR (1,1,0)
-            VEC3_VOXEL_FRONT_TOP_RIGHT // BR (1,1,1)
-        },
-        // BOTTOM (-Y), view from -Y (up), screen-up = +Z, screen-right = +X
-        [FACE_BOTTOM] = {
-            VEC3_VOXEL_FRONT_BOT_LEFT,  // TL (0,0,1)
-            VEC3_VOXEL_BACK_BOT_LEFT,   // BL (0,0,0)
-            VEC3_VOXEL_FRONT_BOT_RIGHT, // TR (1,0,1)
-            VEC3_VOXEL_BACK_BOT_RIGHT   // BR (1,0,0)
-        },
-        // FRONT (+Z), view from +Z → -Z
-        [FACE_FRONT] = {
-            VEC3_VOXEL_FRONT_TOP_LEFT,  // TL (0,1,1)
-            VEC3_VOXEL_FRONT_BOT_LEFT,  // BL (0,0,1)
-            VEC3_VOXEL_FRONT_TOP_RIGHT, // TR (1,1,1)
-            VEC3_VOXEL_FRONT_BOT_RIGHT  // BR (1,0,1)
-        },
-        // BACK  (-Z), view from -Z → +Z
-        [FACE_BACK] = {
-            VEC3_VOXEL_BACK_TOP_RIGHT, // TL (1,1,0)
-            VEC3_VOXEL_BACK_BOT_RIGHT, // BL (1,0,0)
-            VEC3_VOXEL_BACK_TOP_LEFT,  // TR (0,1,0)
-            VEC3_VOXEL_BACK_BOT_LEFT   // BR (0,0,0)
-        },
-    };
-
-    ShaderVertex_t *vertices = (ShaderVertex_t *)calloc(vertexCount, sizeof(ShaderVertex_t));
-    uint16_t *indices = (uint16_t *)calloc(indexCount, sizeof(uint16_t));
-    if (!vertices || !indices)
+    // Read and write indexes increment in unison until a null spot is found. Every time there is a null spot, only read index increments.
+    // Because of this, when the next existing chunk is found, that next write index is used and then finally incremented
+    size_t writeIndex = 0;
+    for (size_t readIndex = 0; readIndex < pState->pWorldState->chunkCapacity; readIndex++)
     {
-        free(vertices);
-        free(indices);
-        return NULL;
-    }
-
-    // Fill pos/color/atlasIndex
-    for (int face = 0; face < faceCount; ++face)
-    {
-        const FaceTexture_t tex = FACE_TEXTURES[face];
-        const int base = face * vertsPerFace;
-
-        vertices[base + 0].pos = FACE_POSITIONS[face][0]; // TL
-        vertices[base + 1].pos = FACE_POSITIONS[face][1]; // BL
-        vertices[base + 2].pos = FACE_POSITIONS[face][2]; // TR
-        vertices[base + 3].pos = FACE_POSITIONS[face][3]; // BR
-
-        vertices[base + 0].color = COLOR_WHITE;
-        vertices[base + 1].color = COLOR_WHITE;
-        vertices[base + 2].color = COLOR_WHITE;
-        vertices[base + 3].color = COLOR_WHITE;
-
-        vertices[base + 0].atlasIndex = tex.atlasIndex;
-        vertices[base + 1].atlasIndex = tex.atlasIndex;
-        vertices[base + 2].atlasIndex = tex.atlasIndex;
-        vertices[base + 3].atlasIndex = tex.atlasIndex;
-    }
-
-    // UVs via your proven helpers (faceUVs + rotation → atlas region)
-    for (int face = 0; face < faceCount; ++face)
-    {
-        const FaceTexture_t tex = FACE_TEXTURES[face];
-        const AtlasRegion_t *region = &state->renderer.pAtlasRegions[tex.atlasIndex];
-        assignFaceUVs(vertices, (size_t)face * (size_t)vertsPerFace, region, tex.rotation);
-    }
-
-    // Indices per face (TL, BL, TR, BR) → triangles: {0,1,2} and {2,3,0} (CCW)
-    for (int face = 0; face < faceCount; ++face)
-    {
-        const uint16_t v = (uint16_t)(face * vertsPerFace);
-        const size_t i = (size_t)face * (size_t)indicesPerFace;
-
-        // v = face*4; i = face*6
-        indices[i + 0] = v + 0; // TL
-        indices[i + 1] = v + 1; // BL
-        indices[i + 2] = v + 3; // BR
-        indices[i + 3] = v + 0; // TL
-        indices[i + 4] = v + 3; // BR
-        indices[i + 5] = v + 2; // TR
-    }
-
-    vertexBuffer_createFromData(state, vertices, (uint32_t)vertexCount);
-    indexBuffer_createFromData(state, indices, (uint32_t)indexCount);
-
-    RenderChunk_t *chunk = (RenderChunk_t *)calloc(1, sizeof(RenderChunk_t));
-    if (!chunk)
-    {
-        free(vertices);
-        free(indices);
-        return NULL;
-    }
-
-    chunk->vertexBuffer = state->renderer.vertexBuffer;
-    chunk->vertexMemory = state->renderer.vertexBufferMemory;
-    chunk->indexBuffer = state->renderer.indexBuffer;
-    chunk->indexMemory = state->renderer.indexBufferMemory;
-    chunk->indexCount = (uint32_t)indexCount;
-
-    free(vertices);
-    free(indices);
-
-    chunk_placeRenderInWorld(chunk, &position);
-    return chunk;
-}
-
-void world_init(State_t *state)
-{
-    state->pWorldState = calloc(1, sizeof(WorldState_t));
-
-    state->pWorldState->world.pPlayer = character_create(state, CHARACTER_TYPE_PLAYER);
-
-    state->pWorldState->renderChunkCount = 27;
-    state->pWorldState->ppRenderChunks = calloc(state->pWorldState->renderChunkCount, sizeof(RenderChunk_t *));
-
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 3; j++)
+        Chunk_t *pC = pState->pWorldState->ppChunks[readIndex];
+        if (pC)
         {
-            for (int k = 0; k < 3; k++)
+            if (writeIndex != readIndex)
             {
-                size_t idx = (size_t)i * 3 * 3 + (size_t)j * 3 + (size_t)k; // 27 slots
-                Vec3f_t pos = {(float)i, (float)j, (float)k};
-                state->pWorldState->ppRenderChunks[idx] = world_dummyChunkCreate(state, pos);
-                logs_log(LOG_INFO, "Dummy voxel chunk created at (%f, %f, %f).", pos.x, pos.y, pos.z);
+                pState->pWorldState->ppChunks[writeIndex] = pC;
+                pState->pWorldState->ppChunks[readIndex] = NULL;
             }
+
+            writeIndex++;
+        }
+    }
+
+    pState->pWorldState->chunkCount = (uint32_t)writeIndex;
+
+    if (pState->pWorldState->chunkCount == pState->pWorldState->chunkCapacity)
+    {
+        // A resize will never actually happen if 0 becase 0*2 = 0
+        static const uint32_t FALLBACK_CHUNK_CAPACITY = 64;
+        if (pState->pWorldState->chunkCapacity == 0)
+            pState->pWorldState->chunkCapacity = FALLBACK_CHUNK_CAPACITY;
+
+        size_t newCap = pState->pWorldState->chunkCapacity * 2;
+        Chunk_t **ppChunksNew = realloc(pState->pWorldState->ppChunks, sizeof(Chunk_t *) * newCap);
+        if (ppChunksNew)
+        {
+            pState->pWorldState->ppChunks = ppChunksNew;
+            pState->pWorldState->chunkCapacity = (uint32_t)newCap;
+
+            memset(pState->pWorldState->ppChunks + pState->pWorldState->chunkCount, 0,
+                   sizeof(Chunk_t *) * (pState->pWorldState->chunkCapacity - pState->pWorldState->chunkCount));
         }
     }
 }
-
-void world_load(State_t *state)
+#pragma endregion
+#pragma region Add Chunk to Col.
+void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
 {
-    world_init(state);
+    if (!pState || !pChunk)
+        return;
+
+    size_t slot = pState->pWorldState->chunkCount;
+    while (slot < pState->pWorldState->chunkCapacity && pState->pWorldState->ppChunks[slot] != NULL)
+    {
+        slot++;
+        if (slot >= pState->pWorldState->chunkCapacity || pState->pWorldState->chunkCount == pState->pWorldState->chunkCapacity)
+        {
+            world_chunk_defrag(pState);
+            slot = pState->pWorldState->chunkCount;
+        }
+    }
+
+    pState->pWorldState->ppChunks[slot] = pChunk;
+    pState->pWorldState->chunkCount++;
+}
+#pragma endregion
+#pragma region Chunks Init
+static void world_chunks_init(State_t *pState)
+{
+    // Temporary generation for testing
+    const int CHUNKS_PER_AXIS = 30;
+    const int MIN_X = -CHUNKS_PER_AXIS / 2;
+    const int MIN_Y = -CHUNKS_PER_AXIS / 10;
+    const int MIN_Z = -CHUNKS_PER_AXIS / 2;
+    const int MAX_X = MIN_X + CHUNKS_PER_AXIS - 1;
+    const int MAX_Y = MIN_Y + CHUNKS_PER_AXIS / 5 - 1;
+    const int MAX_Z = MIN_Z + CHUNKS_PER_AXIS - 1;
+
+    const uint32_t CHUNK_COUNT = (uint32_t)(CHUNKS_PER_AXIS * CHUNKS_PER_AXIS * CHUNKS_PER_AXIS);
+    pState->pWorldState->chunkCapacity = CHUNK_COUNT;
+    pState->pWorldState->ppChunks = calloc(pState->pWorldState->chunkCapacity, sizeof(Chunk_t *));
+    ChunkPos_t *pChunkPos = calloc(CHUNK_COUNT, sizeof(ChunkPos_t));
+
+    size_t idx = 0;
+    for (int i = MIN_X; i <= MAX_X; ++i)
+        for (int j = MIN_Y; j <= MAX_Y; ++j)
+            for (int k = MIN_Z; k <= MAX_Z; ++k)
+                pChunkPos[idx++] = (ChunkPos_t){i, j, k};
+
+    chunkManager_chunk_createBatch(pState, pChunkPos, (uint32_t)idx);
+
+    free(pChunkPos);
+}
+#pragma endregion
+#pragma region Create
+static void init(State_t *pState)
+{
+    pState->pWorldState = calloc(1, sizeof(WorldState_t));
+
+    pState->pWorldState->world.pPlayer = character_create(pState, CHARACTER_TYPE_PLAYER);
+
+    world_chunks_init(pState);
 }
 
-void world_destroy(State_t *state)
+void world_load(State_t *pState)
 {
-    if (!state || !state->pWorldState || !state->pWorldState->ppRenderChunks)
+    init(pState);
+}
+#pragma endregion
+#pragma region Destroy
+void world_destroy(State_t *pState)
+{
+    if (!pState || !pState->pWorldState || !pState->pWorldState->ppChunks)
         return;
 
     // Ensure nothing is in-flight that still uses these buffers
-    vkDeviceWaitIdle(state->context.device);
+    vkDeviceWaitIdle(pState->context.device);
 
-    size_t count = state->pWorldState->renderChunkCount;
+    size_t count = (size_t)pState->pWorldState->chunkCapacity;
     for (size_t i = 0; i < count; ++i)
     {
-        RenderChunk_t *chunk = state->pWorldState->ppRenderChunks[i];
-        if (!chunk)
+        if (!pState->pWorldState->ppChunks[i])
             continue;
 
-        chunk_renderDestroy(state, chunk);
-        state->pWorldState->ppRenderChunks[i] = NULL;
+        RenderChunk_t *pRenderChunk = pState->pWorldState->ppChunks[i]->pRenderChunk;
+        if (!pRenderChunk)
+            continue;
+
+        chunk_renderDestroy(pState, pRenderChunk);
+        pState->pWorldState->ppChunks[i] = NULL;
     }
 
-    // Free the container array and reset counters
-    free(state->pWorldState->ppRenderChunks);
-    state->pWorldState->ppRenderChunks = NULL;
-    state->pWorldState->renderChunkCount = 0;
+    free(pState->pWorldState->ppChunks);
+    pState->pWorldState->ppChunks = NULL;
+    pState->pWorldState = NULL;
 }
+#pragma endregion

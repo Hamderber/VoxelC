@@ -8,7 +8,7 @@
 #include "core/crash_handler.h"
 #pragma endregion
 #pragma region Create
-void indexBuffer_createFromData(State_t *pState, uint16_t *pIndices, const uint32_t INDEX_COUNT)
+void indexBuffer_createFromData(State_t *pState, uint32_t *pIndices, const uint32_t INDEX_COUNT)
 {
     int crashLine = 0;
     do
@@ -20,7 +20,7 @@ void indexBuffer_createFromData(State_t *pState, uint16_t *pIndices, const uint3
             break;
         }
 
-        const VkDeviceSize BUFFER_SIZE = sizeof(uint16_t) * INDEX_COUNT;
+        const VkDeviceSize BUFFER_SIZE = sizeof(uint32_t) * INDEX_COUNT;
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingMemory;

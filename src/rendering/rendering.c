@@ -1,10 +1,10 @@
 #pragma region Includes
 #include <string.h>
 #include "stb_image.h"
+#include "core/logs.h"
 #include "cgltf.h"
 #include "main.h"
 #include "rendering/texture.h"
-#include "rendering/voxel.h"
 #include "rendering/render_pass.h"
 #include "rendering/depth.h"
 #include "rendering/graphics_pipeline.h"
@@ -40,12 +40,12 @@ static void wireframe_toggle(State_t *pState)
     if (!pState->context.physicalDeviceEnabledFeatures.fillModeNonSolid)
     {
         logs_log(LOG_WARN, "Attempted to toggle wireframe visiblity but the device doesn't support that feature.");
-        pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
+        pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_MODEL_FILL;
         return;
     }
 
     GraphicsPipeline_t current = pState->renderer.activeGraphicsPipeline;
-    GraphicsPipeline_t target = current == GRAPHICS_PIPELINE_FILL ? GRAPHICS_PIPELINE_WIREFRAME : GRAPHICS_PIPELINE_FILL;
+    GraphicsPipeline_t target = current == GRAPHICS_PIPELINE_MODEL_FILL ? GRAPHICS_PIPELINE_WIREFRAME : GRAPHICS_PIPELINE_MODEL_FILL;
 
     pState->renderer.activeGraphicsPipeline = target;
 }
@@ -132,7 +132,7 @@ void rendering_create(State_t *pState)
     descriptorSet_layout_create(pState);
 
     // Create all graphics pipelines and set the active (default) one
-    pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_FILL;
+    pState->renderer.activeGraphicsPipeline = GRAPHICS_PIPELINE_MODEL_FILL;
     graphicsPipeline_createAll(pState);
 
     // Needed for all staging/copies and one-time commands

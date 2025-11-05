@@ -6,7 +6,6 @@
 #include "cmath/cmath.h"
 #include "rendering/uvs.h"
 #include "rendering/texture.h"
-#include "rendering/voxel.h"
 #include "rendering/buffers/buffers.h"
 #include "rendering/buffers/index_buffer.h"
 #include "rendering/buffers/vertex_buffer.h"
@@ -161,10 +160,10 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
     }
 
     // Accumulate all primitives from all meshes into contiguous arrays
-    ShaderVertex_t *vertices = NULL;
+    ShaderVertexModel_t *vertices = NULL;
     uint32_t verticesCount = 0, verticesCapacity = 0;
 
-    uint16_t *indices = NULL;
+    uint32_t *indices = NULL;
     uint32_t indexCount = 0, indexCapacity = 0;
 
     float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f, minz = 1e9f, maxz = -1e9f;
@@ -230,7 +229,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
                 uint32_t newCap = verticesCapacity ? (verticesCapacity * 2u) : (uint32_t)vcount;
                 while (newCap < verticesCount + (uint32_t)vcount)
                     newCap *= 2u;
-                ShaderVertex_t *newVerts = (ShaderVertex_t *)realloc(vertices, sizeof(ShaderVertex_t) * newCap);
+                ShaderVertexModel_t *newVerts = (ShaderVertexModel_t *)realloc(vertices, sizeof(ShaderVertexModel_t) * newCap);
                 if (!newVerts)
                 {
                     logs_log(LOG_ERROR, "Vertex realloc failed");
@@ -299,7 +298,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
                     uint32_t newCap = indexCapacity ? (indexCapacity * 2u) : (uint32_t)icount;
                     while (newCap < indexCount + (uint32_t)icount)
                         newCap *= 2u;
-                    uint16_t *newIdx = (uint16_t *)realloc(indices, sizeof(uint16_t) * newCap);
+                    uint32_t *newIdx = (uint32_t *)realloc(indices, sizeof(uint32_t) * newCap);
                     if (!newIdx)
                     {
                         logs_log(LOG_ERROR, "Index realloc failed");
@@ -316,15 +315,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
                 {
                     uint32_t idx = (uint32_t)cgltf_accessor_read_index(ia, i);
                     uint32_t off = baseVertex + idx;
-                    if (off > 0xFFFFu)
-                    {
-                        logs_log(LOG_ERROR, "Index overflow (>65535). Use 32-bit indices or split meshes.");
-                        free(vertices);
-                        free(indices);
-                        cgltf_free(data);
-                        return NULL;
-                    }
-                    indices[indexCount + (uint32_t)i] = (uint16_t)off;
+                    indices[indexCount + (uint32_t)i] = (uint32_t)off;
                 }
                 indexCount += (uint32_t)icount;
             }
@@ -336,7 +327,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
                     uint32_t newCap = indexCapacity ? (indexCapacity * 2u) : (uint32_t)icount;
                     while (newCap < indexCount + (uint32_t)icount)
                         newCap *= 2u;
-                    uint16_t *newIdx = (uint16_t *)realloc(indices, sizeof(uint16_t) * newCap);
+                    uint32_t *newIdx = (uint32_t *)realloc(indices, sizeof(uint32_t) * newCap);
                     if (!newIdx)
                     {
                         logs_log(LOG_ERROR, "Index realloc failed (no-indices case)");
@@ -359,7 +350,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
                         cgltf_free(data);
                         return NULL;
                     }
-                    indices[indexCount + (uint32_t)i] = (uint16_t)off;
+                    indices[indexCount + (uint32_t)i] = (uint32_t)off;
                 }
                 indexCount += (uint32_t)icount;
             }
@@ -391,7 +382,7 @@ RenderModel_t *m3d_load(State_t *state, const char *glbPath, const char *texture
     }
 
     // (NOTE: your helpers populate renderer's shared buffers)
-    vertexBuffer_createFromData(state, vertices, verticesCount);
+    vertexBuffer_createFromData_Model(state, vertices, verticesCount);
     indexBuffer_createFromData(state, indices, indexCount);
 
     model->vertexBuffer = state->renderer.vertexBuffer;

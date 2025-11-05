@@ -24,7 +24,8 @@ static void pipeline_bind(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayo
     VkPipelineLayout pPipelineLayouts[GRAPHICS_PIPELINE_COUNT];
     switch (pState->renderer.activeGraphicsPipeline)
     {
-    case GRAPHICS_PIPELINE_FILL:
+    case GRAPHICS_PIPELINE_VOXEL_FILL:
+    case GRAPHICS_PIPELINE_MODEL_FILL:
         pPipelines[GRAPHICS_TARGET_MODEL] = pState->renderer.graphicsPipelineFillModel;
         pPipelineLayouts[GRAPHICS_TARGET_MODEL] = pState->renderer.pipelineLayoutFillModel;
         pPipelines[GRAPHICS_TARGET_VOXEL] = pState->renderer.graphicsPipelineFillVoxel;

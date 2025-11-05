@@ -24,7 +24,7 @@ void scene_drawModels(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *
         VkDeviceSize offs[] = {0};
         vkCmdBindVertexBuffers(*pCmd, 0, 1, modelVBs, offs);
         // 16 limits verticies to 65535 (consider once making own models and having a check?)
-        vkCmdBindIndexBuffer(*pCmd, m.pModel->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(*pCmd, m.pModel->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
         vkCmdPushConstants(*pCmd, *pPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &m.modelMatrix);
         // // Not using instanced rendering so just 1 instance with nothing for the offset
@@ -169,7 +169,7 @@ void scene_model_createAll(State_t *pState)
 
     scene_modelCreate(&pState->scene, mdl);
 
-    for (int i = 0; i < 250; i++)
+    for (int i = 0; i < 0; i++)
         scene_modelAdd(&pState->scene, mdl,
                        cmath_mat_setTranslation(random_mat_rot(), random_vec3f(-50.0F, 50.0F, -50.0F, 50.0F, -50.0F, 50.0F)));
 }

@@ -6,19 +6,26 @@
 
 void chunk_drawChunks(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout)
 {
-    for (uint32_t i = 0; i < pState->pWorldState->renderChunkCount; ++i)
+    for (uint32_t i = 0; i < pState->pWorldState->chunkCount; ++i)
     {
-        RenderChunk_t *chunk = pState->pWorldState->ppRenderChunks[i];
-        if (!chunk)
+        if (!pState->pWorldState->ppChunks[i])
             continue;
 
-        VkBuffer chunkVB[] = {chunk->vertexBuffer};
+        // A solid chunk surrounded by solid blocks will have no verticies to draw and will thus have the whole renderchunk be null
+        RenderChunk_t *pRenderChunk = pState->pWorldState->ppChunks[i]->pRenderChunk;
+        if (!pRenderChunk)
+            continue;
+
+        if (pRenderChunk->indexCount == 0)
+            continue;
+
+        VkBuffer chunkVB[] = {pRenderChunk->vertexBuffer};
         VkDeviceSize offs[] = {0};
         vkCmdBindVertexBuffers(*pCmd, 0, 1, chunkVB, offs);
-        vkCmdBindIndexBuffer(*pCmd, chunk->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(*pCmd, pRenderChunk->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-        vkCmdPushConstants(*pCmd, *pPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &chunk->modelMatrix);
-        vkCmdDrawIndexed(*pCmd, chunk->indexCount, 1, 0, 0, 0);
+        vkCmdPushConstants(*pCmd, *pPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, (uint32_t)sizeof(Mat4c_t), &pRenderChunk->modelMatrix);
+        vkCmdDrawIndexed(*pCmd, pRenderChunk->indexCount, 1, 0, 0, 0);
     }
 }
 

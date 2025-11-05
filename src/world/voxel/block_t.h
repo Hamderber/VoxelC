@@ -1,0 +1,263 @@
+#pragma region Includes
+#pragma once
+#include <stdint.h>
+#include "world/chunk.h"
+#include "world/voxel/cubeFace_t.h"
+#include "rendering/types/faceTexture_t.h"
+#pragma endregion
+#pragma region Definitions
+typedef enum
+{
+    BLOCK_ID_AIR = 0,
+    // Don't change these IDs without addressing where they are used as array indexes
+    BLOCK_ID_STONE = 1,
+    BLOCK_ID_DIORITE = 2,
+    BLOCK_ID_ANDESITE = 3,
+    BLOCK_ID_GRANITE = 4,
+    BLOCK_ID_CHERT = 5,
+    BLOCK_ID_SHALE = 6,
+    BLOCK_ID_CHALK = 7,
+    BLOCK_ID_LIMESTONE = 8,
+    BLOCK_ID_JASPER = 9,
+    BLOCK_ID_SLATE = 10,
+    BLOCK_ID_SANDSTONE_YELLOW = 11,
+    BLOCK_ID_SANDSTONE_RED = 12,
+    BLOCK_ID_MARBLE_BLACK = 13,
+    BLOCK_ID_MARBLE_WHITE = 14,
+    BLOCK_ID_COUNT
+} BlockID_t;
+
+static const char *pBLOCK_NAMES[] = {
+    "BLOCK_AIR",
+    "BLOCK_STONE",
+    "BLOCK_DIORITE",
+    "BLOCK_ANDESITE",
+    "BLOCK_GRANITE",
+    "BLOCK_CHERT",
+    "BLOCK_SHALE",
+    "BLOCK_CHALK",
+    "BLOCK_LIMESTONE",
+    "BLOCK_JASPER",
+    "BLOCK_SLATE",
+    "BLOCK_SANDSTONE_YELLOW",
+    "BLOCK_SANDSTONE_RED",
+    "BLOCK_MARBLE_BLACK",
+    "BLOCK_MARBLE_WHITE",
+};
+
+typedef enum
+{
+    BLOCK_RENDER_SOLID,
+    BLOCK_RENDER_ALPHA,
+} BlockRenderType_t;
+
+typedef struct
+{
+    const BlockID_t BLOCK_ID;
+    const BlockRenderType_t BLOCK_RENDER_TYPE;
+    const FaceTexture_t pFACE_TEXTURES[6];
+} BlockDefinition_t;
+
+typedef struct
+{
+    const BlockDefinition_t *pBLOCK_DEFINITION;
+    // 12 bits needed to pack 16x16x16 pos
+    uint16_t blockPosPacked12;
+} BlockVoxel_t;
+#pragma endregion
+#pragma region Blocks
+#define BLOCK_DEFS_STONE_COUNT 14
+static const BlockDefinition_t sBLOCK_DEF_AIR = {
+    .BLOCK_ID = BLOCK_ID_AIR,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_ALPHA,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_AIR, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_AIR, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_AIR, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_AIR, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_AIR, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_AIR, TEX_ROT_0},
+    }};
+
+static const BlockDefinition_t sBLOCK_DEF_STONE = {
+    .BLOCK_ID = BLOCK_ID_STONE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_STONE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_STONE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_STONE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_STONE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_STONE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_STONE, TEX_ROT_0},
+    }};
+
+static const BlockDefinition_t sBLOCK_DEF_DIORITE = {
+    .BLOCK_ID = BLOCK_ID_DIORITE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_DIORITE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_DIORITE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_DIORITE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_DIORITE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_DIORITE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_DIORITE, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_ANDESITE = {
+    .BLOCK_ID = BLOCK_ID_ANDESITE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_ANDESITE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_ANDESITE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_ANDESITE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_ANDESITE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_ANDESITE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_ANDESITE, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_GRANITE = {
+    .BLOCK_ID = BLOCK_ID_GRANITE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_GRANITE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_GRANITE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_GRANITE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_GRANITE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_GRANITE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_GRANITE, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_CHERT = {
+    .BLOCK_ID = BLOCK_ID_CHERT,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_CHERT, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_CHERT, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_CHERT, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_CHERT, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_CHERT, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_CHERT, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_SHALE = {
+    .BLOCK_ID = BLOCK_ID_SHALE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_SHALE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_SHALE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_SHALE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_SHALE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_SHALE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_SHALE, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_CHALK = {
+    .BLOCK_ID = BLOCK_ID_CHALK,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_CHALK, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_CHALK, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_CHALK, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_CHALK, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_CHALK, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_CHALK, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_LIMESTONE = {
+    .BLOCK_ID = BLOCK_ID_LIMESTONE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_LIMESTONE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_LIMESTONE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_LIMESTONE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_LIMESTONE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_LIMESTONE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_LIMESTONE, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_JASPER = {
+    .BLOCK_ID = BLOCK_ID_JASPER,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_JASPER, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_JASPER, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_JASPER, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_JASPER, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_JASPER, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_JASPER, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_SLATE = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_SLATE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_SLATE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_SLATE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_SLATE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_SLATE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_SLATE, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_SANDSTONE_YELLOW = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_SANDSTONE_YELLOW, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_SANDSTONE_RED = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_SANDSTONE_RED, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_MARBLE_BLACK = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_MARBLE_BLACK, TEX_ROT_0},
+    }};
+static const BlockDefinition_t sBLOCK_DEF_MARBLE_WHITE = {
+    .BLOCK_ID = BLOCK_ID_SLATE,
+    .BLOCK_RENDER_TYPE = BLOCK_RENDER_SOLID,
+    .pFACE_TEXTURES = {
+        [FACE_LEFT] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_RIGHT] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_TOP] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_BOTTOM] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_FRONT] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+        [FACE_BACK] = {ATLAS_FACE_MARBLE_WHITE, TEX_ROT_0},
+    }};
+#pragma endregion
+#pragma region All Blocks
+/* Get a collection of pointers to all block definitions.
+Access with "const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();" */
+static const BlockDefinition_t *const *block_defs_getAll(void)
+{
+    static const BlockDefinition_t *const pBLOCK_DEFS[] = {
+        &sBLOCK_DEF_AIR,
+        &sBLOCK_DEF_STONE,
+        &sBLOCK_DEF_DIORITE,
+        &sBLOCK_DEF_ANDESITE,
+        &sBLOCK_DEF_GRANITE,
+        &sBLOCK_DEF_CHERT,
+        &sBLOCK_DEF_SHALE,
+        &sBLOCK_DEF_CHALK,
+        &sBLOCK_DEF_LIMESTONE,
+        &sBLOCK_DEF_JASPER,
+        &sBLOCK_DEF_SLATE,
+        &sBLOCK_DEF_SANDSTONE_YELLOW,
+        &sBLOCK_DEF_SANDSTONE_RED,
+        &sBLOCK_DEF_MARBLE_BLACK,
+        &sBLOCK_DEF_MARBLE_WHITE,
+    };
+
+    return pBLOCK_DEFS;
+}
+#pragma endregion

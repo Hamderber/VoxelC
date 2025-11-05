@@ -3,7 +3,7 @@
 #include "core/types/state_t.h"
 #include "character/characterType_t.h"
 
-static const float DEFAULT_UNIFORM_SPEED = 12.0F;
+static const float DEFAULT_UNIFORM_SPEED = 48.0F; // 12.0F;
 static const float SPRINT_SPEED_MULTIPLIER = 1.5F;
 
 /// @brief Updates the player's physics intent via character controller's input

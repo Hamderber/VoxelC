@@ -4,9 +4,13 @@
 echo Compiling shaders...
 
 :: Fragment shaders
-glslc -mfmt=c res\shaders\shader_fill.frag -o res\shaders\shader_fill.frag.spv
-python convert_shaders.py res\shaders\shader_fill.frag.spv
-del res\shaders\shader_fill.frag.spv
+glslc -mfmt=c res\shaders\shader_model_fill.frag -o res\shaders\shader_model_fill.frag.spv
+python convert_shaders.py res\shaders\shader_model_fill.frag.spv
+del res\shaders\shader_model_fill.frag.spv
+
+glslc -mfmt=c res\shaders\shader_voxel_fill.frag -o res\shaders\shader_voxel_fill.frag.spv
+python convert_shaders.py res\shaders\shader_voxel_fill.frag.spv
+del res\shaders\shader_voxel_fill.frag.spv
 
 glslc -mfmt=c res\shaders\shader_wireframe.frag -o res\shaders\shader_wireframe.frag.spv
 python convert_shaders.py res\shaders\shader_wireframe.frag.spv

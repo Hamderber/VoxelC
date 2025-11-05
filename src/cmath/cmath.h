@@ -50,6 +50,18 @@ typedef struct
     float x, y, z;
 } Vec3f_t;
 
+/// @brief 3-dimensional value representation (int)
+typedef struct
+{
+    int x, y, z;
+} Vec3i_t;
+
+/// @brief 3-dimensional value representation (uint8_t)
+typedef struct
+{
+    uint8_t x, y, z;
+} Vec3u8_t;
+
 /// @brief 4-dimensional value representation (float). A w of 1 means position and non-1 means rotation.
 typedef struct
 {
@@ -134,6 +146,12 @@ static inline float cmath_clampF(float f, float min, float max)
         return f;
 }
 
+/// @brief Clamps f between [0, 1]
+static inline float cmath_clampF01(float f)
+{
+    return f < 0.0F ? 0.0F : (f > 1.0F ? 1.0F : f);
+}
+
 /// @brief Clamps d between [min, max]
 static inline double cmath_clampD(double d, double min, double max)
 {
@@ -167,6 +185,34 @@ static inline size_t cmath_clampSizet(size_t s, size_t min, size_t max)
         return s;
 }
 
+/// @brief Clamped cubic Hermite smoothstep [0, x) U (x, 1] with smooth, monotonic S-curve in between and 0 slope endpoints
+static inline float cmath_noise_smoothstepf(float a, float b, float x)
+{
+    // Avoid divide by 0
+    if (a == b)
+        b += CMATH_EPSILON_F;
+    const float T = cmath_clampF01((x - a) / (b - a));
+    return T * T * (3.0F - 2.0F * T);
+}
+
+/// @brief Maps a noise value n in [-1,1] to a gate in [0,1] that keeps ~'keep' fraction.
+/// Softness widens the transition so edges don’t look aliased.
+static inline float cmath_noise_density_keep_gate(const double N, const float KEEP, const float SOFTNESS)
+{
+    // [-1,1] -> [0,1]
+    const float D01 = (float)(0.5 * (N + 1.0));
+    // higher threshold => fewer kept
+    const float THRESHOLD = 1.0F - cmath_clampF01(KEEP);
+    const float LO = cmath_clampF01(THRESHOLD - SOFTNESS);
+    const float HI = cmath_clampF01(THRESHOLD + SOFTNESS);
+    return cmath_noise_smoothstepf(LO, HI, D01);
+}
+
+/// @brief Circular/3d spherical mask with high center and low ends d <= r = 1 && d >= (r+fallof) = 0 total [0, 1]
+static inline float cmath_noise_smooth_inv_band(const float DIST_FROM_CENT, float r, float falloff)
+{
+    return 1.0F - cmath_noise_smoothstepf(r, r + falloff, DIST_FROM_CENT);
+}
 #pragma endregion
 
 #pragma region Unit Conversion
