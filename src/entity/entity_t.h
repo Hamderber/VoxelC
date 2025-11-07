@@ -5,8 +5,9 @@
 #include "world/chunk.h"
 #include "rendering/camera/camera_t.h"
 #include "collection/flags64_t.h"
+#include "character/character.h"
 
-typedef enum
+typedef enum EntityComponentType_t
 {
     ENTITY_COMPONENT_TYPE_GENERIC = 0,
     ENTITY_COMPONENT_TYPE_CAMERA = 1,
@@ -14,7 +15,7 @@ typedef enum
     ENTITY_COMPONENT_TYPE_CHUNK = 3,
 } EntityComponentType_t;
 
-typedef struct
+typedef struct EntityDataPhysics_t
 {
     // Use local axes for intention application (move/rotation)
     bool useLocalAxes;
@@ -40,33 +41,33 @@ typedef struct
     // Does NOT use dt in physics. Use for instant rotation or time-domain inputs like player controlled input
     Quaternionf_t rotationIntentionQuat;
     // Current entity's chunk position (NOT world pos)
-    ChunkPos_t chunkPos;
+    Vec3i_t chunkPos;
 } EntityDataPhysics_t;
 
-typedef struct
+typedef struct EntityDataChunk_t
 {
     // This is NOT for tracking an entity's chunk position in regards to physics
-    ChunkPos_t chunkPos;
+    Vec3i_t chunkPos;
     // Should the chunkPos be updated this frame?
     bool dirty;
 } EntityDataChunk_t;
 
 // Pointers only
-typedef union
+typedef union EntityComponentData_t
 {
     void *pGenericData;
     Camera_t *pCameraData;
-    EntityDataPhysics_t *pPhysicsData;
-    EntityDataChunk_t *pChunkData;
+    struct EntityDataPhysics_t *pPhysicsData;
+    struct EntityDataChunk_t *pChunkData;
 } EntityComponentData_t;
 
-typedef struct
+typedef struct EntityComponent_t
 {
-    EntityComponentType_t type;
-    EntityComponentData_t *pComponentData;
+    enum EntityComponentType_t type;
+    union EntityComponentData_t *pComponentData;
 } EntityComponent_t;
 
-typedef enum
+typedef enum EntityType_t
 {
     ENTITY_TYPE_GENERIC = 0,
     ENTITY_TYPE_CAMERA = 1,
@@ -76,19 +77,19 @@ typedef enum
     ENTITY_TYPE_COUNT,
 } EntityType_t;
 
-typedef struct
+typedef struct Entity_t
 {
     bool heapAllocated;
     size_t refCount;
-    EntityType_t type;
+    enum EntityType_t type;
     size_t componentCount;
-    EntityComponent_t *pComponents;
+    struct EntityComponent_t *pComponents;
     flags64_t entityFlags;
 } Entity_t;
 
 #pragma region Entity Flags
 /// @brief Flags for an entity. Current range is [0, 63]
-typedef enum
+typedef enum EntityFlags_t
 {
     ENTITY_FLAG_PLAYER = 0,
     ENTITY_FLAG_COUNT,
@@ -102,14 +103,15 @@ static inline bool entity_flag_isPlayer(Entity_t *pEntity)
 }
 #pragma endregion
 #pragma region Entity
+struct State_t;
 /// @brief Updates the entity's chunk position
-static void entity_chunkPos_update(Entity_t *pEntity, EntityComponentData_t *pComponentData)
+static void entity_chunkPos_update(struct State_t *pState, Entity_t *pEntity, EntityComponentData_t *pComponentData)
 {
 #ifdef DEBUG
-    const ChunkPos_t OLD = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPosOld);
-    const ChunkPos_t NEW = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPos);
+    const Vec3i_t OLD = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPosOld);
+    const Vec3i_t NEW = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPos);
 
-    bool chunkChanged = !chunk_chunkPos_equals(OLD, NEW);
+    bool chunkChanged = !cmath_vec3i_equals(OLD, NEW, 0);
     if (chunkChanged)
     {
         pComponentData->pPhysicsData->chunkPos = NEW;
@@ -125,9 +127,11 @@ static void entity_chunkPos_update(Entity_t *pEntity, EntityComponentData_t *pCo
 
     if (chunkChanged && entity_flag_isPlayer(pEntity))
     {
-        logs_log(LOG_DEBUG, "Entity %p is a player. Update world and render chunks.", pEntity);
+        logs_log(LOG_DEBUG, "Entity %p is a player. Updating world and render chunks.", pEntity);
+        entity_player_chunkPos_update_publish(pState, pEntity, pComponentData);
     }
 #else
+    pState;
     pEntity;
     // Just set the chunkpos directly
     pComponentData->pPhysicsData->chunkPos = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPos);

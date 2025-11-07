@@ -113,7 +113,7 @@ void phys_entityPhysicsApply(State_t *pState, float dt)
             static const float TOLERANCE = CMATH_EPSILON_F;
             if (!cmath_vec3f_equals(pComponentData->pPhysicsData->worldPos, pComponentData->pPhysicsData->worldPosOld, TOLERANCE))
                 // Don't bother trying to update chunk position if it didn't change
-                entity_chunkPos_update(ppEntities[i], pComponentData);
+                entity_chunkPos_update(pState, ppEntities[i], pComponentData);
         }
 
         pComponentData = NULL;

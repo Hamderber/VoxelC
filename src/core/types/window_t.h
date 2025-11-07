@@ -5,7 +5,7 @@
 #include "cmath/cmath.h"
 #include "core/types/swapchain_t.h"
 
-typedef struct
+typedef struct Window_t
 {
     // Vulkan
     Swapchain_t swapchain;

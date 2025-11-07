@@ -1,5 +1,6 @@
 #pragma region Includes
 #pragma once
+#include "core/logs.h"
 #pragma endregion
 #pragma region Definitions
 typedef struct LinkedList_t
@@ -15,6 +16,8 @@ static inline bool linkedList_node_add(LinkedList_t **ppRoot, LinkedList_t *pAdd
     if (!ppRoot || !pAdd)
         return false;
 
+    pAdd->pNext = NULL;
+
     if (*ppRoot == NULL)
     {
         *ppRoot = pAdd;
@@ -22,7 +25,7 @@ static inline bool linkedList_node_add(LinkedList_t **ppRoot, LinkedList_t *pAdd
     }
 
     LinkedList_t *pCurrent = *ppRoot;
-    while (pCurrent->pNext != NULL)
+    while (pCurrent && pCurrent->pNext != NULL)
         pCurrent = pCurrent->pNext;
 
     pCurrent->pNext = pAdd;
@@ -33,41 +36,31 @@ static inline bool linkedList_node_add(LinkedList_t **ppRoot, LinkedList_t *pAdd
 /// the calling function or otherwise.
 static inline bool linkedList_node_remove(LinkedList_t **ppRoot, LinkedList_t *pRemove)
 {
-    if (!ppRoot || !pRemove || *ppRoot == NULL)
+    if (!ppRoot || !pRemove)
         return false;
 
-    if (*ppRoot == pRemove)
-    {
-        *ppRoot = pRemove->pNext;
-        pRemove->pNext = NULL;
-        return true;
-    }
+    LinkedList_t **pp = ppRoot;
+    while (*pp && *pp != pRemove)
+        pp = &(*pp)->pNext;
 
-    LinkedList_t *pPrevious = *ppRoot;
-    LinkedList_t *pCurrent = pPrevious->pNext;
-    while (pCurrent->pNext != NULL && pCurrent != pRemove)
-    {
-        pPrevious = pCurrent;
-        pCurrent = pCurrent->pNext;
-    }
-
-    if (!pCurrent)
+    if (!*pp)
         return false;
 
-    pPrevious->pNext = pCurrent->pNext;
-    pCurrent->pNext = NULL;
+    LinkedList_t *pToRemove = *pp;
+    *pp = pToRemove->pNext;
+    pToRemove->pNext = NULL;
     return true;
 }
 
-/// @brief Creates a node with pData and adds it to the end of the list
-static inline bool linkedList_data_add(LinkedList_t **ppRoot, void *pData)
+/// @brief Creates a node with pData and adds it to the end of the list. Returns the added entry
+static inline LinkedList_t *linkedList_data_add(LinkedList_t **ppRoot, void *pData)
 {
     if (!ppRoot || !pData)
-        return false;
+        return NULL;
 
     LinkedList_t *pAdd = (LinkedList_t *)malloc(sizeof(LinkedList_t));
     if (!pAdd)
-        return false;
+        return NULL;
 
     pAdd->pData = pData;
     pAdd->pNext = NULL;
@@ -75,9 +68,10 @@ static inline bool linkedList_data_add(LinkedList_t **ppRoot, void *pData)
     if (!linkedList_node_add(ppRoot, pAdd))
     {
         free(pAdd);
-        return false;
+        return NULL;
     }
 
-    return true;
+    return pAdd;
 }
+
 #pragma endregion

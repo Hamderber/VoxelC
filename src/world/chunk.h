@@ -20,30 +20,18 @@ static const uint16_t CHUNK_AXIS_LENGTH = 16;
 // 16x16x16
 static const uint32_t CHUNK_BLOCK_CAPACITY = 4096;
 
-typedef struct
-{
-    int x, y, z;
-} ChunkPos_t;
-
 typedef struct Chunk_t
 {
     RenderChunk_t *pRenderChunk;
     BlockVoxel_t *pBlockVoxels;
-    ChunkPos_t chunkPos;
-    // TODO: actually set this
-    LinkedList_t playersLoadingChunk;
+    Vec3i_t chunkPos;
+    LinkedList_t *pEntitiesLoadingChunkLL;
 } Chunk_t;
 
 #pragma endregion
 #pragma region Chunk Pos
-/// @brief Compares the left and right chunk positions
-static inline bool chunk_chunkPos_equals(const ChunkPos_t LEFT, const ChunkPos_t RIGHT)
-{
-    return LEFT.x == RIGHT.x && LEFT.y == RIGHT.y && LEFT.z == RIGHT.z;
-}
-
 /// @brief Converts chunk position to world position
-static inline Vec3i_t chunkPos_to_worldOrigin(const ChunkPos_t CHUNK_POS)
+static inline Vec3i_t chunkPos_to_worldOrigin(const Vec3i_t CHUNK_POS)
 {
     return (Vec3i_t){
         CHUNK_POS.x * CHUNK_AXIS_LENGTH,
@@ -59,9 +47,9 @@ static inline int floor_div_chunk(int x)
 }
 
 /// @brief Converts world position to chunk position
-static inline ChunkPos_t worldPosi_to_chunkPos(const Vec3i_t WORLD_POS)
+static inline Vec3i_t worldPosi_to_chunkPos(const Vec3i_t WORLD_POS)
 {
-    return (ChunkPos_t){
+    return (Vec3i_t){
         .x = floor_div_chunk(WORLD_POS.x),
         .y = floor_div_chunk(WORLD_POS.y),
         .z = floor_div_chunk(WORLD_POS.z),
@@ -75,9 +63,9 @@ static inline int chunk_index_from_worldf(float x)
 }
 
 /// @brief Converts world position (float) to chunk position
-static inline ChunkPos_t worldPosf_to_chunkPos(Vec3f_t wp)
+static inline Vec3i_t worldPosf_to_chunkPos(Vec3f_t wp)
 {
-    return (ChunkPos_t){
+    return (Vec3i_t){
         .x = chunk_index_from_worldf(wp.x),
         .y = chunk_index_from_worldf(wp.y),
         .z = chunk_index_from_worldf(wp.z),
@@ -139,7 +127,7 @@ static inline bool blockPosPacked_flag_get(const uint16_t P, const BlockPosPacke
 }
 
 /// @brief Converts a block's position packed12 to world pos
-static inline Vec3i_t blockPosPacked_get_worldPos(const ChunkPos_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
+static inline Vec3i_t blockPosPacked_get_worldPos(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
     const Vec3i_t ORIGIN = chunkPos_to_worldOrigin(CHUNK_POS);
     return (Vec3i_t){
@@ -163,7 +151,7 @@ static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, 
 }
 
 /// @brief Sample pos is in the center of the voxel (offset by 0.5F)
-static inline Vec3f_t blockPacked_to_worldSamplePos(const ChunkPos_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
+static inline Vec3f_t blockPacked_to_worldSamplePos(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
     const Vec3i_t ORIGIN = chunkPos_to_worldOrigin(CHUNK_POS);
     return (Vec3f_t){
@@ -180,7 +168,7 @@ static inline bool block_isSolid(const uint16_t BLOCK_POS_PACKED)
 }
 
 /// @brief Calculates the chunk's bounds in world space
-static inline Boundsi_t chunk_getBounds(const ChunkPos_t CHUNK_POS)
+static inline Boundsi_t chunk_getBounds(const Vec3i_t CHUNK_POS)
 {
     const Vec3i_t WORLD_POS = chunkPos_to_worldOrigin(CHUNK_POS);
     return (Boundsi_t){

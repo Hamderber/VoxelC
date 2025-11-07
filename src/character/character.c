@@ -9,6 +9,7 @@
 #include "events/eventBus.h"
 #include "world/chunk.h"
 #include "world/chunkManager.h"
+#include "entity/entityManager.h"
 #pragma endregion
 #pragma region Player
 Vec3f_t character_player_positionLerped_get(const State_t *pSTATE)
@@ -31,18 +32,21 @@ Vec3f_t character_player_positionLerped_get(const State_t *pSTATE)
     return playerPosition;
 }
 
-void character_chunkPos_update_publish(State_t *pState, Character_t *pCharacter)
+void entity_player_chunkPos_update_publish(State_t *pState, Entity_t *pEntity,
+                                           EntityComponentData_t *pComponentData)
 {
-    if (!pCharacter || !pCharacter->pEntity)
+    if (!pEntity)
         return;
 
-    EntityComponentData_t *pComponentData;
-    if (!em_entityDataGet(pCharacter->pEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &pComponentData))
+    if (!pComponentData && !em_entityDataGet(pEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &pComponentData))
         return;
 
-    ChunkPos_t chunkPos = pComponentData->pPhysicsData->chunkPos;
-    logs_log(LOG_DEBUG, "Announcing that Entity %p is now in chunk (%d, %d, %d).",
-             pCharacter->pEntity, chunkPos.x, chunkPos.y, chunkPos.z);
+    Vec3i_t chunkPos = pComponentData->pPhysicsData->chunkPos;
+    logs_log(LOG_DEBUG, "Announcing that Entity %p is now in chunk (%d, %d, %d) at worldPos (%lf, %lf, %lf).",
+             pEntity, chunkPos.x, chunkPos.y, chunkPos.z,
+             pComponentData->pPhysicsData->worldPos.x,
+             pComponentData->pPhysicsData->worldPos.y,
+             pComponentData->pPhysicsData->worldPos.z);
 
     Chunk_t *pChunk = chunkManager_getChunk(pState, chunkPos);
     if (!pChunk)
@@ -52,7 +56,7 @@ void character_chunkPos_update_publish(State_t *pState, Character_t *pCharacter)
     }
 
     CtxChunk_t ctx = {
-        .pCharacterEventSource = pCharacter,
+        .pEntitySource = pEntity,
         .pChunk = pChunk,
     };
 
@@ -65,7 +69,7 @@ void character_chunkPos_update_publish(State_t *pState, Character_t *pCharacter)
 }
 #pragma endregion
 #pragma region Create
-Character_t *character_create(State_t *pState, CharacterType_t characterType)
+Character_t *character_create(struct State_t *pState, enum CharacterType_t characterType)
 {
     Character_t *pCharacter = calloc(1, sizeof(Character_t));
     pCharacter->type = characterType;

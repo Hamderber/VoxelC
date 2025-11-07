@@ -12,7 +12,7 @@ typedef enum
     ENTITY_COLLECTION_COUNT,
 } EntityCollectionCategory_t;
 
-typedef struct
+typedef struct EntityCollection_t
 {
-    Entity_t **entities;
+    struct Entity_t **entities;
 } EntityCollection_t;

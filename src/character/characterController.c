@@ -167,7 +167,7 @@ void character_sprintToggle(State_t *pState, Character_t *pCharacter)
     logs_log(LOG_DEBUG, "Sprint toggled. Character %s speed is %lfm/s", pCharacter->pName, pComponentData->pPhysicsData->uniformSpeed);
 }
 
-EventResult_t character_onSprintTogglePress(struct State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_t character_onSprintTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     if (pEvent == NULL)
         return EVENT_RESULT_ERROR;

@@ -336,17 +336,17 @@ static inline bool cmath_vec3f_equals(const Vec3f_t LEFT, const Vec3f_t RIGHT, f
 {
     tolerance = cmath_clampF(tolerance, CMATH_EPSILON_F, fabsf(tolerance));
 
-    return (fabsf(LEFT.x - RIGHT.x) < tolerance) &&
-           (fabsf(LEFT.y - RIGHT.y) < tolerance) &&
-           (fabsf(LEFT.z - RIGHT.z) < tolerance);
+    return (fabsf(LEFT.x - RIGHT.x) <= tolerance) &&
+           (fabsf(LEFT.y - RIGHT.y) <= tolerance) &&
+           (fabsf(LEFT.z - RIGHT.z) <= tolerance);
 }
 
 /// @brief Compares vectors LEFT and RIGHT for equality by tolerance (int)
 static inline bool cmath_vec3i_equals(const Vec3i_t LEFT, const Vec3i_t RIGHT, int tolerance)
 {
-    return (abs(LEFT.x - RIGHT.x) < tolerance) &&
-           (abs(LEFT.y - RIGHT.y) < tolerance) &&
-           (abs(LEFT.z - RIGHT.z) < tolerance);
+    return (abs(LEFT.x - RIGHT.x) <= tolerance) &&
+           (abs(LEFT.y - RIGHT.y) <= tolerance) &&
+           (abs(LEFT.z - RIGHT.z) <= tolerance);
 }
 
 /// @brief Multiplies each axis of the vector by the given scalar (float)
@@ -1030,6 +1030,15 @@ static Vec3i_t *cmath_algo_cubicShell(const Vec3i_t ORIGIN, int radius, size_t *
             pResult[index++] = (Vec3i_t){MIN_X, y, z};
             pResult[index++] = (Vec3i_t){MAX_X, y, z};
         }
+
+    // vertical edges minus box verticies (const x/z)
+    for (int y = MIN_Y + 1; y <= MAX_Y - 1; y++)
+    {
+        pResult[index++] = (Vec3i_t){MIN_X, y, MIN_Z};
+        pResult[index++] = (Vec3i_t){MIN_X, y, MAX_Z};
+        pResult[index++] = (Vec3i_t){MAX_X, y, MIN_Z};
+        pResult[index++] = (Vec3i_t){MAX_X, y, MAX_Z};
+    }
 
     *pSize = COUNT;
     return pResult;

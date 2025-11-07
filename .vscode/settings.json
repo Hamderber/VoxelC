@@ -72,6 +72,7 @@
         "weightedmap_t.h": "c",
         "weightedmaps.h": "c",
         "cubeface_t.h": "c",
-        "chunkgenerator.h": "c"
+        "chunkgenerator.h": "c",
+        "linkedlist_t.h": "c"
     }
 }
