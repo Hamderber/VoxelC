@@ -289,7 +289,7 @@ void input_inputAction_simulate(State_t *pState, InputActionMapping_t inputActio
 
     Event_t event = {
         .type = EVENT_TYPE_INPUT_MAPPED,
-        .data.inputMapped = &data,
+        .data.pInputMapped = &data,
     };
 
     logs_log(LOG_DEBUG, "Simulating the input action %s -> %s", INPUT_ACTION_MAPPING_NAMES[(int)inputActionMapped],
@@ -312,7 +312,7 @@ static void keystrokes_publish(State_t *pState, int *pStrokeCount, Keystroke_t *
     events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_RAW,
                    (Event_t){
                        .type = EVENT_TYPE_INPUT_RAW,
-                       .data.inputRaw = &ctxRaw,
+                       .data.pInputRaw = &ctxRaw,
                    });
 
     memset(pKeystrokes, 0, sizeof(pKeystrokes));
@@ -331,7 +331,7 @@ static void inputActions_publish(State_t *pState, int *pActionCount, InputAction
     events_publish(pState, &pState->eventBus, EVENT_CHANNEL_INPUT_ACTIONS,
                    (Event_t){
                        .type = EVENT_TYPE_INPUT_MAPPED,
-                       .data.inputMapped = &ctxMapped,
+                       .data.pInputMapped = &ctxMapped,
                    });
 
     memset(pInputActions, 0, sizeof(pInputActions));
@@ -435,7 +435,7 @@ size_t input_inputAction_matchQuery(const Event_t *pEVENT, const InputActionQuer
     if (!pQUERY || !pResult || !pEVENT || queryCount == 0)
         return false;
 
-    if (pEVENT->type != EVENT_TYPE_INPUT_MAPPED || pEVENT->data.inputMapped == NULL)
+    if (pEVENT->type != EVENT_TYPE_INPUT_MAPPED || pEVENT->data.pInputMapped == NULL)
         return false;
 
     size_t outCount = 0;
@@ -443,9 +443,9 @@ size_t input_inputAction_matchQuery(const Event_t *pEVENT, const InputActionQuer
 
     bool actionFound[INPUT_ACTION_QUERY_COUNT_MAX] = {0};
 
-    for (size_t i = 0; i < pEVENT->data.inputMapped->actionCount; i++)
+    for (size_t i = 0; i < pEVENT->data.pInputMapped->actionCount; i++)
     {
-        const InputAction_t ACTION = pEVENT->data.inputMapped->inputActions[i];
+        const InputAction_t ACTION = pEVENT->data.pInputMapped->inputActions[i];
 
         for (size_t j = 0; j < queryCount; j++)
         {
@@ -454,7 +454,7 @@ size_t input_inputAction_matchQuery(const Event_t *pEVENT, const InputActionQuer
 
             if (ACTION.actionState == pQUERY[j].actionCtx && ACTION.action == pQUERY[j].mapping)
             {
-                pResult[outCount++] = pEVENT->data.inputMapped->inputActions[i];
+                pResult[outCount++] = pEVENT->data.pInputMapped->inputActions[i];
                 actionFound[j] = true;
                 break;
             }

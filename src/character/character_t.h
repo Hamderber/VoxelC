@@ -2,9 +2,11 @@
 
 #include <stdbool.h>
 #include "character/characterType_t.h"
+#include "entity/entity_t.h"
 
-typedef struct
+typedef struct Character_t
 {
+    Entity_t *pEntity;
     CharacterType_t type;
     // This does NOT include the null terminator
     size_t nameLength;

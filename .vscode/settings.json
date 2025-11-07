@@ -71,6 +71,7 @@
         "fastnoiselite.h": "c",
         "weightedmap_t.h": "c",
         "weightedmaps.h": "c",
-        "cubeface_t.h": "c"
+        "cubeface_t.h": "c",
+        "chunkgenerator.h": "c"
     }
 }

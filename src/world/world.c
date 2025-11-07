@@ -83,13 +83,13 @@ void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
 static void world_chunks_init(State_t *pState)
 {
     // Temporary generation for testing
-    const int CHUNKS_PER_AXIS = 10;
+    const int CHUNKS_PER_AXIS = 6;
     const int MIN_X = -CHUNKS_PER_AXIS / 2;
-    const int MIN_Y = -CHUNKS_PER_AXIS;
+    const int MIN_Y = -CHUNKS_PER_AXIS / 2;
     const int MIN_Z = -CHUNKS_PER_AXIS / 2;
-    const int MAX_X = MIN_X + CHUNKS_PER_AXIS - 1;
-    const int MAX_Y = MIN_Y + CHUNKS_PER_AXIS - 1;
-    const int MAX_Z = MIN_Z + CHUNKS_PER_AXIS - 1;
+    const int MAX_X = MIN_X + CHUNKS_PER_AXIS / 2 - 1;
+    const int MAX_Y = MIN_Y + CHUNKS_PER_AXIS / 2 - 1;
+    const int MAX_Z = MIN_Z + CHUNKS_PER_AXIS / 2 - 1;
 
     const uint32_t CHUNK_COUNT = (uint32_t)(CHUNKS_PER_AXIS * CHUNKS_PER_AXIS * CHUNKS_PER_AXIS);
     pState->pWorldState->chunkCapacity = CHUNK_COUNT;
@@ -107,18 +107,24 @@ static void world_chunks_init(State_t *pState)
     free(pChunkPos);
 }
 #pragma endregion
+#pragma region Load
+// world_chunks_update
+#pragma endregion
 #pragma region Create
 static void init(State_t *pState)
 {
     pState->pWorldState = calloc(1, sizeof(WorldState_t));
 
     pState->pWorldState->world.pPlayer = character_create(pState, CHARACTER_TYPE_PLAYER);
-
     world_chunks_init(pState);
+
+    // The world position is set when the character is created and it should be announced here on world join
+    character_chunkPos_update_publish(pState, pState->pWorldState->world.pPlayer);
 }
 
 void world_load(State_t *pState)
 {
+    chunkManager_create(pState);
     init(pState);
 }
 #pragma endregion
@@ -148,5 +154,7 @@ void world_destroy(State_t *pState)
     free(pState->pWorldState->ppChunks);
     pState->pWorldState->ppChunks = NULL;
     pState->pWorldState = NULL;
+
+    chunkManager_destroy(pState);
 }
 #pragma endregion

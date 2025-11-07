@@ -13,6 +13,7 @@
 #include "world/worldState_t.h"
 #include "core/types/scene_t.h"
 #include "cmath/weightedMap_t.h"
+#include "events/eventTypes.h"
 
 typedef struct State_t
 {

@@ -19,3 +19,9 @@ const inline BlockVoxel_t chunkManager_getBlock(const Chunk_t *pCHUNK, const Vec
 {
     return pCHUNK->pBlockVoxels[xyz_to_chunkBlockIndex(LOCAL_POS.x, LOCAL_POS.y, LOCAL_POS.z)];
 }
+
+/// @brief Subscribes to events in the chunk event channel
+void chunkManager_create(State_t *pState);
+
+/// @brief Unsubscribes to events in the chunk event channel
+void chunkManager_destroy(State_t *pState);

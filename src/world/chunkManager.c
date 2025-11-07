@@ -16,6 +16,7 @@
 #include "chunkGenerator.h"
 #include "core/logs.h"
 #include "cmath/weightedMaps.h"
+#include "events/eventBus.h"
 #pragma endregion
 #pragma region Get Chunk
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const ChunkPos_t CHUNK_POS)
@@ -30,8 +31,16 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const ChunkPos_t CHUNK_POS
         if (!pCurrentChunk)
             continue;
 
+        // logs_log(LOG_DEBUG, "Comparing chunkPos (%d, %d, %d) to (%d, %d, %d).",
+        //          pSTATE->pWorldState->ppChunks[i]->chunkPos.x,
+        //          pSTATE->pWorldState->ppChunks[i]->chunkPos.y,
+        //          pSTATE->pWorldState->ppChunks[i]->chunkPos.z, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
+
         if (chunk_chunkPos_equals(pSTATE->pWorldState->ppChunks[i]->chunkPos, CHUNK_POS))
+        {
             pChunk = pSTATE->pWorldState->ppChunks[i];
+            break;
+        }
     }
 
     return pChunk;
@@ -255,5 +264,36 @@ bool chunkManager_chunk_createBatch(State_t *pState, const ChunkPos_t *pCHUNK_PO
 
     free(ppChunks);
     return true;
+}
+#pragma endregion
+#pragma region Chunk (Un)Load
+EventResult_t player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
+{
+    if (!pState || !pEvent || !pCtx)
+        return EVENT_RESULT_ERROR;
+
+    CtxChunk_t *pChunkEventData = (CtxChunk_t *)pCtx;
+    Character_t *pCharacter = pChunkEventData->pCharacterEventSource;
+    ChunkPos_t chunkPos = pChunkEventData->pChunk->chunkPos;
+
+    logs_log(LOG_DEBUG, "Character '%s' (Entity %p) is now in chunk (%d, %d, %d).",
+             pCharacter->pName, pCharacter->pEntity, chunkPos.x, chunkPos.y, chunkPos.z);
+
+    return EVENT_RESULT_PASS;
+}
+#pragma endregion
+#pragma region Create
+void chunkManager_create(State_t *pState)
+{
+    const void *pSUB_CTX = NULL;
+    static const bool CONSUME_LISTENER = false;
+    static const bool CONSUME_EVENT = false;
+    events_subscribe(&pState->eventBus, EVENT_CHANNEL_CHUNK, player_onChunkChange, CONSUME_LISTENER, CONSUME_EVENT, &pSUB_CTX);
+}
+#pragma endregion
+#pragma region Destroy
+void chunkManager_destroy(State_t *pState)
+{
+    events_unsubscribe(&pState->eventBus, EVENT_CHANNEL_CHUNK, player_onChunkChange);
 }
 #pragma endregion

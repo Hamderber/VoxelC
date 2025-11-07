@@ -29,7 +29,7 @@ void gui_publishChange(State_t *state, GUIMenuID_t id)
 
     CtxGUI_t ctx = {
         .menuDepth = state->gui.menuDepth,
-        .gui = &state->gui.GUIs[id],
+        .pGui = &state->gui.GUIs[id],
     };
 
     // If there is no gui open (besides overlay) take the cursor back
@@ -45,7 +45,7 @@ void gui_publishChange(State_t *state, GUIMenuID_t id)
     events_publish(state, &state->eventBus, EVENT_CHANNEL_GUI,
                    (Event_t){
                        .type = EVENT_TYPE_GUI,
-                       .data.gui = &ctx,
+                       .data.pGui = &ctx,
                    });
 }
 
@@ -84,13 +84,13 @@ EventResult_t gui_onMenuTogglePress(struct State_t *state, Event_t *event, void 
         return EVENT_RESULT_ERROR;
     }
 
-    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
+    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.pInputMapped != NULL)
     {
-        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+        for (size_t i = 0; i < event->data.pInputMapped->actionCount; i++)
         {
-            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            if (event->data.pInputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
             {
-                switch (event->data.inputMapped->inputActions[i].action)
+                switch (event->data.pInputMapped->inputActions[i].action)
                 {
                 case INPUT_ACTION_MENU_TOGGLE:
                     logs_log(LOG_DEBUG, "Menu toggle (pressed)");
@@ -113,13 +113,13 @@ EventResult_t gui_onFullscreenTogglePress(struct State_t *state, Event_t *event,
         return EVENT_RESULT_ERROR;
     }
 
-    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
+    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.pInputMapped != NULL)
     {
-        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+        for (size_t i = 0; i < event->data.pInputMapped->actionCount; i++)
         {
-            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            if (event->data.pInputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
             {
-                switch (event->data.inputMapped->inputActions[i].action)
+                switch (event->data.pInputMapped->inputActions[i].action)
                 {
                 case INPUT_ACTION_FULLSCREEN_TOGGLE:
                     logs_log(LOG_DEBUG, "Fullscreen toggle (pressed)");

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "rendering/types/renderChunk_t.h"
 #include "world/voxel/block_t.h"
+#include "collection/linkedList_t.h"
 #pragma endregion
 #pragma region Definitions
 #define LXYZ_MASK_4 0x0FU
@@ -24,12 +25,15 @@ typedef struct
     int x, y, z;
 } ChunkPos_t;
 
-typedef struct
+typedef struct Chunk_t
 {
     RenderChunk_t *pRenderChunk;
     BlockVoxel_t *pBlockVoxels;
     ChunkPos_t chunkPos;
+    // TODO: actually set this
+    LinkedList_t playersLoadingChunk;
 } Chunk_t;
+
 #pragma endregion
 #pragma region Chunk Pos
 /// @brief Compares the left and right chunk positions
@@ -45,6 +49,39 @@ static inline Vec3i_t chunkPos_to_worldOrigin(const ChunkPos_t CHUNK_POS)
         CHUNK_POS.x * CHUNK_AXIS_LENGTH,
         CHUNK_POS.y * CHUNK_AXIS_LENGTH,
         CHUNK_POS.z * CHUNK_AXIS_LENGTH};
+}
+
+/// @brief Floor-divide to work for negative chunk pos
+static inline int floor_div_chunk(int x)
+{
+    // Otherwise -1/16 for example = 0 which would result in wrong chunkPos for negative chunks
+    return (x >= 0) ? (x / CHUNK_AXIS_LENGTH) : ((x - (CHUNK_AXIS_LENGTH - 1)) / CHUNK_AXIS_LENGTH);
+}
+
+/// @brief Converts world position to chunk position
+static inline ChunkPos_t worldPosi_to_chunkPos(const Vec3i_t WORLD_POS)
+{
+    return (ChunkPos_t){
+        .x = floor_div_chunk(WORLD_POS.x),
+        .y = floor_div_chunk(WORLD_POS.y),
+        .z = floor_div_chunk(WORLD_POS.z),
+    };
+}
+
+/// @brief Converts a world position axis coord to chunk position (index)
+static inline int chunk_index_from_worldf(float x)
+{
+    return (int)floorf(x / (float)CHUNK_AXIS_LENGTH);
+}
+
+/// @brief Converts world position (float) to chunk position
+static inline ChunkPos_t worldPosf_to_chunkPos(Vec3f_t wp)
+{
+    return (ChunkPos_t){
+        .x = chunk_index_from_worldf(wp.x),
+        .y = chunk_index_from_worldf(wp.y),
+        .z = chunk_index_from_worldf(wp.z),
+    };
 }
 #pragma endregion
 #pragma region Block Pos
@@ -135,11 +172,23 @@ static inline Vec3f_t blockPacked_to_worldSamplePos(const ChunkPos_t CHUNK_POS, 
         (float)ORIGIN.z + (float)blockPosPacked_getLocal_z(BLOCK_POS_PACKED12) + 0.5F};
 }
 #pragma endregion
-#pragma region Block Queries
+#pragma region Queries
 /// @brief Checks block packed flags to determine if it has been flagged as solid (not air)
 static inline bool block_isSolid(const uint16_t BLOCK_POS_PACKED)
 {
     return !blockPosPacked_flag_get(BLOCK_POS_PACKED, BLOCKPOS_PACKED_FLAG_AIR);
+}
+
+/// @brief Calculates the chunk's bounds in world space
+static inline Boundsi_t chunk_getBounds(const ChunkPos_t CHUNK_POS)
+{
+    const Vec3i_t WORLD_POS = chunkPos_to_worldOrigin(CHUNK_POS);
+    return (Boundsi_t){
+        .A = WORLD_POS,
+        .B = (Vec3i_t){
+            .x = WORLD_POS.x + CHUNK_AXIS_LENGTH,
+            .y = WORLD_POS.y + CHUNK_AXIS_LENGTH,
+            .z = WORLD_POS.z + CHUNK_AXIS_LENGTH}};
 }
 #pragma endregion
 #pragma region Undefines

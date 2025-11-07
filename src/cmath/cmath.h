@@ -1,11 +1,11 @@
-#pragma once
-
 #pragma region Includes
+#pragma once
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
+#include <stdlib.h>
 #pragma endregion
-
 #pragma region Defines
 /// @brief PI definition (double)
 #define PI_D 3.1415926535897931
@@ -29,8 +29,9 @@
 #define CMATH_MAX_F 3.402823466e+38F
 /// @brief Maximum double value
 #define CMATH_MAX_D 1.7976931348623158e+308
+/// @brief Maximum int value (signed)
+#define CMATH_MAX_INT 2147483647
 #pragma endregion
-
 #pragma region Types
 /// @brief 4-dimensional representation of rotation used in computer graphics etc. (float)
 typedef struct
@@ -74,7 +75,6 @@ typedef struct
     Vec4f_t m[4];
 } Mat4c_t;
 #pragma endregion
-
 #pragma region Type Constants
 /// @brief The Identity Quaternion representing no rotation and no shear
 static const Quaternionf_t QUATERNION_IDENTITY = {0.0F, 0.0F, 0.0F, 1.0F};
@@ -92,7 +92,6 @@ static const Mat4c_t MAT4_IDENTITY = {
 static const Vec3f_t VEC3_ONE = {1.0F, 1.0F, 1.0F};
 static const Vec3f_t VEC3_NEG_ONE = {-1.0F, -1.0F, -1.0F};
 static const Vec3f_t VEC3_ZERO = {0.0F, 0.0F, 0.0F};
-
 #pragma region Directions
 static const Vec3f_t VEC3_RIGHT = {1.0F, 0.0F, 0.0F};
 static const Vec3f_t VEC3_LEFT = {-1.0F, 0.0F, 0.0F};
@@ -102,7 +101,6 @@ static const Vec3f_t VEC3_DOWN = {0.0F, -1.0F, 0.0F};
 static const Vec3f_t VEC3_FORWARD = {0.0F, 0.0F, -1.0F};
 static const Vec3f_t VEC3_BACK = {0.0F, 0.0F, 1.0F};
 #pragma endregion
-
 #pragma region Colors
 static const Vec3f_t COLOR_RED = {1.0F, 0.0F, 0.0F};
 static const Vec3f_t COLOR_GREEN = {0.0F, 1.0F, 0.0F};
@@ -114,13 +112,11 @@ static const Vec3f_t COLOR_CYAN = {0.0F, 1.0F, 1.0F};
 static const Vec3f_t COLOR_MAGENTA = {1.0F, 0.0F, 1.0F};
 static const Vec3f_t COLOR_GRAY = {0.5F, 0.5F, 0.5F};
 #pragma endregion
-
 #pragma region Axes
 static const Vec3f_t VEC3_X_AXIS = {1.0F, 0.0F, 0.0F};
 static const Vec3f_t VEC3_Y_AXIS = {0.0F, 1.0F, 0.0F};
 static const Vec3f_t VEC3_Z_AXIS = {0.0F, 0.0F, 1.0F};
 #pragma endregion
-
 #pragma region Rendering
 static const Vec3f_t VEC3_VOXEL_FRONT_BOT_LEFT = {0.0F, 0.0F, 1.0F};
 static const Vec3f_t VEC3_VOXEL_FRONT_BOT_RIGHT = {1.0F, 0.0F, 1.0F};
@@ -133,7 +129,6 @@ static const Vec3f_t VEC3_VOXEL_BACK_TOP_LEFT = {0.0F, 1.0F, 0.0F};
 static const Vec3f_t VEC3_VOXEL_BACK_TOP_RIGHT = {1.0F, 1.0F, 0.0F};
 #pragma endregion
 #pragma endregion
-
 #pragma region Fundamentals
 /// @brief Clamps f between [min, max]
 static inline float cmath_clampF(float f, float min, float max)
@@ -161,6 +156,17 @@ static inline double cmath_clampD(double d, double min, double max)
         return max;
     else
         return d;
+}
+
+/// @brief Clamps i between [min, max]
+static inline int cmath_clampI(int i, int min, int max)
+{
+    if (i < min)
+        return min;
+    else if (i > max)
+        return max;
+    else
+        return i;
 }
 
 /// @brief Clamps u between [min, max]
@@ -214,7 +220,79 @@ static inline float cmath_noise_smooth_inv_band(const float DIST_FROM_CENT, floa
     return 1.0F - cmath_noise_smoothstepf(r, r + falloff, DIST_FROM_CENT);
 }
 #pragma endregion
+#pragma region Bounds
+/// @brief Bounds of A lower corner and B farther corner. For a chunk, this would be [0, 16) which works for a chunk AABB
+typedef struct
+{
+    Vec3i_t A, B;
+} Boundsi_t;
 
+/// @brief Performs an axis-aligned bounding box test of P between A and B [min, max] (int)
+static inline bool cmath_AABB_inclusiveI(const Vec3i_t P, const Vec3i_t A, const Vec3i_t B)
+{
+    const int X_MIN = A.x < B.x ? A.x : B.x;
+    const int X_MAX = A.x > B.x ? A.x : B.x;
+    const int Y_MIN = A.y < B.y ? A.y : B.y;
+    const int Y_MAX = A.y > B.y ? A.y : B.y;
+    const int Z_MIN = A.z < B.z ? A.z : B.z;
+    const int Z_MAX = A.z > B.z ? A.z : B.z;
+
+    return (P.x >= X_MIN && P.x <= X_MAX) &&
+           (P.y >= Y_MIN && P.y <= Y_MAX) &&
+           (P.z >= Z_MIN && P.z <= Z_MAX);
+}
+
+/// @brief Performs an axis-aligned bounding box test of P between A and B [min, max] (float)
+static inline bool cmath_AABB_inclusiveF(const Vec3f_t P, const Vec3f_t A, const Vec3f_t B)
+{
+    const float X_MIN = A.x < B.x ? A.x : B.x;
+    const float X_MAX = A.x > B.x ? A.x : B.x;
+    const float Y_MIN = A.y < B.y ? A.y : B.y;
+    const float Y_MAX = A.y > B.y ? A.y : B.y;
+    const float Z_MIN = A.z < B.z ? A.z : B.z;
+    const float Z_MAX = A.z > B.z ? A.z : B.z;
+
+    return (P.x >= X_MIN && P.x <= X_MAX) &&
+           (P.y >= Y_MIN && P.y <= Y_MAX) &&
+           (P.z >= Z_MIN && P.z <= Z_MAX);
+}
+
+/// @brief Performs an axis-aligned bounding box test of P between A and B [min, max) (int)
+static inline bool cmath_AABB_halfOpenI(const Vec3i_t P, const Vec3i_t A, const Vec3i_t B)
+{
+    const int X_MIN = A.x < B.x ? A.x : B.x;
+    const int X_MAX = A.x > B.x ? A.x : B.x;
+    const int Y_MIN = A.y < B.y ? A.y : B.y;
+    const int Y_MAX = A.y > B.y ? A.y : B.y;
+    const int Z_MIN = A.z < B.z ? A.z : B.z;
+    const int Z_MAX = A.z > B.z ? A.z : B.z;
+
+    return (P.x >= X_MIN && P.x < X_MAX) &&
+           (P.y >= Y_MIN && P.y < Y_MAX) &&
+           (P.z >= Z_MIN && P.z < Z_MAX);
+}
+
+/// @brief Performs an axis-aligned bounding box test of P within bounds B [min, max) (int)
+static inline bool cmath_AABB_boundsI(const Vec3i_t P, const Boundsi_t B)
+{
+    return cmath_AABB_halfOpenI(P, B.A, B.B);
+}
+
+/// @brief Performs an axis-aligned bounding box test of P between A and B [min, max) (float)
+static inline bool cmath_AABB_halfOpenF(const Vec3f_t P, const Vec3f_t A, const Vec3f_t B)
+{
+    const float X_MIN = A.x < B.x ? A.x : B.x;
+    const float X_MAX = A.x > B.x ? A.x : B.x;
+    const float Y_MIN = A.y < B.y ? A.y : B.y;
+    const float Y_MAX = A.y > B.y ? A.y : B.y;
+    const float Z_MIN = A.z < B.z ? A.z : B.z;
+    const float Z_MAX = A.z > B.z ? A.z : B.z;
+
+    return (P.x >= X_MIN && P.x < X_MAX) &&
+           (P.y >= Y_MIN && P.y < Y_MAX) &&
+           (P.z >= Z_MIN && P.z < Z_MAX);
+}
+#pragma endregion
 #pragma region Unit Conversion
 /// @brief Converts radians to degrees
 static inline float cmath_rad2degF(float rad)
@@ -240,12 +318,35 @@ static inline double cmath_deg2radD(double deg)
     return deg * CMATH_DEG2RAD_D;
 }
 #pragma endregion
-
 #pragma region Vector Math
+/// @brief converts vec3f to vec3i
+static inline Vec3i_t cmath_vec3f_to_vec3i(const Vec3f_t VEC3)
+{
+    return (Vec3i_t){(int)VEC3.x, (int)VEC3.y, (int)VEC3.z};
+}
+
 /// @brief True if all axes of the passed vector are 0.0F
 static inline bool cmath_vec3f_isZero(Vec3f_t vec3)
 {
     return fabsf(vec3.x) < CMATH_EPSILON_F && fabsf(vec3.y) < CMATH_EPSILON_F && fabsf(vec3.z) < CMATH_EPSILON_F;
+}
+
+/// @brief Compares vectors LEFT and RIGHT for equality by tolerance (float)
+static inline bool cmath_vec3f_equals(const Vec3f_t LEFT, const Vec3f_t RIGHT, float tolerance)
+{
+    tolerance = cmath_clampF(tolerance, CMATH_EPSILON_F, fabsf(tolerance));
+
+    return (fabsf(LEFT.x - RIGHT.x) < tolerance) &&
+           (fabsf(LEFT.y - RIGHT.y) < tolerance) &&
+           (fabsf(LEFT.z - RIGHT.z) < tolerance);
+}
+
+/// @brief Compares vectors LEFT and RIGHT for equality by tolerance (int)
+static inline bool cmath_vec3i_equals(const Vec3i_t LEFT, const Vec3i_t RIGHT, int tolerance)
+{
+    return (abs(LEFT.x - RIGHT.x) < tolerance) &&
+           (abs(LEFT.y - RIGHT.y) < tolerance) &&
+           (abs(LEFT.z - RIGHT.z) < tolerance);
 }
 
 /// @brief Multiplies each axis of the vector by the given scalar (float)
@@ -298,7 +399,6 @@ static inline Vec3f_t cmath_vec3f_lerpF(Vec3f_t a, Vec3f_t b, float t)
     };
 }
 #pragma endregion
-
 #pragma region Quaternion Math
 /// @brief Checks if the quaternion is (0, 0, 0, +/-1) (identity)
 static inline bool cmath_quat_isIdentity(Quaternionf_t q)
@@ -541,7 +641,6 @@ static inline Quaternionf_t cmath_quat_inverse(Quaternionf_t q)
     };
 }
 #pragma endregion
-
 #pragma region Matrix Math
 /// @brief Convert cgltf row major to colum major
 static inline Mat4c_t mat4_from_cgltf_colmajor(const float a[16])
@@ -874,5 +973,103 @@ static inline Mat4c_t cmath_perspective(float fovYRad, float aspect, float nearC
     result.m[1].y *= -1.0F;
 
     return result;
+}
+#pragma endregion
+#pragma region Algorithms
+/// @brief Returns an array of positions in the shell of the cube formed around origin and radius. Puts size of array in pSize.
+static Vec3i_t *cmath_algo_cubicShell(const Vec3i_t ORIGIN, int radius, size_t *pSize)
+{
+    if (!pSize)
+        return NULL;
+
+    const size_t R = (size_t)cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
+    // shell (surface area) = volume - volume of (r-1) => (2r+1)^3 - (2r-1)^3 = 24r^2+2
+    const size_t COUNT = R > 0 ? 24ULL * R * R + 2ULL : 1ULL;
+
+    Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
+    if (!pResult)
+        return NULL;
+
+    if (radius == 0)
+    {
+        pResult[0] = ORIGIN;
+        *pSize = (size_t)COUNT;
+        return pResult;
+    }
+
+    const int MIN_Y = ORIGIN.y - radius;
+    const int MAX_Y = ORIGIN.y + radius;
+
+    const int MIN_Z = ORIGIN.z - radius;
+    const int MAX_Z = ORIGIN.z + radius;
+
+    const int MIN_X = ORIGIN.x - radius;
+    const int MAX_X = ORIGIN.x + radius;
+
+    size_t index = 0;
+    // top/bottom (const y)
+    for (int x = ORIGIN.x - radius; x <= ORIGIN.x + radius; x++)
+        for (int z = ORIGIN.z - radius; z <= ORIGIN.z + radius; z++)
+        {
+            pResult[index++] = (Vec3i_t){x, MIN_Y, z};
+            pResult[index++] = (Vec3i_t){x, MAX_Y, z};
+        }
+
+    // left/right (const z) skip edges covered from top/bottom
+    for (int x = MIN_X + 1; x <= MAX_X - 1; x++)
+        for (int y = MIN_Y + 1; y <= MAX_Y - 1; y++)
+        {
+            pResult[index++] = (Vec3i_t){x, y, MIN_Z};
+            pResult[index++] = (Vec3i_t){x, y, MAX_Z};
+        }
+
+    // front/back (const x) skip edges covered from top/bottom
+    for (int y = MIN_Y + 1; y <= MAX_Y - 1; y++)
+        for (int z = MIN_Z + 1; z <= MAX_Z - 1; z++)
+        {
+            pResult[index++] = (Vec3i_t){MIN_X, y, z};
+            pResult[index++] = (Vec3i_t){MAX_X, y, z};
+        }
+
+    *pSize = COUNT;
+    return pResult;
+}
+
+/// @brief Returns an array of positions (size placed in pSize) starting at origin and expanding outward in a shell for radius (cube)
+static Vec3i_t *cmath_algo_expandingCubicShell(const Vec3i_t ORIGIN, int radius, size_t *pSize)
+{
+    if (!pSize)
+        return NULL;
+
+    const size_t R = cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
+    // width = r + 1 + r => volume = width ^3 => volume = (2r+1)^3 where r E [0, MAX_INT]
+    const size_t COUNT = R > 0 ? (R * 2ULL + 1ULL) * (R * 2ULL + 1ULL) * (R * 2ULL + 1ULL) : 1ULL;
+
+    Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
+    if (!pResult)
+        return NULL;
+
+    size_t index = 0;
+    Vec3i_t *pShell;
+    for (int r = 0; r <= radius; r++)
+    {
+        size_t shellSize = 0;
+        pShell = cmath_algo_cubicShell(ORIGIN, r, &shellSize);
+
+        if (!pShell)
+        {
+            free(pShell);
+            return NULL;
+        }
+
+        for (size_t i = 0; i < shellSize; i++)
+            pResult[index++] = pShell[i];
+
+        free(pShell);
+    }
+
+    // at this point COUNT should equal index but pass index just incase to avoid overflow from an error
+    *pSize = index;
+    return pResult;
 }
 #pragma endregion
