@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum
+typedef enum CharacterType_t
 {
     CHARACTER_TYPE_PLAYER,
     CHARACTER_TYPE_MOB,

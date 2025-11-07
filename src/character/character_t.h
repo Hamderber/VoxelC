@@ -3,9 +3,10 @@
 #include <stdbool.h>
 #include "character/characterType_t.h"
 
-typedef struct
+typedef struct Character_t
 {
-    CharacterType_t type;
+    struct Entity_t *pEntity;
+    enum CharacterType_t type;
     // This does NOT include the null terminator
     size_t nameLength;
     char *pName;

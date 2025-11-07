@@ -13,22 +13,25 @@
 #include "world/worldState_t.h"
 #include "core/types/scene_t.h"
 #include "cmath/weightedMap_t.h"
+#include "events/eventTypes.h"
+#include "world/worldConfig_t.h"
 
 typedef struct State_t
 {
-    AppConfig_t config;
-    Window_t window;
+    struct AppConfig_t config;
+    struct Window_t window;
     Context_t context;
     Renderer_t renderer;
     Time_t time;
     EventBus_t eventBus;
-    EntityManger_t entityManager;
+    struct EntityManger_t entityManager;
     Input_t input;
     GUI_State_t gui;
 
     // Contains data on non-voxel models for rendering
     Scene_t scene;
-    WorldState_t *pWorldState;
+    struct WorldState_t *pWorldState;
+    struct WorldConfig_t worldConfig;
 
     // Math
     WeightMaps_t weightedMaps;

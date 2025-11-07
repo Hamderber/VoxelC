@@ -12,10 +12,10 @@ bool em_entityDataGet(Entity_t *e, EntityComponentType_t type, EntityComponentDa
 
     for (size_t i = 0; i < e->componentCount; i++)
     {
-        if (e->components[i].type == type)
+        if (e->pComponents[i].type == type)
         {
-            *outData = e->components[i].data;
-            // logs_log(LOG_DEBUG, "Found data type %d for entity %p at component address %p",
+            *outData = e->pComponents[i].pComponentData;
+            // logs_log(LOG_DEBUG, "Found pComponentData type %d for entity %p at component address %p",
             //          (int)type, (void *)e, (void *)*outData);
             return true;
         }
@@ -179,16 +179,16 @@ void em_entityDestroy(State_t *state, Entity_t **e)
     // Free internal components if present
     for (size_t i = 0; i < entity->componentCount; i++)
     {
-        if (entity->components[i].data != NULL)
+        if (entity->pComponents[i].pComponentData != NULL)
         {
-            free((void *)entity->components[i].data->genericData);
-            free(entity->components[i].data);
-            entity->components[i].data = NULL;
+            free((void *)entity->pComponents[i].pComponentData->pGenericData);
+            free(entity->pComponents[i].pComponentData);
+            entity->pComponents[i].pComponentData = NULL;
         }
     }
 
-    free(entity->components);
-    entity->components = NULL;
+    free(entity->pComponents);
+    entity->pComponents = NULL;
 
     // Only free the struct itself if it was heap-allocated
     if (entity->heapAllocated)

@@ -4,6 +4,7 @@
 #include "events/context/CtxInputRaw_t.h"
 #include "events/context/CtxInputMapped_t.h"
 #include "events/context/CtxGUI_t.h"
+#include "events/context/CtxChunk_t.h"
 
 #define MAX_EVENT_LISTENERS 128
 
@@ -14,15 +15,21 @@ typedef enum
     EVENT_TYPE_INPUT_MAPPED,
     EVENT_TYPE_PHYSICS_COLLISION,
     EVENT_TYPE_GUI,
+    EVENT_TYPE_CHUNK_LOAD,
+    EVENT_TYPE_CHUNK_UNLOAD,
+    EVENT_TYPE_CHUNK_PLAYER_CHUNKPOS_CHANGE,
+    EVENT_TYPE_PLAYER_JOIN,
+    EVENT_TYPE_PLAYER_LEAVE,
 } EventType_t;
 
 // Must be pointers
 typedef union
 {
-    CtxInputRaw_t *inputRaw;
-    CtxInputMapped_t *inputMapped;
-    CtxGUI_t *gui;
-    void *generic;
+    CtxInputRaw_t *pInputRaw;
+    CtxInputMapped_t *pInputMapped;
+    CtxGUI_t *pGui;
+    CtxChunk_t *pChunkEvntData;
+    void *pGeneric;
 } EventData_t;
 
 typedef struct
@@ -42,7 +49,7 @@ typedef enum
 } EventResult_t;
 
 struct State_t;
-typedef EventResult_t (*EventCallbackFn)(struct State_t *state, Event_t *event, void *context);
+typedef EventResult_t (*EventCallbackFn)(struct State_t *pState, Event_t *pEvent, void *pCtx);
 
 typedef struct
 {
@@ -51,7 +58,7 @@ typedef struct
     bool consumeListener;
     // Use this to decide if the event should return EVENT_RESULT_CONSUME
     bool consumeEvent;
-    void *subscribeContext;
+    void *pSubscribeContext;
 } EventListener_t;
 
 // Event system for a specific channel
@@ -82,11 +89,15 @@ typedef enum
     EVENT_CHANNEL_ENTITY,
     // menu events
     EVENT_CHANNEL_GUI,
+    // chunk-based events
+    EVENT_CHANNEL_CHUNK,
+    // player related events like join, leave, death, etc
+    EVENT_CHANNEL_PLAYER,
     // Keep this last so it represents the enum quantity
     EVENT_CHANNEL_COUNT,
 } EventChannelID_t;
 
-static const char *EVENT_CHANNEL_NAMES[] = {
+static const char *pEVENT_CHANNEL_NAMES[] = {
     "EVENT_CHANNEL_APP",
     "EVENT_CHANNEL_INPUT_ACTIONS",
     "EVENT_CHANNEL_INPUT_RAW",
@@ -94,6 +105,8 @@ static const char *EVENT_CHANNEL_NAMES[] = {
     "EVENT_CHANNEL_PHYSICS",
     "EVENT_CHANNEL_ENTITY",
     "EVENT_CHANNEL_GUI",
+    "EVENT_CHANNEL_CHUNK",
+    "EVENT_CHANNEL_PLAYER",
 };
 
 typedef struct
@@ -102,7 +115,7 @@ typedef struct
     EventSystem_t eventSystem;
 } EventChannel_t;
 
-typedef struct
+typedef struct EventBus_t
 {
     // There is a channel for every type of EventChannelID_t
     EventChannel_t channels[EVENT_CHANNEL_COUNT];

@@ -6,5 +6,5 @@
 typedef struct
 {
     uint32_t menuDepth;
-    GUI_t *gui;
+    GUI_t *pGui;
 } CtxGUI_t;

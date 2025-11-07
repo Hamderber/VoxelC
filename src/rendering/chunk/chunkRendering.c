@@ -3,20 +3,25 @@
 #include <stdlib.h>
 #include "core/types/state_t.h"
 #include "rendering/types/renderChunk_t.h"
+#include "collection/linkedList_t.h"
 
 void chunk_drawChunks(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout)
 {
-    for (uint32_t i = 0; i < pState->pWorldState->chunkCount; ++i)
+    if (!pState || !pState->pWorldState || !pState->pWorldState->pChunksLL || !pCmd || !pPipelineLayout)
+        return;
+
+    LinkedList_t *pCurrent = pState->pWorldState->pChunksLL;
+    while (pCurrent)
     {
-        if (!pState->pWorldState->ppChunks[i])
+        Chunk_t *pChunk = (Chunk_t *)pCurrent->pData;
+        pCurrent = pCurrent->pNext;
+        if (!pChunk)
             continue;
+
+        RenderChunk_t *pRenderChunk = pChunk->pRenderChunk;
 
         // A solid chunk surrounded by solid blocks will have no verticies to draw and will thus have the whole renderchunk be null
-        RenderChunk_t *pRenderChunk = pState->pWorldState->ppChunks[i]->pRenderChunk;
-        if (!pRenderChunk)
-            continue;
-
-        if (pRenderChunk->indexCount == 0)
+        if (!pRenderChunk || pRenderChunk->indexCount == 0)
             continue;
 
         VkBuffer chunkVB[] = {pRenderChunk->vertexBuffer};

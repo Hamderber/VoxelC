@@ -2,27 +2,29 @@
 
 #include "core/types/state_t.h"
 #include "entity/entityCollection_t.h"
-#include "entity/entity_t.h"
 
-typedef struct
+enum EntityComponentType_t;
+union EntityComponentData_t;
+
+typedef struct EntityManger_t
 {
     size_t collectionCount;
-    EntityCollection_t entityCollections[ENTITY_COLLECTION_COUNT];
+    struct EntityCollection_t entityCollections[ENTITY_COLLECTION_COUNT];
 } EntityManger_t;
 
-bool em_entityDataGet(Entity_t *e, EntityComponentType_t type, EntityComponentData_t **outData);
+bool em_entityDataGet(struct Entity_t *e, enum EntityComponentType_t type, union EntityComponentData_t **outData);
 
-bool em_entityIndexSingleton(EntityCollection_t *collection, Entity_t *e, size_t *index);
+bool em_entityIndexSingleton(struct EntityCollection_t *collection, struct Entity_t *e, size_t *index);
 
-void em_entityAddToCollection(EntityCollection_t *collection, Entity_t *e);
+void em_entityAddToCollection(struct EntityCollection_t *collection, struct Entity_t *e);
 
-void em_entityRemoveFromCollection(struct State_t *state, EntityCollection_t *collection, Entity_t *e);
+void em_entityRemoveFromCollection(struct State_t *state, struct EntityCollection_t *collection, struct Entity_t *e);
 
-Entity_t *em_entityCreateHeap(void);
+struct Entity_t *em_entityCreateHeap(void);
 
-Entity_t em_entityCreateStack(void);
+struct Entity_t em_entityCreateStack(void);
 
-void em_entityDestroy(struct State_t *state, Entity_t **e);
+void em_entityDestroy(struct State_t *state, struct Entity_t **e);
 
 void em_create(struct State_t *state);
 
