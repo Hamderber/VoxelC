@@ -20,6 +20,12 @@ const inline BlockVoxel_t chunkManager_getBlock(const Chunk_t *pCHUNK, const Vec
     return pCHUNK->pBlockVoxels[xyz_to_chunkBlockIndex(LOCAL_POS.x, LOCAL_POS.y, LOCAL_POS.z)];
 }
 
+/// @brief Gets the the block's render type in the chunk's local coord system
+const inline BlockRenderType_t chunkManager_getBlockRenderType(const Chunk_t *pCHUNK, const Vec3u8_t LOCAL_POS)
+{
+    return pCHUNK->pBlockVoxels[xyz_to_chunkBlockIndex(LOCAL_POS.x, LOCAL_POS.y, LOCAL_POS.z)].pBLOCK_DEFINITION->BLOCK_RENDER_TYPE;
+}
+
 /// @brief Checks if the chunk is loaded (in the chunks linked list)
 bool chunk_isLoaded(State_t *pState, const Vec3i_t CHUNK_POS);
 

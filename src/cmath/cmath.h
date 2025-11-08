@@ -325,6 +325,12 @@ static inline Vec3i_t cmath_vec3f_to_vec3i(const Vec3f_t VEC3)
     return (Vec3i_t){(int)VEC3.x, (int)VEC3.y, (int)VEC3.z};
 }
 
+/// @brief converts vec3i to vec3f
+static inline Vec3f_t cmath_vec3i_to_vec3f(const Vec3i_t VEC3)
+{
+    return (Vec3f_t){(float)VEC3.x, (float)VEC3.y, (float)VEC3.z};
+}
+
 /// @brief True if all axes of the passed vector are 0.0F
 static inline bool cmath_vec3f_isZero(Vec3f_t vec3)
 {
@@ -359,10 +365,20 @@ static inline Vec3f_t cmath_vec3f_mult_scalarF(Vec3f_t vec3, float scalar)
     };
 }
 
-/// @brief Adds the axes of the left and right vector into one new vector
+/// @brief Adds the axes of the left and right vector into one new vector (float)
 static inline Vec3f_t cmath_vec3f_add_vec3f(Vec3f_t left, Vec3f_t right)
 {
     return (Vec3f_t){
+        .x = left.x + right.x,
+        .y = left.y + right.y,
+        .z = left.z + right.z,
+    };
+}
+
+/// @brief Adds the axes of the left and right vector into one new vector (int)
+static inline Vec3i_t cmath_vec3i_add_vec3i(Vec3i_t left, Vec3i_t right)
+{
+    return (Vec3i_t){
         .x = left.x + right.x,
         .y = left.y + right.y,
         .z = left.z + right.z,

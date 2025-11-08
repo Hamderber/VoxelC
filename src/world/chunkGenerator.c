@@ -103,6 +103,8 @@ static bool chunkGen_cave_carve(const BlockDefinition_t *const *pBLOCK_DEFINITIO
 static bool chunkGen_fillSingleAirsInChunk(const BlockDefinition_t *const *pBLOCK_DEFINITIONS, Chunk_t *pChunk)
 {
     // Does NOT fill the outer border at this time (to avoid checking neighbor chunks)
+    // Neighbor check avoidance is because checking neighbor chunks is loading dependent and would not make this deterministic.
+    // But by checking the chunk itself it is the same every time
     for (uint8_t x = 1; x < CHUNK_AXIS_LENGTH - 1; x++)
         for (uint8_t y = 1; y < CHUNK_AXIS_LENGTH - 1; y++)
             for (uint8_t z = 1; z < CHUNK_AXIS_LENGTH - 1; z++)
@@ -114,17 +116,17 @@ static bool chunkGen_fillSingleAirsInChunk(const BlockDefinition_t *const *pBLOC
                     continue;
 
                 bool allNeighborsSolid = true;
-                for (int face = 0; face < FACE_COUNT; ++face)
+                for (int face = 0; face < CUBE_FACE_COUNT; ++face)
                 {
                     const CubeFace_t CUBE_FACE = (CubeFace_t)face;
 
                     // compute in signed space to avoid unsigned wrap tricks
-                    const int NX = (int)x + spNEIGHBOR_OFFSETS[CUBE_FACE].x;
-                    const int NY = (int)y + spNEIGHBOR_OFFSETS[CUBE_FACE].y;
-                    const int NZ = (int)z + spNEIGHBOR_OFFSETS[CUBE_FACE].z;
+                    const uint8_t NX = x + (uint8_t)spNEIGHBOR_OFFSETS[CUBE_FACE].x;
+                    const uint8_t NY = y + (uint8_t)spNEIGHBOR_OFFSETS[CUBE_FACE].y;
+                    const uint8_t NZ = z + (uint8_t)spNEIGHBOR_OFFSETS[CUBE_FACE].z;
 
                     // interior loop guarantees 0..15 here, so no bounds check needed
-                    if (!block_isSolid(pChunk->pBlockVoxels[xyz_to_chunkBlockIndex((uint8_t)NX, (uint8_t)NY, (uint8_t)NZ)].blockPosPacked12))
+                    if (!block_isSolid(pChunk->pBlockVoxels[xyz_to_chunkBlockIndex(NX, NY, NZ)].blockPosPacked12))
                     {
                         allNeighborsSolid = false;
                         break;
