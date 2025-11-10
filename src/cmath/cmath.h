@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include "core/logs.h"
 #pragma endregion
 #pragma region Defines
 /// @brief PI definition (double)
@@ -991,7 +992,131 @@ static inline Mat4c_t cmath_perspective(float fovYRad, float aspect, float nearC
     return result;
 }
 #pragma endregion
+#pragma region Chunk
+// This shall NEVER change
+static const uint16_t CHUNK_AXIS_LENGTH = 16;
+// 16x16x16
+static const uint32_t CHUNK_BLOCK_CAPACITY = 4096;
+#define LXYZ_MASK_4 0x0FU
+#define LXYZ_SHIFT_X 8U
+#define LXYZ_SHIFT_Y 4U
+#define LXYZ_SHIFT_Z 0U
+
+/// @brief Capacity of pCHUNK_POINTS (unchanging)
+static const size_t CMATH_CHUNK_POINTS_COUNT = 4096;
+/// @brief Capacity of pCMATH_CHUNK_POINTS_PACKED (unchanging)
+static const size_t CMATH_CHUNK_POINTS_PACKED_COUNT = 4096;
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (unchanging)
+static const size_t CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT = 168;
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (unchanging)
+static const size_t CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT = 1176;
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (unchanging)
+static const size_t CMATH_CHUNK_CORNER_POINT_COUNT = 8;
+/// @brief Capacity of pCHUNK_INNER_POINTS (unchanging)
+static const size_t CMATH_CHUNK_INNER_POINTS_COUNT = 2744; // 3920;
+
+/// @brief Converts a block's x y z (local space) to the packed12 (flags = 0)
+static inline uint16_t blockPos_pack_localXYZ(const uint8_t LOCAL_X, const uint8_t LOCAL_Y, const uint8_t LOCAL_Z)
+{
+    return (uint16_t)((LOCAL_X & LXYZ_MASK_4) << LXYZ_SHIFT_X) |
+           (uint16_t)((LOCAL_Y & LXYZ_MASK_4) << LXYZ_SHIFT_Y) |
+           (uint16_t)((LOCAL_Z & LXYZ_MASK_4) << LXYZ_SHIFT_Z);
+}
+
+/// @brief Converts a block's x y z (local space) to block index in the chunk
+static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, const uint8_t Z)
+{
+    return X * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH + Y * CHUNK_AXIS_LENGTH + Z;
+}
+
+/// @brief The array of positions in the chunk local space (Vec3u8_t).
+Vec3u8_t *cmath_chunkPoints_Get(void);
+/// @brief The array of positions in the chunk packed (uint16_t).
+uint16_t *cmath_chunkPointsPacked_Get(void);
+/// @brief The array of chunk shell corners (Vec3u8_t).
+Vec3u8_t *cmath_chunkCornerPoints_Get(void);
+/// @brief The array of positions in the chunk shell edges. The outer edges of the chunk face minus corners. The inner faces of the shell are skipped (Vec3u8_t).
+Vec3u8_t *cmath_chunkShellEdgePoints_Get(void);
+/// @brief The array of positions in the chunk minus shell edges (Vec3u8_t). The inner points of the chunk.
+Vec3u8_t *cmath_chunkInnerPoints_Get(void);
+/// @brief The array of positions in the chunk shell without borders (Vec3u8_t).
+Vec3u8_t *cmath_chunkShellBorderlessPoints_Get(void);
+#pragma endregion
 #pragma region Algorithms
+/// @brief Returns an array of positions in the shell of the cube formed around origin and radius. Puts size of array in pSize.
+/// The border is skipped.
+static Vec3i_t *cmath_algo_cubicShellNoBorder(const Vec3i_t ORIGIN, int radius, size_t *pSize)
+{
+    if (!pSize)
+        return NULL;
+
+    const size_t R = (size_t)cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
+
+    const size_t COUNT = (R > 0) ? (size_t)(12 * (2 * R - 1)) : 0;
+    if (COUNT == 0)
+    {
+        *pSize = 0;
+        return NULL;
+    }
+
+    Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
+    if (!pResult)
+        return NULL;
+
+    if (radius == 0)
+    {
+        pResult[0] = ORIGIN;
+        *pSize = (size_t)COUNT;
+        return pResult;
+    }
+
+    const int MIN_Y = ORIGIN.y - radius;
+    const int MAX_Y = ORIGIN.y + radius;
+
+    const int MIN_Z = ORIGIN.z - radius;
+    const int MAX_Z = ORIGIN.z + radius;
+
+    const int MIN_X = ORIGIN.x - radius;
+    const int MAX_X = ORIGIN.x + radius;
+
+    size_t index = 0;
+    // vertical edges (exclude vertices)
+    for (int y = MIN_Y + 1; y <= MAX_Y - 1; ++y)
+    {
+        pResult[index++] = (Vec3i_t){MIN_X, y, MIN_Z};
+        pResult[index++] = (Vec3i_t){MIN_X, y, MAX_Z};
+        pResult[index++] = (Vec3i_t){MAX_X, y, MIN_Z};
+        pResult[index++] = (Vec3i_t){MAX_X, y, MAX_Z};
+    }
+
+    // 4 top edges (exclude corners)
+    for (int x = MIN_X + 1; x <= MAX_X - 1; ++x)
+    {
+        pResult[index++] = (Vec3i_t){x, MAX_Y, MIN_Z};
+        pResult[index++] = (Vec3i_t){x, MAX_Y, MAX_Z};
+    }
+    for (int z = MIN_Z + 1; z <= MAX_Z - 1; ++z)
+    {
+        pResult[index++] = (Vec3i_t){MIN_X, MAX_Y, z};
+        pResult[index++] = (Vec3i_t){MAX_X, MAX_Y, z};
+    }
+
+    // 4 bottom edges (exclude corners)
+    for (int x = MIN_X + 1; x <= MAX_X - 1; ++x)
+    {
+        pResult[index++] = (Vec3i_t){x, MIN_Y, MIN_Z};
+        pResult[index++] = (Vec3i_t){x, MIN_Y, MAX_Z};
+    }
+    for (int z = MIN_Z + 1; z <= MAX_Z - 1; ++z)
+    {
+        pResult[index++] = (Vec3i_t){MIN_X, MIN_Y, z};
+        pResult[index++] = (Vec3i_t){MAX_X, MIN_Y, z};
+    }
+
+    *pSize = COUNT;
+    return pResult;
+}
+
 /// @brief Returns an array of positions in the shell of the cube formed around origin and radius. Puts size of array in pSize.
 static Vec3i_t *cmath_algo_cubicShell(const Vec3i_t ORIGIN, int radius, size_t *pSize)
 {
@@ -1001,6 +1126,11 @@ static Vec3i_t *cmath_algo_cubicShell(const Vec3i_t ORIGIN, int radius, size_t *
     const size_t R = (size_t)cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
     // shell (surface area) = volume - volume of (r-1) => (2r+1)^3 - (2r-1)^3 = 24r^2+2
     const size_t COUNT = R > 0 ? 24ULL * R * R + 2ULL : 1ULL;
+    if (COUNT == 0)
+    {
+        *pSize = 0;
+        return NULL;
+    }
 
     Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
     if (!pResult)
@@ -1069,6 +1199,11 @@ static Vec3i_t *cmath_algo_expandingCubicShell(const Vec3i_t ORIGIN, int radius,
     const size_t R = cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
     // width = r + 1 + r => volume = width ^3 => volume = (2r+1)^3 where r E [0, MAX_INT]
     const size_t COUNT = R > 0 ? (R * 2ULL + 1ULL) * (R * 2ULL + 1ULL) * (R * 2ULL + 1ULL) : 1ULL;
+    if (COUNT == 0)
+    {
+        *pSize = 0;
+        return NULL;
+    }
 
     Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
     if (!pResult)
@@ -1097,4 +1232,10 @@ static Vec3i_t *cmath_algo_expandingCubicShell(const Vec3i_t ORIGIN, int radius,
     *pSize = index;
     return pResult;
 }
+#pragma endregion
+#pragma region Init
+/// @brief Pre-calculate unchanging constants (no lazy math)
+void cmath_instantiate(void);
+/// @brief Frees baked maths
+void cmath_destroy(void);
 #pragma endregion

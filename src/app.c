@@ -20,7 +20,7 @@
 #include "core/randomNoise.h"
 #include "cmath/weightedMaps.h"
 
-void app_init(State_t *pState)
+void app_init(State_t *restrict pState)
 {
     logs_log(LOG_INFO, "Starting %s...", PROGRAM_NAME);
 
@@ -30,6 +30,8 @@ void app_init(State_t *pState)
     random_init(PRNG_SEED);
     randomNoise_init(random_seedGet());
     weightedMaps_init(pState);
+
+    cmath_instantiate();
 
     glfwInstance_init();
 
@@ -57,7 +59,7 @@ void app_init(State_t *pState)
     scene_model_createAll(pState);
 }
 
-void app_loop_render(State_t *pState)
+void app_loop_render(State_t *restrict pState)
 {
     // Handle the window events, including actually closing the window with the X
     window_events_poll();
@@ -79,7 +81,7 @@ void app_loop_render(State_t *pState)
     time_update(&pState->time);
 }
 
-void app_loop_main(State_t *pState)
+void app_loop_main(State_t *restrict pState)
 {
     while (!win_shouldClose(&pState->window))
     {
@@ -89,7 +91,7 @@ void app_loop_main(State_t *pState)
     }
 }
 
-void app_cleanup(State_t *pState)
+void app_cleanup(State_t *restrict pState)
 {
     scene_destroy(pState);
     world_destroy(pState);
@@ -108,6 +110,7 @@ void app_cleanup(State_t *pState)
     em_destroy(pState);
 
     weightedMaps_destroy(pState);
+    cmath_destroy();
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

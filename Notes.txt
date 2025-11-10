@@ -81,3 +81,5 @@ TODO:
 19. Replicate the math lib to account for non-roll axis entities (majority). This is a huge cpu optimization
 20 Add fullscreen borderless by changing fulscreen from a bool to an enum of windowed, borderless, fullscreen that wraps with F11
 21. Zoom breaks when pressing ESC while zoomed
+22. Iterate .h files to make sure static arrays and such in .h are changed to getters when they arent const. Even when they are maybe
+23. Implement an input action cancellation of some type when pause is pressed to unzoom, stop sprinting/wasd etc

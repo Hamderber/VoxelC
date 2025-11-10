@@ -73,6 +73,8 @@
         "weightedmaps.h": "c",
         "cubeface_t.h": "c",
         "chunkgenerator.h": "c",
-        "linkedlist_t.h": "c"
+        "linkedlist_t.h": "c",
+        "optional": "c",
+        "xtr1common": "c"
     }
 }

@@ -2,23 +2,16 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include "cmath/cmath.h"
 #include "rendering/types/renderChunk_t.h"
 #include "world/voxel/block_t.h"
 #include "collection/linkedList_t.h"
 #pragma endregion
 #pragma region Definitions
-#define LXYZ_MASK_4 0x0FU
-#define LXYZ_SHIFT_X 8U
-#define LXYZ_SHIFT_Y 4U
-#define LXYZ_SHIFT_Z 0U
+
 #define BLOCKPOS_FLAGS_SHIFT 12U
 #define BLOCKPOS_FLAGS_MASK (0xFU << BLOCKPOS_FLAGS_SHIFT)
 #define BLOCKPOS_INDEX_MASK 0x0FFFU
-
-// This shall NEVER change
-static const uint16_t CHUNK_AXIS_LENGTH = 16;
-// 16x16x16
-static const uint32_t CHUNK_BLOCK_CAPACITY = 4096;
 
 typedef struct Chunk_t
 {
@@ -86,14 +79,6 @@ typedef enum
     BLOCKPOS_PACKED_FLAG_RESERVED_2,
 } BlockPosPackedFlag_t;
 
-/// @brief Converts a block's x y z (local space) to the packed12 (flags = 0)
-static inline uint16_t blockPos_pack_localXYZ(const uint8_t LOCAL_X, const uint8_t LOCAL_Y, const uint8_t LOCAL_Z)
-{
-    return (uint16_t)((LOCAL_X & LXYZ_MASK_4) << LXYZ_SHIFT_X) |
-           (uint16_t)((LOCAL_Y & LXYZ_MASK_4) << LXYZ_SHIFT_Y) |
-           (uint16_t)((LOCAL_Z & LXYZ_MASK_4) << LXYZ_SHIFT_Z);
-}
-
 /// @brief Converts a block's x y z (local space) to the packed12 + flags
 static inline uint16_t blockPos_pack_localXYZ_flags(const uint8_t LOCAL_X, const uint8_t LOCAL_Y, const uint8_t LOCAL_Z,
                                                     const uint8_t FLAGS_0_TO_15)
@@ -142,12 +127,6 @@ static inline uint16_t blockPosPacked_to_chunkBlockIndex(const uint16_t BLOCK_PO
     return blockPosPacked_getLocal_x(BLOCK_POS_PACKED) * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH +
            blockPosPacked_getLocal_y(BLOCK_POS_PACKED) * CHUNK_AXIS_LENGTH +
            blockPosPacked_getLocal_z(BLOCK_POS_PACKED);
-}
-
-/// @brief Converts a block's x y z (local space) to block index in the chunk
-static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, const uint8_t Z)
-{
-    return X * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH + Y * CHUNK_AXIS_LENGTH + Z;
 }
 
 /// @brief Sample pos is in the center of the voxel (offset by 0.5F)
