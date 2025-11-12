@@ -202,6 +202,10 @@ bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
     uint32_t vertexCursor = 0;
     uint32_t indexCursor = 0;
 
+    const Vec3u8_t *pPoints = cmath_chunkPoints_Get();
+    if (!pPoints)
+        return false;
+
     for (uint8_t x = 0; x < CHUNK_AXIS_LENGTH; x++)
         for (uint8_t y = 0; y < CHUNK_AXIS_LENGTH; y++)
             for (uint8_t z = 0; z < CHUNK_AXIS_LENGTH; z++)
@@ -213,7 +217,6 @@ bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
 
 #pragma region Neighbor Check
                 // TODO: change to baked neighbor checking
-
                 // cube face in this context is the actual block
                 for (int face = 0; face < CUBE_FACE_COUNT; ++face)
                 {
@@ -492,6 +495,7 @@ void chunk_destroy(void *pCtx, Chunk_t *pChunk)
     chunk_renderDestroy(pState, pChunk->pRenderChunk);
     chunk_entitiesLoadingLL_destroy(pChunk);
     free(pChunk->pBlockVoxels);
+    chunkSolidityGrid_destroy(pChunk->pTransparencyGrid);
 }
 #pragma endregion
 #pragma region Chunk (Un)Load

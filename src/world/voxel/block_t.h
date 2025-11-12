@@ -65,6 +65,16 @@ typedef struct
     uint16_t blockPosPacked12;
 } BlockVoxel_t;
 #pragma endregion
+#pragma region Operations
+/// @brief Wrapper for checking if the block definition's render type is ALPHA (transparency)
+static inline bool blockDef_isTransparent(const BlockDefinition_t *pBLOCK_DEF)
+{
+    if (!pBLOCK_DEF)
+        return false;
+
+    return pBLOCK_DEF->BLOCK_RENDER_TYPE == BLOCK_RENDER_ALPHA;
+}
+#pragma endregion
 #pragma region Blocks
 #define BLOCK_DEFS_STONE_COUNT 14
 static const BlockDefinition_t sBLOCK_DEF_AIR = {

@@ -1032,6 +1032,10 @@ static inline uint16_t blockPos_pack_localXYZ(const uint8_t LOCAL_X, const uint8
            (uint16_t)((LOCAL_Z & LXYZ_MASK_4) << LXYZ_SHIFT_Z);
 }
 
+static inline uint8_t cmath_chunkBlockPosPackedGetLocal_x(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_X) & LXYZ_MASK_4); }
+static inline uint8_t cmath_chunkBlockPosPackedGetLocal_y(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Y) & LXYZ_MASK_4); }
+static inline uint8_t cmath_chunkBlockPosPackedGetLocal_z(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Z) & LXYZ_MASK_4); }
+
 /// @brief Converts a block's x y z (local space) to block index in the chunk
 static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, const uint8_t Z)
 {

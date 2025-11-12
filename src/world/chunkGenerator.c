@@ -184,6 +184,25 @@ static bool chunkGen_blockDefinitionsInit(const BlockDefinition_t *const *restri
     return true;
 }
 
+ChunkSolidityGrid_t *chunkGen_transparencyGrid(const Chunk_t *restrict pCHUNK)
+{
+    if (!pCHUNK || !pCHUNK->pBlockVoxels)
+        return NULL;
+
+    ChunkSolidityGrid_t *pTransparancyGrid = chunkSolidityGrid_init(SOLIDITY_AIR);
+    if (!pTransparancyGrid)
+        return NULL;
+
+    for (size_t i = 0; i < CMATH_CHUNK_POINTS_COUNT; i++)
+    {
+        uint16_t packedPos = pCHUNK->pBlockVoxels[i].blockPosPacked12;
+        const BlockDefinition_t *pBLOCK_DEF = pCHUNK->pBlockVoxels->pBLOCK_DEFINITION;
+        pTransparancyGrid->pGrid[chunkSolidityGrid_index16_fromPacked(packedPos)] = blockDef_isTransparent(pBLOCK_DEF);
+    }
+
+    return pTransparancyGrid;
+}
+
 bool chunkGen_genChunk(const State_t *restrict pSTATE, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
                        Chunk_t *restrict pChunk)
 {
@@ -202,31 +221,35 @@ bool chunkGen_genChunk(const State_t *restrict pSTATE, const BlockDefinition_t *
 
     memcpy_s(pPackedPos, size, cmath_chunkPointsPacked_Get(), size);
 
-    ChunkSolidityGrid_t *pSolidity = chunkSolidityGrid_init();
-    if (!pSolidity)
+    // This is NOT the solidity that is stored in the chunk. This is an intermediate tool used for faster generation (doesn't)
+    // require passing the entire block struct array around between generation steps
+    ChunkSolidityGrid_t *pStoneSolidity = chunkSolidityGrid_init(SOLIDITY_SOLID);
+    if (!pStoneSolidity)
         return false;
 
-    chunkSolidityGrid_build(pSolidity, cmath_chunkPointsPacked_Get());
+    chunkSolidityGrid_build(pStoneSolidity, cmath_chunkPointsPacked_Get());
 
     // Carve the chunk. Non-air is basic stone first
-    const bool CHUNK_HAS_ANYTHING_SOLID = chunkGen_cave_carve(CHUNK_POS, pPackedPos, pSolidity);
+    const bool CHUNK_HAS_ANYTHING_SOLID = chunkGen_cave_carve(CHUNK_POS, pPackedPos, pStoneSolidity);
 
     // Mitigate small air pockets and single floating stones
     if (CHUNK_HAS_ANYTHING_SOLID)
     {
-        chunkGen_fillSingleAirsInChunk(pPackedPos, pSolidity);
-        chunkGen_clearSingleSolidsInChunk(pPackedPos, pSolidity);
+        chunkGen_fillSingleAirsInChunk(pPackedPos, pStoneSolidity);
+        chunkGen_clearSingleSolidsInChunk(pPackedPos, pStoneSolidity);
     }
 
-    chunkGen_blockDefinitionsInit(pBLOCK_DEFINITIONS, pChunk, pPackedPos, pSolidity);
+    chunkGen_blockDefinitionsInit(pBLOCK_DEFINITIONS, pChunk, pPackedPos, pStoneSolidity);
 
     // Apply characteristics if there is anything solid
     if (CHUNK_HAS_ANYTHING_SOLID)
         // This is by far the most expensive operation
-        chunkGen_paintStone(pSTATE, pBLOCK_DEFINITIONS, pChunk, CHUNK_POS, pSolidity);
+        chunkGen_paintStone(pSTATE, pBLOCK_DEFINITIONS, pChunk, CHUNK_POS, pStoneSolidity);
+
+    pChunk->pTransparencyGrid = chunkGen_transparencyGrid(pChunk);
 
     free(pPackedPos);
     pPackedPos = NULL;
-    chunkSolidityGrid_destroy(pSolidity);
+    chunkSolidityGrid_destroy(pStoneSolidity);
     return true;
 }

@@ -75,6 +75,8 @@
         "chunkgenerator.h": "c",
         "linkedlist_t.h": "c",
         "optional": "c",
-        "xtr1common": "c"
+        "xtr1common": "c",
+        "chunk.h": "c",
+        "cmath.h": "c"
     }
 }
