@@ -81,7 +81,7 @@ static bool chunkGen_cave_carve(const Vec3i_t CHUNK_POS, uint16_t *restrict pPac
     if (!pSolidity || !pPackedPos)
         return false;
 
-    bool chunkEntirelyAir = true;
+    bool chunkHasSolid = false;
 
     // Full chunk (not cross check to keep determinism)
     for (size_t i = 0; i < CMATH_CHUNK_POINTS_PACKED_COUNT; i++)
@@ -92,14 +92,13 @@ static bool chunkGen_cave_carve(const Vec3i_t CHUNK_POS, uint16_t *restrict pPac
         if (!isSolid)
             pPackedPos[i] = blockPosPacked_flag_set(pPackedPos[i], BLOCKPOS_PACKED_FLAG_AIR);
 
-        if (!chunkEntirelyAir && isSolid)
-            chunkEntirelyAir = true;
+        chunkHasSolid = chunkHasSolid || isSolid;
     }
 
     // Build again using the modified packedpos (because flags were changed)
     chunkSolidityGrid_build(pSolidity, pPackedPos);
 
-    return chunkEntirelyAir;
+    return chunkHasSolid;
 }
 
 /// @brief MUST be called before painting and AFTER carving. Assumes packedPos/flags and blockID are set
@@ -196,8 +195,10 @@ ChunkSolidityGrid_t *chunkGen_transparencyGrid(const Chunk_t *restrict pCHUNK)
     for (size_t i = 0; i < CMATH_CHUNK_POINTS_COUNT; i++)
     {
         uint16_t packedPos = pCHUNK->pBlockVoxels[i].blockPosPacked12;
-        const BlockDefinition_t *pBLOCK_DEF = pCHUNK->pBlockVoxels->pBLOCK_DEFINITION;
-        pTransparancyGrid->pGrid[chunkSolidityGrid_index16_fromPacked(packedPos)] = blockDef_isTransparent(pBLOCK_DEF);
+        const BlockDefinition_t *pBLOCK_DEF = pCHUNK->pBlockVoxels[i].pBLOCK_DEFINITION;
+        bool isTransparent = blockDef_isTransparent(pBLOCK_DEF);
+        // flip isTransparent so transparency is stored as 0U in the grid
+        pTransparancyGrid->pGrid[chunkSolidityGrid_index16_fromPacked(packedPos)] = (uint8_t)!isTransparent;
     }
 
     return pTransparancyGrid;

@@ -341,6 +341,12 @@ static inline Vec3f_t cmath_vec3i_to_vec3f(const Vec3i_t VEC3)
     return (Vec3f_t){(float)VEC3.x, (float)VEC3.y, (float)VEC3.z};
 }
 
+/// @brief converts vec3u8 to vec3i
+static inline Vec3i_t cmath_vec3u8_to_vec3i(const Vec3u8_t VEC3)
+{
+    return (Vec3i_t){(int)VEC3.x, (int)VEC3.y, (int)VEC3.z};
+}
+
 /// @brief True if all axes of the passed vector are 0.0F
 static inline bool cmath_vec3f_isZero(Vec3f_t vec3)
 {
@@ -1011,18 +1017,25 @@ static const uint32_t CHUNK_BLOCK_CAPACITY = 4096;
 #define LXYZ_SHIFT_Y 4U
 #define LXYZ_SHIFT_Z 0U
 
-/// @brief Capacity of pCHUNK_POINTS (unchanging)
+/// @brief Capacity of pCHUNK_POINTS (const)
 static const size_t CMATH_CHUNK_POINTS_COUNT = 4096;
-/// @brief Capacity of pCMATH_CHUNK_POINTS_PACKED (unchanging)
+/// @brief Capacity of pCMATH_CHUNK_POINTS_PACKED (const)
 static const size_t CMATH_CHUNK_POINTS_PACKED_COUNT = 4096;
-/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (unchanging)
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
 static const size_t CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT = 168;
-/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (unchanging)
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
 static const size_t CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT = 1176;
-/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (unchanging)
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
 static const size_t CMATH_CHUNK_CORNER_POINT_COUNT = 8;
-/// @brief Capacity of pCHUNK_INNER_POINTS (unchanging)
-static const size_t CMATH_CHUNK_INNER_POINTS_COUNT = 2744; // 3920;
+/// @brief Capacity of pCHUNK_INNER_POINTS (const)
+static const size_t CMATH_CHUNK_INNER_POINTS_COUNT = 2744;
+/// @brief Capcity of pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS (const)
+static const size_t CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_COUNT = 24576;
+/// @brief Capcity of pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL (const)
+static const size_t CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL_COUNT = 24576;
+
+// Written to be accessed using CubeFace enum
+static const Vec3i_t pCMATH_CUBE_NEIGHBOR_OFFSETS[6] = {{-1, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
 /// @brief Converts a block's x y z (local space) to the packed12 (flags = 0)
 static inline uint16_t blockPos_pack_localXYZ(const uint8_t LOCAL_X, const uint8_t LOCAL_Y, const uint8_t LOCAL_Z)
@@ -1054,6 +1067,10 @@ Vec3u8_t *cmath_chunkShellEdgePoints_Get(void);
 Vec3u8_t *cmath_chunkInnerPoints_Get(void);
 /// @brief The array of positions in the chunk shell without borders (Vec3u8_t).
 Vec3u8_t *cmath_chunkShellBorderlessPoints_Get(void);
+static inline size_t cmath_blockNeighborIndex(size_t i, int face) { return i * 6 + face; }
+/// @brief The array of positions of block neighbors for a chunk (Vec3u8_t).
+Vec3u8_t *cmath_chunk_blockNeighborPoints_Get(void);
+bool *cmath_chunk_blockNeighborPointsInChunkBool_Get(void);
 #pragma endregion
 #pragma region Algorithms
 /// @brief Returns an array of positions in the shell of the cube formed around origin and radius. Puts size of array in pSize.

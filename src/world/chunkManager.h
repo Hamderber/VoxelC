@@ -5,9 +5,6 @@
 #include "core/types/state_t.h"
 #include "world/chunk.h"
 
-// Written to be accessed using CubeFace enum
-static const Vec3i_t spNEIGHBOR_OFFSETS[6] = {{-1, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
-
 /// @brief Gets the chunk at the chunk position. Returns null if not found.
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 

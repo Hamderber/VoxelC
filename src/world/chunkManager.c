@@ -111,9 +111,9 @@ Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CH
 
     for (int cubeFace = 0; cubeFace < CUBE_FACE_COUNT; ++cubeFace)
     {
-        int nx = CHUNK_POS.x + spNEIGHBOR_OFFSETS[cubeFace].x;
-        int ny = CHUNK_POS.y + spNEIGHBOR_OFFSETS[cubeFace].y;
-        int nz = CHUNK_POS.z + spNEIGHBOR_OFFSETS[cubeFace].z;
+        int nx = CHUNK_POS.x + pCMATH_CUBE_NEIGHBOR_OFFSETS[cubeFace].x;
+        int ny = CHUNK_POS.y + pCMATH_CUBE_NEIGHBOR_OFFSETS[cubeFace].y;
+        int nz = CHUNK_POS.z + pCMATH_CUBE_NEIGHBOR_OFFSETS[cubeFace].z;
 
         // logs_log(LOG_DEBUG, "Checking neighbor of chunk (%d, %d, %d) at (%d, %d, %d).",
         //          CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z,
@@ -144,34 +144,22 @@ static inline Vec3u8_t wrap_to_neighbor_local(uint8_t nx, uint8_t ny, uint8_t nz
     switch (face)
     {
     case CUBE_FACE_RIGHT: // nx == CHUNK_AXIS_LENGTH
-        return (Vec3u8_t){0,
-                          ny,
-                          nz};
+        return (Vec3u8_t){0, ny, nz};
 
     case CUBE_FACE_LEFT: // nx == -1
-        return (Vec3u8_t){(uint8_t)(CHUNK_AXIS_LENGTH - 1),
-                          ny,
-                          nz};
+        return (Vec3u8_t){(uint8_t)(CHUNK_AXIS_LENGTH - 1), ny, nz};
 
     case CUBE_FACE_TOP: // ny == CHUNK_AXIS_LENGTH
-        return (Vec3u8_t){nx,
-                          0,
-                          nz};
+        return (Vec3u8_t){nx, 0, nz};
 
     case CUBE_FACE_BOTTOM: // ny == -1
-        return (Vec3u8_t){nx,
-                          (uint8_t)(CHUNK_AXIS_LENGTH - 1),
-                          nz};
+        return (Vec3u8_t){nx, (uint8_t)(CHUNK_AXIS_LENGTH - 1), nz};
 
     case CUBE_FACE_FRONT: // nz == CHUNK_AXIS_LENGTH
-        return (Vec3u8_t){nx,
-                          ny,
-                          0};
+        return (Vec3u8_t){nx, ny, 0};
 
     case CUBE_FACE_BACK: // nz == -1
-        return (Vec3u8_t){nx,
-                          ny,
-                          (uint8_t)(CHUNK_AXIS_LENGTH - 1)};
+        return (Vec3u8_t){nx, ny, (uint8_t)(CHUNK_AXIS_LENGTH - 1)};
     }
 
     // This should never happen
@@ -184,6 +172,21 @@ bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
         return false;
 
     Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, pChunk->chunkPos);
+    if (!ppNeighbors)
+        return false;
+
+    for (uint8_t i = 0; i < CUBE_FACE_COUNT; i++)
+    {
+        Chunk_t *pN = ppNeighbors[i];
+        // Chunks may not have loaded neighbors
+        if (pN && !pN->pTransparencyGrid)
+            return false;
+    }
+
+    Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
+    bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
+    if (!pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
+        return false;
 
     // max faces in a chunk possible (all transparent faces like glass)
     const uint32_t MAX_VERTEX_COUNT = (uint32_t)CHUNK_BLOCK_CAPACITY * CUBE_FACE_COUNT * VERTS_PER_FACE;
@@ -202,77 +205,64 @@ bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
     uint32_t vertexCursor = 0;
     uint32_t indexCursor = 0;
 
-    const Vec3u8_t *pPoints = cmath_chunkPoints_Get();
-    if (!pPoints)
+    const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
+    if (!pPOINTS)
         return false;
 
-    for (uint8_t x = 0; x < CHUNK_AXIS_LENGTH; x++)
-        for (uint8_t y = 0; y < CHUNK_AXIS_LENGTH; y++)
-            for (uint8_t z = 0; z < CHUNK_AXIS_LENGTH; z++)
-            {
-                const BlockDefinition_t *pBLOCK = pChunk->pBlockVoxels[xyz_to_chunkBlockIndex(x, y, z)].pBLOCK_DEFINITION;
+    for (size_t i = 0; i < CMATH_CHUNK_POINTS_COUNT; i++)
+    {
+        const BlockDefinition_t *pBLOCK = pChunk->pBlockVoxels[i].pBLOCK_DEFINITION;
 
-                if (pBLOCK->BLOCK_ID == BLOCK_ID_AIR)
-                    continue;
+        if (pBLOCK->BLOCK_ID == BLOCK_ID_AIR)
+            continue;
 
 #pragma region Neighbor Check
-                // TODO: change to baked neighbor checking
-                // cube face in this context is the actual block
-                for (int face = 0; face < CUBE_FACE_COUNT; ++face)
+        for (int face = 0; face < 6; ++face)
+        {
+            const Vec3u8_t N_POS = pNEIGHBOR_BLOCK_POS[cmath_blockNeighborIndex(i, face)];
+            const bool IN_CHUNK = pNEIGHBOR_BLOCK_IN_CHUNK[cmath_blockNeighborIndex(i, face)];
+
+            if (IN_CHUNK)
+            {
+                if (pChunk->pTransparencyGrid->pGrid[chunkSolidityGrid_index16(N_POS.x, N_POS.y, N_POS.z)] != SOLIDITY_TRANSPARENT)
+                    continue;
+            }
+            else
+            {
+                Chunk_t *pN = ppNeighbors[face];
+                if (pN)
                 {
-                    CubeFace_t cubeFace = (CubeFace_t)face;
-                    uint8_t nx = x + (uint8_t)spNEIGHBOR_OFFSETS[cubeFace].x;
-                    uint8_t ny = y + (uint8_t)spNEIGHBOR_OFFSETS[cubeFace].y;
-                    uint8_t nz = z + (uint8_t)spNEIGHBOR_OFFSETS[cubeFace].z;
-
-                    bool neighborInChunk = nx < CHUNK_AXIS_LENGTH &&
-                                           ny < CHUNK_AXIS_LENGTH &&
-                                           nz < CHUNK_AXIS_LENGTH;
-
-                    // Continue (skip rendering) when the face is determined to not be drawn
-                    if (neighborInChunk)
-                    {
-                        Vec3u8_t neighborPos = {nx, ny, nz};
-                        if (chunkManager_getBlockRenderType(pChunk, neighborPos) == BLOCK_RENDER_SOLID)
-                            continue;
-                    }
-                    else
-                    {
-                        Chunk_t *pNeighborChunk = ppNeighbors[face];
-                        if (pNeighborChunk)
-                        {
-                            Vec3u8_t neighborPos = wrap_to_neighbor_local(nx, ny, nz, cubeFace);
-                            // drawing even if neighbor is a block (but transparent)
-                            if (chunkManager_getBlockRenderType(pNeighborChunk, neighborPos) == BLOCK_RENDER_SOLID)
-                                continue;
-                        }
-                    }
-#pragma endregion
-#pragma region Face Creation
-                    const FaceTexture_t TEX = pBLOCK->pFACE_TEXTURES[face];
-                    const AtlasRegion_t *pATLAS_REGION = &pState->renderer.pAtlasRegions[TEX.atlasIndex];
-                    const Vec3i_t BASE_POS = {x, y, z};
-
-                    // Copy per-face vertices
-                    for (int v = 0; v < VERTS_PER_FACE; ++v)
-                    {
-                        ShaderVertexVoxel_t vert = {0};
-                        vert.pos = cmath_vec3i_to_vec3f(cmath_vec3i_add_vec3i(BASE_POS, pFACE_POSITIONS[face][v]));
-                        vert.color = COLOR_WHITE;
-                        vert.atlasIndex = TEX.atlasIndex;
-                        vert.faceID = face;
-                        pVertices[vertexCursor + v] = vert;
-                    }
-
-                    assignFaceUVs(pVertices, vertexCursor, pATLAS_REGION, TEX.rotation);
-
-                    uint32_t base = vertexCursor;
-                    write_face_indices_u32(&pIndices[indexCursor], base);
-
-                    vertexCursor += VERTS_PER_FACE;
-                    indexCursor += INDICIES_PER_FACE;
+                    const Vec3u8_t POS_WRAP = wrap_to_neighbor_local(N_POS.x, N_POS.y, N_POS.z, (CubeFace_t)face);
+                    if (pN->pTransparencyGrid->pGrid[chunkSolidityGrid_index16(POS_WRAP.x, POS_WRAP.y, POS_WRAP.z)] != SOLIDITY_TRANSPARENT)
+                        continue;
                 }
             }
+#pragma endregion
+#pragma region Face Creation
+            const FaceTexture_t TEX = pBLOCK->pFACE_TEXTURES[face];
+            const AtlasRegion_t *pATLAS_REGION = &pState->renderer.pAtlasRegions[TEX.atlasIndex];
+            const Vec3i_t BASE_POS = cmath_vec3u8_to_vec3i(pPOINTS[i]);
+
+            // Copy per-face vertices
+            for (int v = 0; v < VERTS_PER_FACE; ++v)
+            {
+                ShaderVertexVoxel_t vert = {0};
+                vert.pos = cmath_vec3i_to_vec3f(cmath_vec3i_add_vec3i(BASE_POS, pFACE_POSITIONS[face][v]));
+                vert.color = COLOR_WHITE;
+                vert.atlasIndex = TEX.atlasIndex;
+                vert.faceID = face;
+                pVertices[vertexCursor + v] = vert;
+            }
+
+            assignFaceUVs(pVertices, vertexCursor, pATLAS_REGION, TEX.rotation);
+
+            uint32_t base = vertexCursor;
+            write_face_indices_u32(&pIndices[indexCursor], base);
+
+            vertexCursor += VERTS_PER_FACE;
+            indexCursor += INDICIES_PER_FACE;
+        }
+    }
 
     if (indexCursor == 0 || vertexCursor == 0)
     {
@@ -321,13 +311,7 @@ bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
 
     pChunk->pRenderChunk = pRenderChunk;
 
-    Vec3i_t worldPos = chunkPos_to_worldOrigin(pChunk->chunkPos);
-    Vec3f_t worldPosition = {
-        .x = (float)worldPos.x,
-        .y = (float)worldPos.y,
-        .z = (float)worldPos.z,
-    };
-
+    Vec3f_t worldPosition = cmath_vec3i_to_vec3f(chunkPos_to_worldOrigin(pChunk->chunkPos));
     chunk_placeRenderInWorld(pChunk->pRenderChunk, &worldPosition);
 
     return true;

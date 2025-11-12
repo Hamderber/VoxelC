@@ -15,6 +15,7 @@
 typedef enum SolidityType_e
 {
     SOLIDITY_AIR = 0,
+    SOLIDITY_TRANSPARENT = 0,
     SOLIDITY_SOLID = 1,
 } SolidityType_e;
 /// @brief Contains a 1D array of tracking the solid state of the block.

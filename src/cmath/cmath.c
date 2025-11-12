@@ -38,6 +38,12 @@ Vec3u8_t *cmath_chunkInnerPoints_Get(void) { return pCMATH_CHUNK_INNER_POINTS; }
 static Vec3u8_t *pCMATH_CHUNK_SHELL_BORDERLESS_POINTS = NULL;
 Vec3u8_t *cmath_chunkShellBorderlessPoints_Get(void) { return pCMATH_CHUNK_SHELL_BORDERLESS_POINTS; };
 
+static Vec3u8_t *pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS = NULL;
+Vec3u8_t *cmath_chunk_blockNeighborPoints_Get(void) { return pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS; };
+
+static bool *pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL = NULL;
+bool *cmath_chunk_blockNeighborPointsInChunkBool_Get(void) { return pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL; };
+
 /// @brief Bake the array of positions in the chunk both packed (uint16_t) and local space (Vec3u8_t).
 static void bake_chunkPoints(void)
 {
@@ -238,6 +244,54 @@ static void bake_chunkInnerPoints(void)
     // for (size_t i = 0; i < CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT; i++)
     //     pCMATH_CHUNK_INNER_POINTS[index++] = pCMATH_CHUNK_SHELL_BORDERLESS_POINTS[i];
 }
+
+/// @brief Bake a chunk's packed neighbors. ONLY within the chunk itself.
+static void bake_blockNeighborPos(void)
+{
+    const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
+    if (!pPOINTS || !pCMATH_CUBE_NEIGHBOR_OFFSETS)
+    {
+        crash(CRASH_CHUNK_MATH);
+        return;
+    }
+
+    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS = (Vec3u8_t *)malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_COUNT);
+    if (!pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS)
+    {
+        crash(CRASH_CHUNK_MATH);
+        return;
+    }
+
+    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL = (bool *)malloc(sizeof(bool) * CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL_COUNT);
+    if (!pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL)
+    {
+        crash(CRASH_CHUNK_MATH);
+        return;
+    }
+
+    for (size_t i = 0; i < CMATH_CHUNK_POINTS_COUNT; ++i)
+    {
+        const uint8_t X = pPOINTS[i].x;
+        const uint8_t Y = pPOINTS[i].y;
+        const uint8_t Z = pPOINTS[i].z;
+
+        for (int face = 0; face < 6; ++face)
+        {
+            const int NX = (int)X + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].x;
+            const int NY = (int)Y + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].y;
+            const int NZ = (int)Z + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].z;
+
+            const bool IN_CHUNK = (NX >= 0 && NX < (int)CHUNK_AXIS_LENGTH) &&
+                                  (NY >= 0 && NY < (int)CHUNK_AXIS_LENGTH) &&
+                                  (NZ >= 0 && NZ < (int)CHUNK_AXIS_LENGTH);
+
+            const Vec3u8_t POS = (Vec3u8_t){(uint8_t)NX, (uint8_t)NY, (uint8_t)NZ};
+
+            pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS[cmath_blockNeighborIndex(i, face)] = POS;
+            pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL[cmath_blockNeighborIndex(i, face)] = IN_CHUNK;
+        }
+    }
+}
 #pragma endregion
 #pragma region Instantiate
 static bool instantiated = false;
@@ -250,6 +304,7 @@ void cmath_instantiate(void)
         bake_chunkCornerPoints();
         bake_chunkShellBorderless();
         bake_chunkInnerPoints();
+        bake_blockNeighborPos();
         instantiated = true;
     }
     else
@@ -273,5 +328,9 @@ void cmath_destroy(void)
     pCMATH_CHUNK_POINTS = NULL;
     free(pCMATH_CHUNK_POINTS_PACKED);
     pCMATH_CHUNK_POINTS_PACKED = NULL;
+    free(pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL);
+    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL = NULL;
+    free(pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS);
+    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS = NULL;
 }
 #pragma endregion
