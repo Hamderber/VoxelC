@@ -9,8 +9,8 @@ static inline Mat4c_t camera_viewMatrix_get(const State_t *pSTATE)
 {
     // Derive forward/up vectors from quaternion orientation
     const Quaternionf_t CAMERA_ROTATION = pSTATE->context.camera.rotation;
-    const Vec3f_t CAMERA_FWD = cmath_quat_rotateVec3(CAMERA_ROTATION, VEC3_FORWARD);
-    const Vec3f_t CAMERA_UP = cmath_quat_rotateVec3(CAMERA_ROTATION, VEC3_UP);
+    const Vec3f_t CAMERA_FWD = cmath_quat_rotateVec3(CAMERA_ROTATION, VEC3F_FORWARD);
+    const Vec3f_t CAMERA_UP = cmath_quat_rotateVec3(CAMERA_ROTATION, VEC3F_UP);
 
     const Vec3f_t PLAYER_POSITION = character_player_positionLerped_get(pSTATE);
 

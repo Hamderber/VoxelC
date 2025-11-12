@@ -31,15 +31,15 @@ void camera_rotation_updateNow(State_t *pState)
     is dependent on the direction of the local z axis. */
 
     // WORLD
-    const Quaternionf_t YAW = cmath_quat_fromAxisAngle(YAW_DELTA, VEC3_UP);
+    const Quaternionf_t YAW = cmath_quat_fromAxisAngle(YAW_DELTA, VEC3F_UP);
     pState->context.camera.rotation = cmath_quat_normalize(cmath_quat_mult_quat(YAW, pState->context.camera.rotation));
 
     // LOCAL
-    const Vec3f_t RIGHT = cmath_quat_rotateVec3(pState->context.camera.rotation, VEC3_RIGHT);
+    const Vec3f_t RIGHT = cmath_quat_rotateVec3(pState->context.camera.rotation, VEC3F_RIGHT);
     const Quaternionf_t PITCH = cmath_quat_fromAxisAngle(PITCH_DELTA, RIGHT);
     pState->context.camera.rotation = cmath_quat_normalize(cmath_quat_mult_quat(PITCH, pState->context.camera.rotation));
 
-    const Vec3f_t FWD = cmath_quat_rotateVec3(pState->context.camera.rotation, VEC3_FORWARD);
+    const Vec3f_t FWD = cmath_quat_rotateVec3(pState->context.camera.rotation, VEC3F_FORWARD);
 
     // camera look direction vs horizon
     const float PITCH_F = asinf(FWD.y);

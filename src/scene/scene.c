@@ -156,7 +156,7 @@ void scene_debug_rotateAllRandom(Scene_t *pScene, float rad)
 {
     for (uint32_t i = 0; i < pScene->instCount; i++)
     {
-        Mat4c_t mat = cmath_mat_rotate(pScene->pModelInstances[i].modelMatrix, rad, VEC3_UP);
+        Mat4c_t mat = cmath_mat_rotate(pScene->pModelInstances[i].modelMatrix, rad, VEC3F_UP);
         pScene->pModelInstances[i].modelMatrix = mat;
     }
 }

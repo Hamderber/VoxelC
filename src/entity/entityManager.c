@@ -144,13 +144,12 @@ void em_entityPurgeFromCollections(EntityManger_t *entityManager, Entity_t *e)
     }
 }
 
-/// @brief Creates an entity struct configured for storage on the heap
-/// @param  void
-/// @return Entity_t
+/// @brief Creates an entity struct configured for storage on the heap. Assigns default values (like type = generic)
 Entity_t *em_entityCreateHeap(void)
 {
     Entity_t *e = calloc(1, sizeof(Entity_t));
     e->heapAllocated = true;
+    e->type = ENTITY_TYPE_GENERIC;
     return e;
 }
 

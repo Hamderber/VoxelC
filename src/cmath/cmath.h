@@ -90,17 +90,26 @@ static const Mat4c_t MAT4_IDENTITY = {
     },
 };
 
-static const Vec3f_t VEC3_ONE = {1.0F, 1.0F, 1.0F};
-static const Vec3f_t VEC3_NEG_ONE = {-1.0F, -1.0F, -1.0F};
-static const Vec3f_t VEC3_ZERO = {0.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_ONE = {1.0F, 1.0F, 1.0F};
+static const Vec3f_t VEC3F_NEG_ONE = {-1.0F, -1.0F, -1.0F};
+static const Vec3f_t VEC3F_ZERO = {0.0F, 0.0F, 0.0F};
+static const Vec3i_t VEC3I_ONE = {1, 1, 1};
+static const Vec3i_t VEC3I_NEG_ONE = {-1, -1, -1};
+static const Vec3i_t VEC3I_ZERO = {0, 0, 0};
 #pragma region Directions
-static const Vec3f_t VEC3_RIGHT = {1.0F, 0.0F, 0.0F};
-static const Vec3f_t VEC3_LEFT = {-1.0F, 0.0F, 0.0F};
-static const Vec3f_t VEC3_UP = {0.0F, 1.0F, 0.0F};
-static const Vec3f_t VEC3_DOWN = {0.0F, -1.0F, 0.0F};
+static const Vec3f_t VEC3F_RIGHT = {1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_LEFT = {-1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_UP = {0.0F, 1.0F, 0.0F};
 /// @brief Vulkan/GLM/OpenGL convention is -z is "looking forward"
-static const Vec3f_t VEC3_FORWARD = {0.0F, 0.0F, -1.0F};
-static const Vec3f_t VEC3_BACK = {0.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3F_FORWARD = {0.0F, 0.0F, -1.0F};
+static const Vec3f_t VEC3F_BACK = {0.0F, 0.0F, 1.0F};
+static const Vec3i_t VEC3F_DOWN = {0, -1, 0};
+static const Vec3i_t VEC3I_RIGHT = {1, 0, 0};
+static const Vec3i_t VEC3I_LEFT = {-1, 0, 0};
+static const Vec3i_t VEC3I_UP = {0, 1, 0};
+static const Vec3i_t VEC3I_DOWN = {0, -1, 0};
+static const Vec3i_t VEC3I_FORWARD = {0, 0, -1};
+static const Vec3i_t VEC3I_BACK = {0, 0, 1};
 #pragma endregion
 #pragma region Colors
 static const Vec3f_t COLOR_RED = {1.0F, 0.0F, 0.0F};
@@ -114,9 +123,9 @@ static const Vec3f_t COLOR_MAGENTA = {1.0F, 0.0F, 1.0F};
 static const Vec3f_t COLOR_GRAY = {0.5F, 0.5F, 0.5F};
 #pragma endregion
 #pragma region Axes
-static const Vec3f_t VEC3_X_AXIS = {1.0F, 0.0F, 0.0F};
-static const Vec3f_t VEC3_Y_AXIS = {0.0F, 1.0F, 0.0F};
-static const Vec3f_t VEC3_Z_AXIS = {0.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3F_X_AXIS = {1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_Y_AXIS = {0.0F, 1.0F, 0.0F};
+static const Vec3f_t VEC3F_Z_AXIS = {0.0F, 0.0F, 1.0F};
 #pragma endregion
 #pragma region Rendering
 static const Vec3f_t VEC3_VOXEL_FRONT_BOT_LEFT = {0.0F, 0.0F, 1.0F};
@@ -399,7 +408,7 @@ static inline Vec3f_t cmath_vec3f_normalize(Vec3f_t vec3)
 
     // Avoid divide by zero
     if (length < CMATH_EPSILON_F)
-        return VEC3_ZERO;
+        return VEC3F_ZERO;
 
     return cmath_vec3f_mult_scalarF(vec3, 1.0F / length);
 }
@@ -602,7 +611,7 @@ static inline void cmath_quat_toAxisAngle(Quaternionf_t q, Vec3f_t *axis, float 
     if (sinHalfAngle < CMATH_EPSILON_F)
     {
         // Angle is zero so arbitrary axis
-        *axis = VEC3_RIGHT;
+        *axis = VEC3F_RIGHT;
         *angle = 0.0F;
     }
     else
@@ -905,7 +914,7 @@ static inline Mat4c_t cmath_lookAt(Vec3f_t eye, Vec3f_t center, Vec3f_t up)
     else
     {
         // Fallback forward
-        f = VEC3_FORWARD;
+        f = VEC3F_FORWARD;
     }
 
     // Normalize up
@@ -920,7 +929,7 @@ static inline Mat4c_t cmath_lookAt(Vec3f_t eye, Vec3f_t center, Vec3f_t up)
     else
     {
         // Fallback (use back)
-        upN = VEC3_BACK;
+        upN = VEC3F_BACK;
     }
 
     // Compute right vector (s = f × up)
@@ -938,7 +947,7 @@ static inline Mat4c_t cmath_lookAt(Vec3f_t eye, Vec3f_t center, Vec3f_t up)
     else
     {
         // Fallback right
-        s = VEC3_RIGHT;
+        s = VEC3F_RIGHT;
     }
 
     // Recompute orthogonal up vector

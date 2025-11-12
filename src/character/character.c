@@ -14,7 +14,7 @@
 #pragma region Player
 Vec3f_t character_player_positionLerped_get(const State_t *pSTATE)
 {
-    Vec3f_t playerPosition = VEC3_ZERO;
+    Vec3f_t playerPosition = VEC3F_ZERO;
 
     EntityComponentData_t *playerPhysicsData;
     if (em_entityDataGet(pSTATE->pWorldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &playerPhysicsData))

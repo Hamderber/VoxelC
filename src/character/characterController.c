@@ -257,7 +257,7 @@ Entity_t *character_entityCreate(State_t *pState, Character_t *pCharacter)
     pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->uniformSpeedBase = DEFAULT_UNIFORM_SPEED;
     pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->useLocalAxes = true;
 
-    Vec3f_t worldPos = VEC3_ZERO;
+    Vec3f_t worldPos = VEC3F_ZERO;
     switch (pCharacter->type)
     {
     case CHARACTER_TYPE_PLAYER:
