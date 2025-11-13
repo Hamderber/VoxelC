@@ -6,6 +6,10 @@
 #include "core/logs.h"
 #include "rendering/buffers/buffers.h"
 #include "core/crash_handler.h"
+#include "core/vkWrappers.h"
+#pragma endregion
+#pragma region Defines
+// #define INDEX_BUFFER_DEBUG
 #pragma endregion
 #pragma region Create
 void indexBuffer_createFromData(State_t *pState, uint32_t *pIndices, const uint32_t INDEX_COUNT)
@@ -31,7 +35,8 @@ void indexBuffer_createFromData(State_t *pState, uint32_t *pIndices, const uint3
         const VkDeviceSize OFFSET = 0;
         const VkMemoryMapFlags FLAGS = 0;
         void *pData;
-        if (vkMapMemory(pState->context.device, stagingMemory, OFFSET, BUFFER_SIZE, FLAGS, &pData) != VK_SUCCESS)
+        if (vkMapMemory_wrapper("Generic Index Buffer", pState->context.device, stagingMemory, OFFSET, BUFFER_SIZE, FLAGS, &pData) !=
+            VK_SUCCESS)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to map index staging buffer memory!");
@@ -50,9 +55,64 @@ void indexBuffer_createFromData(State_t *pState, uint32_t *pIndices, const uint3
 
         vkDestroyBuffer(pState->context.device, stagingBuffer, pState->context.pAllocator);
         vkFreeMemory(pState->context.device, stagingMemory, pState->context.pAllocator);
-
+#ifdef INDEX_BUFFER_DEBUG
         logs_log(LOG_DEBUG, "Created index buffer (%" PRIu32 " indices, %" PRIu32 " bytes).", INDEX_COUNT, (uint32_t)BUFFER_SIZE);
+#endif
     } while (0);
+
+    if (crashLine != 0)
+        crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine), "The program cannot continue without creating an index buffer.");
+}
+
+void indexBuffer_createFromData_Voxel(State_t *pState, uint32_t *pIndices, const uint32_t INDEX_COUNT,
+                                      VkBuffer *pOutBuffer, VkDeviceMemory *pOutMemory)
+{
+    int crashLine = 0;
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+    do
+    {
+        if (!pState || !pIndices || !pOutBuffer || !pOutMemory)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Recieved invalid pointers!");
+            break;
+        }
+
+        const VkDeviceSize BUFFER_SIZE = sizeof(uint32_t) * INDEX_COUNT;
+
+        bufferCreate(pState, BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     &stagingBuffer, &stagingMemory);
+
+        const VkDeviceSize OFFSET = 0;
+        const VkMemoryMapFlags FLAGS = 0;
+        void *pData;
+        if (vkMapMemory_wrapper("Chunk Index Buffer", pState->context.device, stagingMemory, OFFSET, BUFFER_SIZE, FLAGS, &pData) != VK_SUCCESS)
+        {
+            crashLine = __LINE__;
+            logs_log(LOG_ERROR, "Failed to map index staging buffer memory!");
+            break;
+        }
+
+        memcpy(pData, pIndices, (size_t)BUFFER_SIZE);
+        vkUnmapMemory(pState->context.device, stagingMemory);
+
+        bufferCreate(pState, BUFFER_SIZE,
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     pOutBuffer, pOutMemory);
+
+        bufferCopy(pState, stagingBuffer, *pOutBuffer, BUFFER_SIZE);
+#ifdef INDEX_BUFFER_DEBUG
+        logs_log(LOG_DEBUG, "Created index buffer (%" PRIu32 " indices, %" PRIu32 " bytes).", INDEX_COUNT, (uint32_t)BUFFER_SIZE);
+#endif
+    } while (0);
+
+    if (stagingBuffer != VK_NULL_HANDLE)
+        vkDestroyBuffer(pState->context.device, stagingBuffer, pState->context.pAllocator);
+    if (stagingMemory != VK_NULL_HANDLE)
+        vkFreeMemory(pState->context.device, stagingMemory, pState->context.pAllocator);
 
     if (crashLine != 0)
         crashHandler_crash_graceful(CRASH_LOCATION_LINE(crashLine), "The program cannot continue without creating an index buffer.");
@@ -64,4 +124,7 @@ void indexBuffer_destroy(State_t *pState)
     vkDestroyBuffer(pState->context.device, pState->renderer.indexBuffer, pState->context.pAllocator);
     vkFreeMemory(pState->context.device, pState->renderer.indexBufferMemory, pState->context.pAllocator);
 }
+#pragma endregion
+#pragma region
+#undef INDEX_BUFFER_DEBUG
 #pragma endregion

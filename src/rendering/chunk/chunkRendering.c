@@ -46,38 +46,39 @@ void chunk_placeRenderInWorld(RenderChunk_t *chunk, Vec3f_t *position)
 }
 
 static size_t destroyed = 0;
-void chunk_renderDestroy(State_t *state, RenderChunk_t *chunk)
+void chunk_renderDestroy(State_t *pState, RenderChunk_t *pRenderChunk)
 {
-    if (!chunk)
+    if (!pRenderChunk)
         return;
 
-    const VkDevice device = state->context.device;
-    const VkAllocationCallbacks *alloc = state->context.pAllocator;
+    const VkDevice device = pState->context.device;
+    const VkAllocationCallbacks *alloc = pState->context.pAllocator;
 
     // Destroy buffers first, then free memory they were bound to
-    if (chunk->vertexBuffer != VK_NULL_HANDLE)
+    if (pRenderChunk->vertexBuffer != VK_NULL_HANDLE)
     {
-        vkDestroyBuffer(device, chunk->vertexBuffer, alloc);
-        chunk->vertexBuffer = VK_NULL_HANDLE;
+        vkDestroyBuffer(device, pRenderChunk->vertexBuffer, alloc);
+        pRenderChunk->vertexBuffer = VK_NULL_HANDLE;
     }
-    if (chunk->vertexMemory != VK_NULL_HANDLE)
+    if (pRenderChunk->vertexMemory != VK_NULL_HANDLE)
     {
-        vkFreeMemory(device, chunk->vertexMemory, alloc);
-        chunk->vertexMemory = VK_NULL_HANDLE;
+        vkFreeMemory(device, pRenderChunk->vertexMemory, alloc);
+        pRenderChunk->vertexMemory = VK_NULL_HANDLE;
     }
 
-    if (chunk->indexBuffer != VK_NULL_HANDLE)
+    if (pRenderChunk->indexBuffer != VK_NULL_HANDLE)
     {
-        vkDestroyBuffer(device, chunk->indexBuffer, alloc);
-        chunk->indexBuffer = VK_NULL_HANDLE;
+        vkDestroyBuffer(device, pRenderChunk->indexBuffer, alloc);
+        pRenderChunk->indexBuffer = VK_NULL_HANDLE;
     }
-    if (chunk->indexMemory != VK_NULL_HANDLE)
+    if (pRenderChunk->indexMemory != VK_NULL_HANDLE)
     {
-        vkFreeMemory(device, chunk->indexMemory, alloc);
-        chunk->indexMemory = VK_NULL_HANDLE;
+        vkFreeMemory(device, pRenderChunk->indexMemory, alloc);
+        pRenderChunk->indexMemory = VK_NULL_HANDLE;
     }
 
     destroyed++;
+    free(pRenderChunk);
 }
 
 #pragma region Create Mesh
@@ -226,9 +227,9 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
 
         pChunk->pRenderChunk = NULL;
         // Meshing succeeded and nothing to draw (full chunk and surrounded)
-        logs_log(LOG_DEBUG, "Render chunk is NULL for chunk at (%d, %d, %d) because it is entirely solid with loaded neighbors. \
-(Nothing to render).",
-                 pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z);
+        //         logs_log(LOG_DEBUG, "Render chunk is NULL for chunk at (%d, %d, %d) because it is entirely solid with loaded neighbors. \
+        // (Nothing to render).",
+        //  pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z);
         return true;
     }
     // Shrink to used size <= max allocation
@@ -239,9 +240,6 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     if (!pFinalIndices)
         pFinalIndices = pIndices;
 
-    vertexBuffer_createFromData_Voxel(pState, pFinalVerts, vertexCursor);
-    indexBuffer_createFromData(pState, pFinalIndices, indexCursor);
-
     RenderChunk_t *pRenderChunk = malloc(sizeof(RenderChunk_t));
     if (!pRenderChunk)
     {
@@ -250,10 +248,14 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
         return false;
     }
 
-    pRenderChunk->vertexBuffer = pState->renderer.vertexBuffer;
-    pRenderChunk->vertexMemory = pState->renderer.vertexBufferMemory;
-    pRenderChunk->indexBuffer = pState->renderer.indexBuffer;
-    pRenderChunk->indexMemory = pState->renderer.indexBufferMemory;
+    vertexBuffer_createFromData_Voxel(pState, pFinalVerts, vertexCursor,
+                                      &pRenderChunk->vertexBuffer,
+                                      &pRenderChunk->vertexMemory);
+
+    indexBuffer_createFromData_Voxel(pState, pFinalIndices, indexCursor,
+                                     &pRenderChunk->indexBuffer,
+                                     &pRenderChunk->indexMemory);
+
     pRenderChunk->indexCount = indexCursor;
 
     free(pFinalVerts);
