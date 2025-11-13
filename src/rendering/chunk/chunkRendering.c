@@ -45,6 +45,7 @@ void chunk_placeRenderInWorld(RenderChunk_t *chunk, Vec3f_t *position)
     chunk->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, *position);
 }
 
+static size_t destroyed = 0;
 void chunk_renderDestroy(State_t *state, RenderChunk_t *chunk)
 {
     if (!chunk)
@@ -75,6 +76,8 @@ void chunk_renderDestroy(State_t *state, RenderChunk_t *chunk)
         vkFreeMemory(device, chunk->indexMemory, alloc);
         chunk->indexMemory = VK_NULL_HANDLE;
     }
+
+    destroyed++;
 }
 
 #pragma region Create Mesh
@@ -149,11 +152,16 @@ static bool emit_face(const Chunk_t **restrict ppNeighbors, const Vec3u8_t *rest
     return result;
 }
 
+static size_t created = 0;
 bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINTS, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
                        const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, Chunk_t *restrict pChunk)
 {
     if (!pState || !pChunk || !pChunk->pBlockVoxels || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
         return false;
+
+    // Destroy previous renderer to avoid dangling pointers etc.
+    if (pChunk->pRenderChunk)
+        chunk_renderDestroy(pState, pChunk->pRenderChunk);
 
     Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, pChunk->chunkPos);
     if (!ppNeighbors)
@@ -256,6 +264,13 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     Vec3f_t worldPosition = cmath_vec3i_to_vec3f(chunkPos_to_worldOrigin(pChunk->chunkPos));
     chunk_placeRenderInWorld(pChunk->pRenderChunk, &worldPosition);
 
+    created++;
     return true;
+}
+#pragma endregion
+#pragma region Const/Destructor
+void chunkRendering_debug(void)
+{
+    logs_log(LOG_DEBUG, "Meshes created: %d, Destroyed: %d", created, destroyed);
 }
 #pragma endregion

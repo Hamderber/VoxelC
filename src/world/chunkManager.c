@@ -129,6 +129,7 @@ static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const BlockDefiniti
 
     pChunk->pBlockVoxels = calloc(CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
     pChunk->chunkPos = CHUNK_POS;
+    pChunk->pRenderChunk = NULL;
 
     if (!chunkGen_genChunk(pSTATE, pBLOCK_DEFINITIONS, pChunk))
         return NULL;
@@ -137,56 +138,131 @@ static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const BlockDefiniti
 }
 #pragma endregion
 #pragma region Create Chunk
-typedef enum
-{
-    CHUNK_QUERY_UNLOADED = 0,
-    CHUNK_QUERY_LOADED = 1
-} ChunkQuery_e;
-
 /// @brief Iterates the provided chunk positions and returns a heap array of chunk positions matching query from that collection.
 /// Places the length of that collection into pCount
-static Vec3i_t *chunks_getChunksPos(State_t *pState, const Vec3i_t *pCHUNK_POS, size_t *pCount, const ChunkQuery_e QUERY)
+static bool chunks_getChunksPos(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
+                                Vec3i_t **restrict ppUnloadedPos, size_t *restrict pUnloadedCount,
+                                Vec3i_t **restrict ppLoadedPos, size_t *restrict pLoadedCount, const ChunkQuery_e QUERY)
 {
-    size_t index = 0;
-    Vec3i_t *pPos = calloc(*pCount, sizeof(Vec3i_t));
-    if (!pPos)
-        return NULL;
-
-    for (size_t i = 0; i < *pCount; i++)
+    if (!pState || !pCHUNK_POS || !pLoadedCount || !pUnloadedCount)
     {
-        bool chunkIsLoaded = chunk_isLoaded(pState, pCHUNK_POS[i]);
-        if (QUERY == CHUNK_QUERY_LOADED && chunkIsLoaded)
-            pPos[index++] = pCHUNK_POS[i];
-        else if (QUERY == CHUNK_QUERY_UNLOADED && !chunkIsLoaded)
-            pPos[index++] = pCHUNK_POS[i];
+        *pLoadedCount = 0;
+        *pUnloadedCount = 0;
+        return false;
     }
 
-    pPos = realloc(pPos, sizeof(Vec3i_t) * index);
-    *pCount = index;
-    return pPos;
+    switch (QUERY)
+    {
+    case QUERY_CHUNK_LOADED:
+        *ppLoadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+
+        if (!*ppLoadedPos)
+        {
+            *pLoadedCount = 0;
+            *pUnloadedCount = 0;
+            return false;
+        }
+        break;
+    case QUERY_CHUNK_UNLOADED:
+        *ppUnloadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+
+        if (!*ppUnloadedPos)
+        {
+            *pLoadedCount = 0;
+            *pUnloadedCount = 0;
+            return false;
+        }
+        break;
+    case QUERY_CHUNK_LOADED_AND_UNLOADED:
+        *ppLoadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+        *ppUnloadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+
+        if (!*ppLoadedPos || !*ppUnloadedPos)
+        {
+            *pLoadedCount = 0;
+            *pUnloadedCount = 0;
+            return false;
+        }
+        break;
+    default:
+        return false;
+        break;
+    }
+
+    size_t loadedCount = 0;
+    size_t unloadedCount = 0;
+    bool fail = false;
+    do
+    {
+        for (size_t i = 0; i < COUNT_MAX && !fail; i++)
+        {
+            bool chunkIsLoaded = chunk_isLoaded(pState, pCHUNK_POS[i]);
+            switch (QUERY)
+            {
+            case QUERY_CHUNK_LOADED:
+                if (chunkIsLoaded)
+                    (*ppLoadedPos)[loadedCount++] = pCHUNK_POS[i];
+                break;
+            case QUERY_CHUNK_UNLOADED:
+                if (!chunkIsLoaded)
+                    (*ppUnloadedPos)[unloadedCount++] = pCHUNK_POS[i];
+                break;
+            case QUERY_CHUNK_LOADED_AND_UNLOADED:
+                if (chunkIsLoaded)
+                    (*ppLoadedPos)[loadedCount++] = pCHUNK_POS[i];
+                else
+                    (*ppUnloadedPos)[unloadedCount++] = pCHUNK_POS[i];
+                break;
+            default:
+                fail = true;
+                break;
+            }
+        }
+
+        if (fail)
+            break;
+
+        *ppLoadedPos = realloc(*ppLoadedPos, sizeof(Vec3i_t) * loadedCount);
+        *ppUnloadedPos = realloc(*ppUnloadedPos, sizeof(Vec3i_t) * unloadedCount);
+        *pLoadedCount = loadedCount;
+        *pUnloadedCount = unloadedCount;
+
+        return true;
+    } while (0);
+
+    free(*ppLoadedPos);
+    free(*ppUnloadedPos);
+    *pLoadedCount = 0;
+    *pUnloadedCount = 0;
+
+    logs_log(LOG_ERROR, "Failed to query chunk(s)!");
+
+    return false;
 }
 
-Chunk_t **chunkManager_chunk_createBatch(State_t *pState, const Vec3i_t *pCHUNK_POS, size_t *pNewChunkCount,
-                                         size_t *pAlreadyLoadedChunkCount, Vec3i_t *pChunkPosUnloaded, Vec3i_t *pChunkPosLoaded)
+Chunk_t **chunkManager_chunk_createBatch(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
+                                         Vec3i_t *restrict pChunkPosUnloaded, size_t *restrict pUnloadedCount,
+                                         Vec3i_t *restrict pChunkPosLoaded, size_t *restrict pLoadedCount)
 {
     if (!pState || !pCHUNK_POS)
         return NULL;
 
-    pChunkPosUnloaded = chunks_getChunksPos(pState, pCHUNK_POS, pNewChunkCount, CHUNK_QUERY_UNLOADED);
-    pChunkPosLoaded = chunks_getChunksPos(pState, pCHUNK_POS, pAlreadyLoadedChunkCount, CHUNK_QUERY_LOADED);
+    chunks_getChunksPos(pState, pCHUNK_POS, COUNT_MAX,
+                        &pChunkPosUnloaded, pUnloadedCount,
+                        &pChunkPosLoaded, pLoadedCount, QUERY_CHUNK_LOADED_AND_UNLOADED);
 
-    Chunk_t **ppNewChunks = calloc(*pNewChunkCount, sizeof(Chunk_t *));
+    Chunk_t **ppNewChunks = calloc(*pUnloadedCount, sizeof(Chunk_t *));
     const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();
     if (!ppNewChunks || !pBLOCK_DEFINITIONS)
     {
         logs_log(LOG_ERROR, "Failed to allocate memory for new chunnks!");
-        *pNewChunkCount = 0;
+        *pUnloadedCount = 0;
         free(ppNewChunks);
         ppNewChunks = NULL;
         return NULL;
     }
 
-    for (size_t i = 0; i < *pNewChunkCount; i++)
+    for (size_t i = 0; i < *pUnloadedCount; i++)
     {
         ppNewChunks[i] = chunk_voxels_allocate(pState, pBLOCK_DEFINITIONS, pChunkPosUnloaded[i]);
         ppNewChunks[i]->pEntitiesLoadingChunkLL = linkedList_root();
@@ -293,6 +369,11 @@ bool chunk_isLoaded(State_t *pState, const Vec3i_t CHUNK_POS)
 
 EventResult_t player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
 {
+    // TODO: get unloaded chunks around player based off of simulation distance and load them
+    if (!pState || !pEvent || !pEvent->data.pGeneric)
+        return EVENT_RESULT_ERROR;
+
+    uint32_t simDist = pState->worldConfig.chunkSimulationDistance;
     pCtx;
 
     if (!pState || !pEvent)
@@ -306,6 +387,8 @@ EventResult_t player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
     Vec3i_t chunkPos = pChunk->chunkPos;
 
     logs_log(LOG_DEBUG, "Entity %p is now in chunk (%d, %d, %d).", pEntity, chunkPos.x, chunkPos.y, chunkPos.z);
+
+    world_chunks_load(pState, pEntity, chunkPos, simDist);
 
     return EVENT_RESULT_PASS;
 }

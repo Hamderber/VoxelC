@@ -14,6 +14,7 @@
 #include "chunkGenerator.h"
 #pragma endregion
 #pragma region Add Chunk to Col.
+static size_t addedChunks = 0;
 void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
 {
     if (!pState || !pChunk)
@@ -25,6 +26,7 @@ void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
         logs_log(LOG_ERROR, "Failed to add chunk %p to the world's chunk linked list!", pChunk);
         return;
     }
+    addedChunks++;
 }
 #pragma endregion
 #pragma region Chunks Init
@@ -38,8 +40,9 @@ static void spawn_generate(State_t *pState)
     // spawn chunks are permanently chunkloaded
     size_t newChunkCount = size, alreadyLoadedChunkCount = size;
     Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
-    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, &newChunkCount, &alreadyLoadedChunkCount,
-                                                           pChunkPosUnloaded, pChunkPosLoaded);
+    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
+                                                           pChunkPosUnloaded, &newChunkCount,
+                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
 
     const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
     Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
@@ -72,10 +75,33 @@ static void world_chunks_init(State_t *pState)
 }
 #pragma endregion
 #pragma region Load
-// /// @brief Loads chunks in the cubic volume centered at chunkPos
-// void world_chunks_load(State_t *pState, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
-// {
-// }
+void world_chunks_load(State_t *pState, Entity_t *pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
+{
+    size_t size;
+    Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
+
+    size_t newChunkCount = size, alreadyLoadedChunkCount = size;
+    Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
+    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
+                                                           pChunkPosUnloaded, &newChunkCount,
+                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
+
+    const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
+    Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
+    bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
+    if (ppNewChunks)
+    {
+        // Permanently load these because this is spawn
+        chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
+
+        for (size_t i = 0; i < newChunkCount; i++)
+            chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
+    }
+
+    free(pPoints);
+    free(pChunkPosLoaded);
+    free(pChunkPosUnloaded);
+}
 #pragma endregion
 #pragma region Create
 static void init(State_t *pState)
@@ -102,12 +128,15 @@ void world_destroy(State_t *pState)
     if (!pState || !pState->pWorldState)
         return;
 
-    pState->pWorldState->isLoaded = true;
+    logs_log(LOG_DEBUG, "Chunks added: %d", addedChunks);
+
+    pState->pWorldState->isLoaded = false;
 
     // Ensure nothing is in-flight that still uses these buffers
     vkDeviceWaitIdle(pState->context.device);
 
     chunkManager_destroy(pState);
+    chunkRendering_debug();
 
     pState->pWorldState = NULL;
 }

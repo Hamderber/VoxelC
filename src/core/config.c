@@ -222,10 +222,10 @@ static void config_app_save(const AppConfig_t *pCFG, cJSON *pRoot)
 static void config_world_save(const WorldConfig_t *pWRLD, cJSON *pRoot)
 {
     cJSON *pWorld = cJSON_AddObjectToObject(pRoot, WORLD_CFG_WORLD);
-    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "Spawn chunk radius that will be permanently loaded. Radius [0, 5]");
+    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "Spawn chunk radius that will be permanently loaded. Radius [0, 5].");
     cJSON_AddNumberToObject(pWorld, WORLD_CFG_SPAWN_LOAD_RADIUS, pWRLD->spawnChunkLoadingRadius);
     cJSON_AddStringToObject(pWorld, CFG_COMMENT, "CPU-based simulation distance. Similar to chunk render distance,");
-    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "but for the radius around a player that the cpu should still simulate.");
+    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "but for the radius around a player that the cpu should still simulate [1, 32].");
     cJSON_AddNumberToObject(pWorld, WORLD_CFG_SIMULATION_DISTANCE, pWRLD->chunkSimulationDistance);
 }
 

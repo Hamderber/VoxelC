@@ -10,6 +10,7 @@
 #include "rendering/types/shaderVertexModel_t.h"
 #include "rendering/types/shaderVertexVoxel_t.h"
 #include "core/crash_handler.h"
+#include "core/vkWrappers.h"
 #pragma endregion
 #pragma region Create
 void vertexBuffer_createFromData_Model(State_t *pState, ShaderVertexModel_t *pVertices, uint32_t vertexCount)
@@ -34,7 +35,7 @@ void vertexBuffer_createFromData_Model(State_t *pState, ShaderVertexModel_t *pVe
                      &stagingBuffer, &stagingMemory);
 
         void *pData;
-        if (vkMapMemory(pState->context.device, stagingMemory, 0, bufferSize, 0, &pData) != VK_SUCCESS)
+        if (vkMapMemory_wrapper("Model Vertex Buffer", pState->context.device, stagingMemory, 0, bufferSize, 0, &pData) != VK_SUCCESS)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to map vertex staging buffer memory!");
@@ -87,7 +88,7 @@ void vertexBuffer_createFromData_Voxel(State_t *pState, ShaderVertexVoxel_t *pVe
                      &stagingBuffer, &stagingMemory);
 
         void *pData;
-        if (vkMapMemory(pState->context.device, stagingMemory, 0, bufferSize, 0, &pData) != VK_SUCCESS)
+        if (vkMapMemory_wrapper("Chunk Vertex Buffer", pState->context.device, stagingMemory, 0, bufferSize, 0, &pData) != VK_SUCCESS)
         {
             crashLine = __LINE__;
             logs_log(LOG_ERROR, "Failed to map vertex staging buffer memory!");

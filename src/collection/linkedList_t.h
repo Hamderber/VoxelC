@@ -172,6 +172,7 @@ static inline LinkedList_t *linkedList_node_addUnique(LinkedList_t **ppRoot, Lin
 /// Pass destructor function params as a collection through pCtx
 static inline bool linkedList_destroy(LinkedList_t **ppRoot, LinkedListDataDestructor destructor, void *pCtx)
 {
+    size_t removedSize = 0;
     // root node will always have NULL data
     if (!ppRoot || (*ppRoot)->pData || !(*ppRoot)->pNext)
         return false;
@@ -183,11 +184,17 @@ static inline bool linkedList_destroy(LinkedList_t **ppRoot, LinkedListDataDestr
     {
         LinkedList_t *pNext = pNode->pNext;
         if (destructor && pNode->pData)
+        {
             destructor(pCtx, pNode->pData);
+            removedSize++;
+        }
 
         free(pNode);
         pNode = pNext;
     }
+
+    if (removedSize != 0)
+        logs_log(LOG_DEBUG, "Removed LL size: %d", removedSize);
 
     return true;
 }

@@ -5,6 +5,13 @@
 #include "core/types/state_t.h"
 #include "world/chunk.h"
 
+typedef enum ChunkQuery_e
+{
+    QUERY_CHUNK_LOADED,
+    QUERY_CHUNK_UNLOADED,
+    QUERY_CHUNK_LOADED_AND_UNLOADED,
+} ChunkQuery_e;
+
 /// @brief Gets the chunk at the chunk position. Returns null if not found.
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 
@@ -14,8 +21,9 @@ Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CH
 
 /// @brief Create chunks at the passed positions and add them directly to the world.
 /// Maximum size must be passed through both new and already loaded. The final resulting size of each is placed into the passed addresses.
-Chunk_t **chunkManager_chunk_createBatch(State_t *pState, const Vec3i_t *pCHUNK_POS, size_t *pNewChunkCount,
-                                         size_t *pAlreadyLoadedChunkCount, Vec3i_t *pChunkPosUnloaded, Vec3i_t *pChunkPosLoaded);
+Chunk_t **chunkManager_chunk_createBatch(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
+                                         Vec3i_t *restrict pChunkPosUnloaded, size_t *restrict pUnloadedCount,
+                                         Vec3i_t *restrict pChunkPosLoaded, size_t *restrict pLoadedCount);
 
 /// @brief Adds the passed entity to each chunk in the passed collection's entity loading linked list.
 bool chunkManager_chunk_addLoadingEntity(Chunk_t **ppChunks, size_t numChunks, Entity_t *pEntity);

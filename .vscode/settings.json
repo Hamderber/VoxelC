@@ -78,6 +78,7 @@
         "xtr1common": "c",
         "chunk.h": "c",
         "cmath.h": "c",
-        "uvs.h": "c"
+        "uvs.h": "c",
+        "random": "c"
     }
 }
