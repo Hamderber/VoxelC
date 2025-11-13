@@ -148,7 +148,7 @@ void commandBuffer_record(State_t *pState)
             // Voxel
             VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
             pipeline_bind(pState, &cmd, &pipelineLayout, GRAPHICS_TARGET_VOXEL);
-            chunk_drawChunks(pState, &cmd, &pipelineLayout);
+            chunkRendering_drawChunks(pState, &cmd, &pipelineLayout);
         }
 
 #pragma endregion

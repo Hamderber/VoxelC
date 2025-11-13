@@ -8,8 +8,9 @@
 /// @brief Gets the chunk at the chunk position. Returns null if not found.
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 
-/// @brief Creates the rendering chunk for the associated chunk. This is includes mesh creation and such
-bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk);
+/// @brief Returns an array (length = CUBE_FACE_COUNT) of pointers to each loaded chunk or null if it is not loaded around
+/// neighbor chunk at CHUNK_POS. (Heap)
+Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 
 /// @brief Create chunks at the passed positions and add them directly to the world.
 /// Maximum size must be passed through both new and already loaded. The final resulting size of each is placed into the passed addresses.

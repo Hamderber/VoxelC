@@ -40,13 +40,17 @@ static void spawn_generate(State_t *pState)
     Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
     Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, &newChunkCount, &alreadyLoadedChunkCount,
                                                            pChunkPosUnloaded, pChunkPosLoaded);
+
+    const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
+    Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
+    bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
     if (ppNewChunks)
     {
         // Permanently load these because this is spawn
         chunkManager_chunk_permanentlyLoad(pState, ppNewChunks, newChunkCount);
 
         for (size_t i = 0; i < newChunkCount; i++)
-            chunk_mesh_create(pState, ppNewChunks[i]);
+            chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
     }
 
     free(pPoints);
@@ -97,6 +101,8 @@ void world_destroy(State_t *pState)
 {
     if (!pState || !pState->pWorldState)
         return;
+
+    pState->pWorldState->isLoaded = true;
 
     // Ensure nothing is in-flight that still uses these buffers
     vkDeviceWaitIdle(pState->context.device);

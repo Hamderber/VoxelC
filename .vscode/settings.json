@@ -77,6 +77,7 @@
         "optional": "c",
         "xtr1common": "c",
         "chunk.h": "c",
-        "cmath.h": "c"
+        "cmath.h": "c",
+        "uvs.h": "c"
     }
 }

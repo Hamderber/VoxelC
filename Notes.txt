@@ -84,3 +84,4 @@ TODO:
 22. Iterate .h files to make sure static arrays and such in .h are changed to getters when they arent const. Even when they are maybe
 23. Implement an input action cancellation of some type when pause is pressed to unzoom, stop sprinting/wasd etc
 24. Vertically squish worm caves and make them more horizontal to look more like actual caves
+25. Add separate time tracking to the world that is incremented with normal time but is reset on world load etc

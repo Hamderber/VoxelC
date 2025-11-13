@@ -308,9 +308,7 @@ void cmath_instantiate(void)
         instantiated = true;
     }
     else
-    {
         logs_log(LOG_ERROR, "Attempted to double-initialize cmath!");
-    }
 }
 #pragma endregion
 #pragma region Destroy
@@ -332,5 +330,7 @@ void cmath_destroy(void)
     pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL = NULL;
     free(pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS);
     pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS = NULL;
+
+    instantiated = false;
 }
 #pragma endregion

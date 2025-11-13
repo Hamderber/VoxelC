@@ -46,8 +46,6 @@ void app_init(State_t *restrict pState)
 
     rendering_create(pState);
 
-    time_init(&pState->time);
-
     events_init(&pState->eventBus);
 
     em_init(pState);
@@ -83,6 +81,9 @@ void app_loop_render(State_t *restrict pState)
 
 void app_loop_main(State_t *restrict pState)
 {
+    // Initalize time right before starting the actual user-facing part of the program
+    time_init(&pState->time);
+
     while (!win_shouldClose(&pState->window))
     {
         phys_loop(pState);
