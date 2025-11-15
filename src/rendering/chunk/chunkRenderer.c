@@ -32,23 +32,19 @@ static bool chunkRenderer_dequeueRemesh(State_t *restrict pState, const Vec3u8_t
     if (!pCtx || !pCtx->pChunk || !pCtx->ppLoadedNeighbors)
         return false;
 
-    // If the chunk exists but the rendermesh doesn't, then this remesh is just the first time that it has been created. (lazy)
-    if (!pCtx->pChunk->pRenderChunk)
-        chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pCtx->pChunk);
-
     Chunk_t *pChunk = pCtx->pChunk;
-    // logs_log(LOG_DEBUG, "Remesh neighbors for Chunk at (%d, %d, %d)", pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z);
+    chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pChunk);
 
-    Chunk_t *pN = NULL;
     for (uint8_t i = 0; i < pCtx->loadedNeighborCount; i++)
     {
-        pN = pCtx->ppLoadedNeighbors[i];
+        Chunk_t *pN = pCtx->ppLoadedNeighbors[i];
         if (pN)
             chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pN);
-        // logs_log(LOG_DEBUG, "Remesh chunk at (%d, %d, %d)", pN->chunkPos.x, pN->chunkPos.y, pN->chunkPos.z);
     }
 
-    pChunk->pRenderChunk->queuedForRemesh = false;
+    if (pChunk->pRenderChunk)
+        pChunk->pRenderChunk->queuedForRemesh = false;
+
     remeshContext_destroy(pCtx);
     return true;
 }
@@ -59,7 +55,6 @@ void chunkRenderer_remeshChunks(State_t *pState)
         return;
 
     size_t remeshCount = 0;
-    bool cont = true;
 
     const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
     Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
@@ -67,12 +62,8 @@ void chunkRenderer_remeshChunks(State_t *pState)
     if (!pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
         return;
 
-    // vkDeviceWaitIdle(pState->context.device);
-
-    while (cont)
+    while (remeshCount < MAX_REMESH_PER_FRAME && chunkRenderer_dequeueRemesh(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK))
     {
-        cont = chunkRenderer_dequeueRemesh(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK) &&
-               remeshCount < MAX_REMESH_PER_FRAME;
         remeshCount++;
     }
 }

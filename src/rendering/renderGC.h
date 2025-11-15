@@ -10,7 +10,7 @@ typedef struct PendingBufferDestroy_t
 
 void renderGC_pushGarbage(const uint32_t FRAME_INDEX, VkBuffer buffer, VkDeviceMemory memory);
 
-void renderGC_flushGarbage(State_t *pState, const uint32_t FRAME_INDEX);
+void renderGC_flushGarbage(State_t *pState, const uint32_t FRAME_INDEX, const bool FLUSH_ALL);
 
 void renderGC_init(State_t *pState);
 

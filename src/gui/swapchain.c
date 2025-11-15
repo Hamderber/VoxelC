@@ -29,7 +29,7 @@ void swapchain_image_acquireNext(State_t *pState)
             break;
         }
 
-        renderGC_flushGarbage(pState, FRAME_INDEX);
+        renderGC_flushGarbage(pState, FRAME_INDEX, false);
 
         VkFence fence = VK_NULL_HANDLE;
         VkResult result = vkAcquireNextImageKHR(pState->context.device, pState->window.swapchain.handle, IMAGE_TIMEOUT,

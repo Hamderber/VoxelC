@@ -45,9 +45,6 @@ static void spawn_generate(State_t *pState)
                                                            pChunkPosUnloaded, &newChunkCount,
                                                            pChunkPosLoaded, &alreadyLoadedChunkCount);
 
-    // const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
-    // Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
-    // bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
     if (ppNewChunks)
     {
         // Permanently load these because this is spawn
@@ -59,14 +56,8 @@ static void spawn_generate(State_t *pState)
             ChunkRemeshCtx_t *pCtx = remeshContext_create(ppNewChunks[i], ppNeighbors);
             chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx);
             free(ppNeighbors);
-
-            // chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
         }
     }
-
-    // free(pPoints);
-    // free(pChunkPosLoaded);
-    // free(pChunkPosUnloaded);
 }
 
 static void world_chunks_init(State_t *pState)
@@ -94,37 +85,33 @@ void world_loop(State_t *pState)
 #pragma region Load
 void world_chunks_load(State_t *pState, Entity_t *pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
 {
-    size_t size;
-    Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
+    pState;
+    pLoadingEntity;
+    CHUNK_POS;
+    RADIUS;
 
-    size_t newChunkCount = size, alreadyLoadedChunkCount = size;
-    Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
-    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
-                                                           pChunkPosUnloaded, &newChunkCount,
-                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
+    // size_t size;
+    // Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
 
-    // const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
-    // Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
-    // bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
-    if (ppNewChunks)
-    {
-        // Permanently load these because this is spawn
-        chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
+    // size_t newChunkCount = size, alreadyLoadedChunkCount = size;
+    // Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
+    // Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
+    //                                                        pChunkPosUnloaded, &newChunkCount,
+    //                                                        pChunkPosLoaded, &alreadyLoadedChunkCount);
 
-        for (size_t i = 0; i < newChunkCount; i++)
-        {
-            Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, ppNewChunks[i]->chunkPos);
-            ChunkRemeshCtx_t *pCtx = remeshContext_create(ppNewChunks[i], ppNeighbors);
-            chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx);
-            free(ppNeighbors);
+    // if (ppNewChunks)
+    // {
+    //     // Permanently load these because this is spawn
+    //     chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
 
-            // chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
-        }
-    }
-
-    // free(pPoints);
-    // free(pChunkPosLoaded);
-    // free(pChunkPosUnloaded);
+    //     for (size_t i = 0; i < newChunkCount; i++)
+    //     {
+    //         Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, ppNewChunks[i]->chunkPos);
+    //         ChunkRemeshCtx_t *pCtx = remeshContext_create(ppNewChunks[i], ppNeighbors);
+    //         chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx);
+    //         free(ppNeighbors);
+    //     }
+    // }
 }
 #pragma endregion
 #pragma region Create

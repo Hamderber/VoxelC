@@ -139,10 +139,8 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     if (!pState || !pState->pWorldState || !pChunk || !pChunk->pBlockVoxels || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
         return false;
 
-    // Destroy previous renderer to avoid dangling pointers etc.
-    if (pChunk->pRenderChunk)
-        chunk_renderDestroy(pState, pChunk->pRenderChunk);
-
+    // look into moving the getting neighbor out of here and into the dequeue or at least verify that all neighbors are tracked.
+    // im concerned that they arent tracked when multiple are loaded at the same time and such
     Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, pChunk->chunkPos);
     if (!ppNeighbors)
         return false;
@@ -207,7 +205,8 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
         free(ppNeighbors);
 
         // Meshing succeeded and nothing to draw (full chunk and surrounded)
-        pChunk->pRenderChunk = NULL;
+        if (pChunk->pRenderChunk)
+            pChunk->pRenderChunk->indexCount = 0;
         return true;
     }
     // Shrink to used size <= max allocation
@@ -218,40 +217,97 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     if (!pFinalIndices)
         pFinalIndices = pIndices;
 
-    RenderChunk_t *pRenderChunk = malloc(sizeof(RenderChunk_t));
-    pRenderChunk->queuedForRemesh = false;
+    RenderChunk_t *pRenderChunk = pChunk->pRenderChunk;
     if (!pRenderChunk)
     {
-        free(pFinalVerts);
-        free(pFinalIndices);
+        pRenderChunk = malloc(sizeof(RenderChunk_t));
+        if (!pRenderChunk)
+        {
+            free(pFinalVerts);
+            free(pFinalIndices);
+            free(ppNeighbors);
+            return false;
+        }
+
+        memset(pRenderChunk, 0, sizeof(*pRenderChunk));
+
+        uint32_t vCapacity = vertexCursor < 256 ? 256 : vertexCursor;
+        uint32_t iCapacity = indexCursor < 256 ? 256 : indexCursor;
+
+        vertexBuffer_createEmpty(pState, vCapacity, &pRenderChunk->vertexBuffer, &pRenderChunk->vertexMemory);
+        indexBuffer_createEmpty(pState, iCapacity, &pRenderChunk->indexBuffer, &pRenderChunk->indexMemory);
+
+        pRenderChunk->vertexCapacity = vCapacity;
+        pRenderChunk->indexCapacity = iCapacity;
+
+        vertexBuffer_updateFromData_Voxel(pState, pFinalVerts, vertexCursor, pRenderChunk->vertexBuffer);
+        indexBuffer_updateFromData_Voxel(pState, pFinalIndices, indexCursor, pRenderChunk->indexBuffer);
+
+        pRenderChunk->indexCount = indexCursor;
+        pChunk->pRenderChunk = pRenderChunk;
+
+        Vec3f_t worldPosition = cmath_vec3i_to_vec3f(chunkPos_to_worldOrigin(pChunk->chunkPos));
+        chunk_placeRenderInWorld(pChunk->pRenderChunk, &worldPosition);
+    }
+    else if (vertexCursor <= pRenderChunk->vertexCapacity && indexCursor <= pRenderChunk->indexCapacity)
+    {
+        vertexBuffer_updateFromData_Voxel(pState, pFinalVerts, vertexCursor, pRenderChunk->vertexBuffer);
+        indexBuffer_updateFromData_Voxel(pState, pFinalIndices, indexCursor, pRenderChunk->indexBuffer);
+
+        pRenderChunk->indexCount = indexCursor;
+    }
+    else if (vertexCursor > pRenderChunk->vertexCapacity || indexCursor > pRenderChunk->indexCapacity)
+    {
+        uint32_t newVCap = pRenderChunk->vertexCapacity;
+        while (newVCap < vertexCursor)
+            newVCap = newVCap ? newVCap * 2 : vertexCursor;
+
+        uint32_t newICap = pRenderChunk->indexCapacity;
+        while (newICap < indexCursor)
+            newICap = newICap ? newICap * 2 : indexCursor;
+
+        VkBuffer oldVB = pRenderChunk->vertexBuffer;
+        VkDeviceMemory oldVM = pRenderChunk->vertexMemory;
+        VkBuffer oldIB = pRenderChunk->indexBuffer;
+        VkDeviceMemory oldIM = pRenderChunk->indexMemory;
+
+        pRenderChunk->vertexCapacity = newVCap;
+        pRenderChunk->indexCapacity = newICap;
+
+        vertexBuffer_createEmpty(pState, newVCap, &pRenderChunk->vertexBuffer, &pRenderChunk->vertexMemory);
+        indexBuffer_createEmpty(pState, newICap, &pRenderChunk->indexBuffer, &pRenderChunk->indexMemory);
+
+        pRenderChunk->vertexCapacity = newVCap;
+        pRenderChunk->indexCapacity = newICap;
+
+        renderGC_pushGarbage(pState->renderer.currentFrame, oldVB, oldVM);
+        renderGC_pushGarbage(pState->renderer.currentFrame, oldIB, oldIM);
+
+        vertexBuffer_updateFromData_Voxel(pState, pFinalVerts, vertexCursor, pRenderChunk->vertexBuffer);
+        indexBuffer_updateFromData_Voxel(pState, pFinalIndices, indexCursor, pRenderChunk->indexBuffer);
+
+        pRenderChunk->indexCount = indexCursor;
+    }
+    else
+    {
+        // This should never happen
+        logs_log(LOG_ERROR, "Reached a theoretically impossible location in createMesh (chunk)!");
         free(ppNeighbors);
         return false;
     }
 
-    vertexBuffer_createFromData_Voxel(pState, pFinalVerts, vertexCursor,
-                                      &pRenderChunk->vertexBuffer,
-                                      &pRenderChunk->vertexMemory);
-
-    indexBuffer_createFromData_Voxel(pState, pFinalIndices, indexCursor,
-                                     &pRenderChunk->indexBuffer,
-                                     &pRenderChunk->indexMemory);
-
-    pRenderChunk->indexCount = indexCursor;
-
     free(pFinalVerts);
     free(pFinalIndices);
-
-    pChunk->pRenderChunk = pRenderChunk;
-
-    Vec3f_t worldPosition = cmath_vec3i_to_vec3f(chunkPos_to_worldOrigin(pChunk->chunkPos));
-    chunk_placeRenderInWorld(pChunk->pRenderChunk, &worldPosition);
 
     created++;
 
     // Dirty loaded neighbors to update their mesh. This allows for updating chunk boundaries
     ChunkRemeshCtx_t *pCtx = remeshContext_create(pChunk, ppNeighbors);
     if (!pCtx || !chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx))
+    {
+        free(ppNeighbors);
         return false;
+    }
 
     free(ppNeighbors);
 
