@@ -1,8 +1,7 @@
 #pragma once
 #include "world/worldState_t.h"
-#include "rendering/types/chunkRemeshCtx_t.h"
 
-bool chunkRenderer_enqueueRemesh(WorldState_t *restrict pWorldState, ChunkRemeshCtx_t *restrict pCtx);
+bool chunkRenderer_enqueueRemesh(WorldState_t *restrict pWorldState, Chunk_t *restrict pChunk);
 
 void chunkRenderer_remeshChunks(State_t *pState);
 

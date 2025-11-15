@@ -14,7 +14,7 @@ typedef struct DynamicStack_t
 } DynamicStack_t;
 #pragma endregion
 #pragma region Operations
-static inline bool dynamicStack_push(DynamicStack_t *pStack, void *pData)
+static inline bool dynamicStack_push(DynamicStack_t *restrict pStack, void *restrict pData)
 {
     if (!pStack || !pStack->ppCollection || !pData)
         return false;
@@ -32,6 +32,18 @@ static inline bool dynamicStack_push(DynamicStack_t *pStack, void *pData)
 
     pStack->ppCollection[pStack->index++] = pData;
     return true;
+}
+
+static inline bool dynamicStack_pushUnique(DynamicStack_t *restrict pStack, void *restrict pData)
+{
+    if (!pStack || !pStack->ppCollection || !pData)
+        return false;
+
+    for (size_t i = 0; i < pStack->index; i++)
+        if (pStack->ppCollection[i] == pData)
+            return false;
+
+    return dynamicStack_push(pStack, pData);
 }
 
 static inline void *dynamicStack_pop(DynamicStack_t *pStack)

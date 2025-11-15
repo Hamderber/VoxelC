@@ -12,7 +12,9 @@
 #include "rendering/chunk/chunkRenderer.h"
 #include "rendering/renderGC.h"
 
-void chunkRendering_drawChunks(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout)
+static const uint32_t MINIMUM_COLLECTION_SIZE = 256;
+
+void chunkRendering_drawChunks(State_t *restrict pState, VkCommandBuffer *restrict pCmd, VkPipelineLayout *restrict pPipelineLayout)
 {
     if (!pState || !pState->pWorldState || !pState->pWorldState->pChunksLL || !pCmd || !pPipelineLayout)
         return;
@@ -41,14 +43,13 @@ void chunkRendering_drawChunks(State_t *pState, VkCommandBuffer *pCmd, VkPipelin
     }
 }
 
-void chunk_placeRenderInWorld(RenderChunk_t *chunk, Vec3f_t *position)
+void chunk_placeRenderInWorld(RenderChunk_t *restrict pChunk, Vec3f_t *restrict pWorldPosition)
 {
-    chunk->modelMatrix = cmath_mat_rotate(MAT4_IDENTITY, 0.0F, VEC3F_Y_AXIS);
-    chunk->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, *position);
+    pChunk->modelMatrix = cmath_mat_rotate(MAT4_IDENTITY, 0.0F, VEC3F_Y_AXIS);
+    pChunk->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, *pWorldPosition);
 }
 
-static size_t destroyed = 0;
-void chunk_renderDestroy(State_t *pState, RenderChunk_t *pRenderChunk)
+void chunk_renderDestroy(State_t *restrict pState, RenderChunk_t *restrict pRenderChunk)
 {
     if (!pRenderChunk)
         return;
@@ -56,7 +57,6 @@ void chunk_renderDestroy(State_t *pState, RenderChunk_t *pRenderChunk)
     renderGC_pushGarbage(pState->renderer.currentFrame, pRenderChunk->vertexBuffer, pRenderChunk->vertexMemory);
     renderGC_pushGarbage(pState->renderer.currentFrame, pRenderChunk->indexBuffer, pRenderChunk->indexMemory);
 
-    destroyed++;
     free(pRenderChunk);
 }
 
@@ -132,15 +132,12 @@ static bool emit_face(const Chunk_t **restrict ppNeighbors, const Vec3u8_t *rest
     return result;
 }
 
-static size_t created = 0;
 bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINTS, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
                        const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, Chunk_t *restrict pChunk)
 {
     if (!pState || !pState->pWorldState || !pChunk || !pChunk->pBlockVoxels || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
         return false;
 
-    // look into moving the getting neighbor out of here and into the dequeue or at least verify that all neighbors are tracked.
-    // im concerned that they arent tracked when multiple are loaded at the same time and such
     Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, pChunk->chunkPos);
     if (!ppNeighbors)
         return false;
@@ -231,8 +228,8 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
 
         memset(pRenderChunk, 0, sizeof(*pRenderChunk));
 
-        uint32_t vCapacity = vertexCursor < 256 ? 256 : vertexCursor;
-        uint32_t iCapacity = indexCursor < 256 ? 256 : indexCursor;
+        uint32_t vCapacity = vertexCursor < MINIMUM_COLLECTION_SIZE ? MINIMUM_COLLECTION_SIZE : vertexCursor;
+        uint32_t iCapacity = indexCursor < MINIMUM_COLLECTION_SIZE ? MINIMUM_COLLECTION_SIZE : indexCursor;
 
         vertexBuffer_createEmpty(pState, vCapacity, &pRenderChunk->vertexBuffer, &pRenderChunk->vertexMemory);
         indexBuffer_createEmpty(pState, iCapacity, &pRenderChunk->indexBuffer, &pRenderChunk->indexMemory);
@@ -298,25 +295,8 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
 
     free(pFinalVerts);
     free(pFinalIndices);
-
-    created++;
-
-    // Dirty loaded neighbors to update their mesh. This allows for updating chunk boundaries
-    ChunkRemeshCtx_t *pCtx = remeshContext_create(pChunk, ppNeighbors);
-    if (!pCtx || !chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx))
-    {
-        free(ppNeighbors);
-        return false;
-    }
-
     free(ppNeighbors);
 
     return true;
-}
-#pragma endregion
-#pragma region Const/Destructor
-void chunkRendering_debug(void)
-{
-    logs_log(LOG_DEBUG, "Meshes created: %d, Destroyed: %d", created, destroyed);
 }
 #pragma endregion

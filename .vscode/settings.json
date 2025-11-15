@@ -82,6 +82,7 @@
         "random": "c",
         "worldstate_t.h": "c",
         "dynamicqueue_t.h": "c",
-        "chunkremeshctx_t.h": "c"
+        "chunkremeshctx_t.h": "c",
+        "chunkmanager.h": "c"
     }
 }

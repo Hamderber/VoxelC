@@ -16,7 +16,7 @@
 #pragma endregion
 #pragma region Add Chunk to Col.
 static size_t addedChunks = 0;
-void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk)
+void world_chunk_addToCollection(State_t *restrict pState, Chunk_t *restrict pChunk)
 {
     if (!pState || !pChunk)
         return;
@@ -51,12 +51,7 @@ static void spawn_generate(State_t *pState)
         chunkManager_chunk_permanentlyLoad(pState, ppNewChunks, newChunkCount);
 
         for (size_t i = 0; i < newChunkCount; i++)
-        {
-            Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, ppNewChunks[i]->chunkPos);
-            ChunkRemeshCtx_t *pCtx = remeshContext_create(ppNewChunks[i], ppNeighbors);
-            chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx);
-            free(ppNeighbors);
-        }
+            chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
     }
 }
 
@@ -83,35 +78,25 @@ void world_loop(State_t *pState)
 }
 #pragma endregion
 #pragma region Load
-void world_chunks_load(State_t *pState, Entity_t *pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
+void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
 {
-    pState;
-    pLoadingEntity;
-    CHUNK_POS;
-    RADIUS;
+    size_t size;
+    Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
 
-    // size_t size;
-    // Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
+    size_t newChunkCount = size, alreadyLoadedChunkCount = size;
+    Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
+    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
+                                                           pChunkPosUnloaded, &newChunkCount,
+                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
 
-    // size_t newChunkCount = size, alreadyLoadedChunkCount = size;
-    // Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
-    // Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
-    //                                                        pChunkPosUnloaded, &newChunkCount,
-    //                                                        pChunkPosLoaded, &alreadyLoadedChunkCount);
+    if (ppNewChunks)
+    {
+        // Permanently load these because this is spawn
+        chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
 
-    // if (ppNewChunks)
-    // {
-    //     // Permanently load these because this is spawn
-    //     chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
-
-    //     for (size_t i = 0; i < newChunkCount; i++)
-    //     {
-    //         Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, ppNewChunks[i]->chunkPos);
-    //         ChunkRemeshCtx_t *pCtx = remeshContext_create(ppNewChunks[i], ppNeighbors);
-    //         chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx);
-    //         free(ppNeighbors);
-    //     }
-    // }
+        for (size_t i = 0; i < newChunkCount; i++)
+            chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
+    }
 }
 #pragma endregion
 #pragma region Create
@@ -149,7 +134,6 @@ void world_destroy(State_t *pState)
     vkDeviceWaitIdle(pState->context.device);
 
     chunkManager_destroy(pState);
-    chunkRendering_debug();
 
     pState->pWorldState = NULL;
 }

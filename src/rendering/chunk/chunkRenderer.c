@@ -2,21 +2,29 @@
 #include <stdbool.h>
 #include "core/types/state_t.h"
 #include "world/worldState_t.h"
-#include "rendering/types/chunkRemeshCtx_t.h"
 #include "collection/dynamicStack_t.h"
 #include "rendering/chunk/chunkRendering.h"
+#include "world/chunkManager.h"
 #pragma endregion
 #pragma region Defines
 #define DEFAULT_QUEUE_SIZE 32
 #define MAX_REMESH_PER_FRAME 1
 #pragma endregion
 #pragma region Operations
-bool chunkRenderer_enqueueRemesh(WorldState_t *restrict pWorldState, ChunkRemeshCtx_t *restrict pCtx)
+bool chunkRenderer_enqueueRemesh(WorldState_t *restrict pWorldState, Chunk_t *restrict pChunk)
 {
-    if (!pWorldState || !pWorldState->chunkRenderer.pRemeshCtxQueue || !pCtx)
+    if (!pWorldState || !pWorldState->chunkRenderer.pRemeshCtxQueue || !pChunk)
         return false;
 
-    dynamicStack_push(pWorldState->chunkRenderer.pRemeshCtxQueue, pCtx);
+    RenderChunk_t *pRenderChunk = pChunk->pRenderChunk;
+
+    // Avoid duplicates
+    if (pRenderChunk && pRenderChunk->queuedForRemesh)
+        return true;
+
+    if (dynamicStack_pushUnique(pWorldState->chunkRenderer.pRemeshCtxQueue, pChunk))
+        if (pRenderChunk)
+            pRenderChunk->queuedForRemesh = true;
 
     return true;
 }
@@ -28,16 +36,19 @@ static bool chunkRenderer_dequeueRemesh(State_t *restrict pState, const Vec3u8_t
     if (!pState || !pState->pWorldState || !pState->pWorldState->chunkRenderer.pRemeshCtxQueue)
         return false;
 
-    ChunkRemeshCtx_t *pCtx = (ChunkRemeshCtx_t *)dynamicStack_pop(pState->pWorldState->chunkRenderer.pRemeshCtxQueue);
-    if (!pCtx || !pCtx->pChunk || !pCtx->ppLoadedNeighbors)
+    Chunk_t *pChunk = (Chunk_t *)dynamicStack_pop(pState->pWorldState->chunkRenderer.pRemeshCtxQueue);
+    if (!pChunk)
         return false;
 
-    Chunk_t *pChunk = pCtx->pChunk;
     chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pChunk);
 
-    for (uint8_t i = 0; i < pCtx->loadedNeighborCount; i++)
+    Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, pChunk->chunkPos);
+    if (!ppNeighbors)
+        return false;
+
+    for (uint8_t i = 0; i < 6; i++)
     {
-        Chunk_t *pN = pCtx->ppLoadedNeighbors[i];
+        Chunk_t *pN = ppNeighbors[i];
         if (pN)
             chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pN);
     }
@@ -45,7 +56,7 @@ static bool chunkRenderer_dequeueRemesh(State_t *restrict pState, const Vec3u8_t
     if (pChunk->pRenderChunk)
         pChunk->pRenderChunk->queuedForRemesh = false;
 
-    remeshContext_destroy(pCtx);
+    free(ppNeighbors);
     return true;
 }
 
@@ -88,7 +99,4 @@ void chunkRenderer_destroy(WorldState_t *pWorldState)
 
     dynamicStack_destroy(pWorldState->chunkRenderer.pRemeshCtxQueue);
 }
-#pragma endregion
-#pragma region Undefines
-
 #pragma endregion
