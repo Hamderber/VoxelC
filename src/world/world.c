@@ -12,6 +12,7 @@
 #include "core/random.h"
 #include "world/chunkManager.h"
 #include "chunkGenerator.h"
+#include "rendering/chunk/chunkRenderer.h"
 #pragma endregion
 #pragma region Add Chunk to Col.
 static size_t addedChunks = 0;
@@ -44,21 +45,28 @@ static void spawn_generate(State_t *pState)
                                                            pChunkPosUnloaded, &newChunkCount,
                                                            pChunkPosLoaded, &alreadyLoadedChunkCount);
 
-    const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
-    Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
-    bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
+    // const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
+    // Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
+    // bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
     if (ppNewChunks)
     {
         // Permanently load these because this is spawn
         chunkManager_chunk_permanentlyLoad(pState, ppNewChunks, newChunkCount);
 
         for (size_t i = 0; i < newChunkCount; i++)
-            chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
+        {
+            Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, ppNewChunks[i]->chunkPos);
+            ChunkRemeshCtx_t *pCtx = remeshContext_create(ppNewChunks[i], ppNeighbors);
+            chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx);
+            free(ppNeighbors);
+
+            // chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
+        }
     }
 
-    free(pPoints);
-    free(pChunkPosLoaded);
-    free(pChunkPosUnloaded);
+    // free(pPoints);
+    // free(pChunkPosLoaded);
+    // free(pChunkPosUnloaded);
 }
 
 static void world_chunks_init(State_t *pState)
@@ -74,6 +82,15 @@ static void world_chunks_init(State_t *pState)
     spawn_generate(pState);
 }
 #pragma endregion
+#pragma region Loop
+void world_loop(State_t *pState)
+{
+    if (!pState || !pState->pWorldState)
+        return;
+
+    chunkRenderer_remeshChunks(pState);
+}
+#pragma endregion
 #pragma region Load
 void world_chunks_load(State_t *pState, Entity_t *pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
 {
@@ -86,27 +103,36 @@ void world_chunks_load(State_t *pState, Entity_t *pLoadingEntity, const Vec3i_t 
                                                            pChunkPosUnloaded, &newChunkCount,
                                                            pChunkPosLoaded, &alreadyLoadedChunkCount);
 
-    const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
-    Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
-    bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
+    // const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
+    // Vec3u8_t *pNEIGHBOR_BLOCK_POS = cmath_chunk_blockNeighborPoints_Get();
+    // bool *pNEIGHBOR_BLOCK_IN_CHUNK = cmath_chunk_blockNeighborPointsInChunkBool_Get();
     if (ppNewChunks)
     {
         // Permanently load these because this is spawn
         chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
 
         for (size_t i = 0; i < newChunkCount; i++)
-            chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
+        {
+            Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, ppNewChunks[i]->chunkPos);
+            ChunkRemeshCtx_t *pCtx = remeshContext_create(ppNewChunks[i], ppNeighbors);
+            chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx);
+            free(ppNeighbors);
+
+            // chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, ppNewChunks[i]);
+        }
     }
 
-    free(pPoints);
-    free(pChunkPosLoaded);
-    free(pChunkPosUnloaded);
+    // free(pPoints);
+    // free(pChunkPosLoaded);
+    // free(pChunkPosUnloaded);
 }
 #pragma endregion
 #pragma region Create
 static void init(State_t *pState)
 {
     pState->pWorldState = calloc(1, sizeof(WorldState_t));
+
+    chunkRenderer_create(pState->pWorldState);
 
     pState->pWorldState->world.pPlayer = character_create(pState, CHARACTER_TYPE_PLAYER);
     world_chunks_init(pState);

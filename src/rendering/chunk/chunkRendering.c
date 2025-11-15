@@ -9,6 +9,8 @@
 #include "rendering/buffers/index_buffer.h"
 #include "rendering/buffers/vertex_buffer.h"
 #include "rendering/uvs.h"
+#include "rendering/chunk/chunkRenderer.h"
+#include "rendering/renderGC.h"
 
 void chunkRendering_drawChunks(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout)
 {
@@ -51,31 +53,8 @@ void chunk_renderDestroy(State_t *pState, RenderChunk_t *pRenderChunk)
     if (!pRenderChunk)
         return;
 
-    const VkDevice device = pState->context.device;
-    const VkAllocationCallbacks *alloc = pState->context.pAllocator;
-
-    // Destroy buffers first, then free memory they were bound to
-    if (pRenderChunk->vertexBuffer != VK_NULL_HANDLE)
-    {
-        vkDestroyBuffer(device, pRenderChunk->vertexBuffer, alloc);
-        pRenderChunk->vertexBuffer = VK_NULL_HANDLE;
-    }
-    if (pRenderChunk->vertexMemory != VK_NULL_HANDLE)
-    {
-        vkFreeMemory(device, pRenderChunk->vertexMemory, alloc);
-        pRenderChunk->vertexMemory = VK_NULL_HANDLE;
-    }
-
-    if (pRenderChunk->indexBuffer != VK_NULL_HANDLE)
-    {
-        vkDestroyBuffer(device, pRenderChunk->indexBuffer, alloc);
-        pRenderChunk->indexBuffer = VK_NULL_HANDLE;
-    }
-    if (pRenderChunk->indexMemory != VK_NULL_HANDLE)
-    {
-        vkFreeMemory(device, pRenderChunk->indexMemory, alloc);
-        pRenderChunk->indexMemory = VK_NULL_HANDLE;
-    }
+    renderGC_pushGarbage(pState->renderer.currentFrame, pRenderChunk->vertexBuffer, pRenderChunk->vertexMemory);
+    renderGC_pushGarbage(pState->renderer.currentFrame, pRenderChunk->indexBuffer, pRenderChunk->indexMemory);
 
     destroyed++;
     free(pRenderChunk);
@@ -157,7 +136,7 @@ static size_t created = 0;
 bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINTS, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
                        const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, Chunk_t *restrict pChunk)
 {
-    if (!pState || !pChunk || !pChunk->pBlockVoxels || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
+    if (!pState || !pState->pWorldState || !pChunk || !pChunk->pBlockVoxels || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
         return false;
 
     // Destroy previous renderer to avoid dangling pointers etc.
@@ -178,6 +157,7 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     {
         free(pVertices);
         free(pIndices);
+        free(ppNeighbors);
         return false;
     }
 
@@ -224,12 +204,10 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     {
         free(pVertices);
         free(pIndices);
+        free(ppNeighbors);
 
-        pChunk->pRenderChunk = NULL;
         // Meshing succeeded and nothing to draw (full chunk and surrounded)
-        //         logs_log(LOG_DEBUG, "Render chunk is NULL for chunk at (%d, %d, %d) because it is entirely solid with loaded neighbors. \
-        // (Nothing to render).",
-        //  pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z);
+        pChunk->pRenderChunk = NULL;
         return true;
     }
     // Shrink to used size <= max allocation
@@ -241,10 +219,12 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
         pFinalIndices = pIndices;
 
     RenderChunk_t *pRenderChunk = malloc(sizeof(RenderChunk_t));
+    pRenderChunk->queuedForRemesh = false;
     if (!pRenderChunk)
     {
         free(pFinalVerts);
         free(pFinalIndices);
+        free(ppNeighbors);
         return false;
     }
 
@@ -267,6 +247,14 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     chunk_placeRenderInWorld(pChunk->pRenderChunk, &worldPosition);
 
     created++;
+
+    // Dirty loaded neighbors to update their mesh. This allows for updating chunk boundaries
+    ChunkRemeshCtx_t *pCtx = remeshContext_create(pChunk, ppNeighbors);
+    if (!pCtx || !chunkRenderer_enqueueRemesh(pState->pWorldState, pCtx))
+        return false;
+
+    free(ppNeighbors);
+
     return true;
 }
 #pragma endregion

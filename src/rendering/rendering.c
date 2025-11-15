@@ -32,6 +32,7 @@
 #include "rendering/types/renderModel_t.h"
 #include "scene/scene.h"
 #include "rendering/model_3d.h"
+#include "rendering/renderGC.h"
 #pragma endregion
 #pragma region Wireframe
 /// @brief Toggle wireframe pipeline
@@ -156,6 +157,8 @@ void rendering_create(State_t *pState)
     // Command buffers and sync last
     commandBuffer_create(pState);
     syncObjects_create(pState);
+
+    renderGC_init(pState);
 }
 #pragma endregion
 #pragma region Destroy

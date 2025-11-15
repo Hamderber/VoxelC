@@ -7,6 +7,7 @@
 #include "core/vk_instance.h"
 #include "gui/window.h"
 #include "core/crash_handler.h"
+#include "rendering/renderGC.h"
 #pragma endregion
 #pragma region Presentation
 void swapchain_image_acquireNext(State_t *pState)
@@ -27,6 +28,8 @@ void swapchain_image_acquireNext(State_t *pState)
             logs_log(LOG_ERROR, "Failed to wait for in-flight fence (frame %" PRIu32 ")", FRAME_INDEX);
             break;
         }
+
+        renderGC_flushGarbage(pState, FRAME_INDEX);
 
         VkFence fence = VK_NULL_HANDLE;
         VkResult result = vkAcquireNextImageKHR(pState->context.device, pState->window.swapchain.handle, IMAGE_TIMEOUT,

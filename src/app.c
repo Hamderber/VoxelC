@@ -19,6 +19,8 @@
 #include "rendering/model_3d.h"
 #include "core/randomNoise.h"
 #include "cmath/weightedMaps.h"
+#include "rendering/chunk/chunkRenderer.h"
+#include "rendering/renderGC.h"
 
 void app_init(State_t *restrict pState)
 {
@@ -86,6 +88,7 @@ void app_loop_main(State_t *restrict pState)
 
     while (!win_shouldClose(&pState->window))
     {
+        world_loop(pState);
         phys_loop(pState);
         app_loop_render(pState);
         // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
@@ -96,6 +99,8 @@ void app_cleanup(State_t *restrict pState)
 {
     scene_destroy(pState);
     world_destroy(pState);
+
+    renderGC_destroy(pState);
 
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
     // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.

@@ -56,7 +56,7 @@ static Chunk_t **chunks_getChunks(State_t *restrict pSTATE, const Vec3i_t *restr
         return NULL;
     }
 
-    Chunk_t **ppChunks = malloc(sizeof(Chunk_t *) * numChunkPos);
+    Chunk_t **ppChunks = calloc(numChunkPos, sizeof(Chunk_t *));
     if (!ppChunks)
     {
         *pCount = 0;
@@ -103,7 +103,7 @@ static Chunk_t **chunks_getChunks(State_t *restrict pSTATE, const Vec3i_t *restr
 
 Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
 {
-    Chunk_t **ppChunks = malloc(sizeof(Chunk_t *) * CUBE_FACE_COUNT);
+    Chunk_t **ppChunks = calloc(6, sizeof(Chunk_t *));
     if (!ppChunks)
         return NULL;
 
@@ -129,7 +129,6 @@ static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const BlockDefiniti
 
     pChunk->pBlockVoxels = calloc(CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
     pChunk->chunkPos = CHUNK_POS;
-    pChunk->pRenderChunk = NULL;
 
     if (!chunkGen_genChunk(pSTATE, pBLOCK_DEFINITIONS, pChunk))
         return NULL;
@@ -266,6 +265,7 @@ Chunk_t **chunkManager_chunk_createBatch(State_t *restrict pState, const Vec3i_t
     {
         ppNewChunks[i] = chunk_voxels_allocate(pState, pBLOCK_DEFINITIONS, pChunkPosUnloaded[i]);
         ppNewChunks[i]->pEntitiesLoadingChunkLL = linkedList_root();
+        ppNewChunks[i]->pRenderChunk = NULL;
         world_chunk_addToCollection(pState, ppNewChunks[i]);
     }
 

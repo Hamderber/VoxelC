@@ -79,6 +79,9 @@
         "chunk.h": "c",
         "cmath.h": "c",
         "uvs.h": "c",
-        "random": "c"
+        "random": "c",
+        "worldstate_t.h": "c",
+        "dynamicqueue_t.h": "c",
+        "chunkremeshctx_t.h": "c"
     }
 }
