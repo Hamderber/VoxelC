@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include "core/logs.h"
 #pragma endregion
 #pragma region Defines
 /// @brief PI definition (double)
@@ -89,17 +90,26 @@ static const Mat4c_t MAT4_IDENTITY = {
     },
 };
 
-static const Vec3f_t VEC3_ONE = {1.0F, 1.0F, 1.0F};
-static const Vec3f_t VEC3_NEG_ONE = {-1.0F, -1.0F, -1.0F};
-static const Vec3f_t VEC3_ZERO = {0.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_ONE = {1.0F, 1.0F, 1.0F};
+static const Vec3f_t VEC3F_NEG_ONE = {-1.0F, -1.0F, -1.0F};
+static const Vec3f_t VEC3F_ZERO = {0.0F, 0.0F, 0.0F};
+static const Vec3i_t VEC3I_ONE = {1, 1, 1};
+static const Vec3i_t VEC3I_NEG_ONE = {-1, -1, -1};
+static const Vec3i_t VEC3I_ZERO = {0, 0, 0};
 #pragma region Directions
-static const Vec3f_t VEC3_RIGHT = {1.0F, 0.0F, 0.0F};
-static const Vec3f_t VEC3_LEFT = {-1.0F, 0.0F, 0.0F};
-static const Vec3f_t VEC3_UP = {0.0F, 1.0F, 0.0F};
-static const Vec3f_t VEC3_DOWN = {0.0F, -1.0F, 0.0F};
+static const Vec3f_t VEC3F_RIGHT = {1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_LEFT = {-1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_UP = {0.0F, 1.0F, 0.0F};
 /// @brief Vulkan/GLM/OpenGL convention is -z is "looking forward"
-static const Vec3f_t VEC3_FORWARD = {0.0F, 0.0F, -1.0F};
-static const Vec3f_t VEC3_BACK = {0.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3F_FORWARD = {0.0F, 0.0F, -1.0F};
+static const Vec3f_t VEC3F_BACK = {0.0F, 0.0F, 1.0F};
+static const Vec3i_t VEC3F_DOWN = {0, -1, 0};
+static const Vec3i_t VEC3I_RIGHT = {1, 0, 0};
+static const Vec3i_t VEC3I_LEFT = {-1, 0, 0};
+static const Vec3i_t VEC3I_UP = {0, 1, 0};
+static const Vec3i_t VEC3I_DOWN = {0, -1, 0};
+static const Vec3i_t VEC3I_FORWARD = {0, 0, -1};
+static const Vec3i_t VEC3I_BACK = {0, 0, 1};
 #pragma endregion
 #pragma region Colors
 static const Vec3f_t COLOR_RED = {1.0F, 0.0F, 0.0F};
@@ -113,9 +123,9 @@ static const Vec3f_t COLOR_MAGENTA = {1.0F, 0.0F, 1.0F};
 static const Vec3f_t COLOR_GRAY = {0.5F, 0.5F, 0.5F};
 #pragma endregion
 #pragma region Axes
-static const Vec3f_t VEC3_X_AXIS = {1.0F, 0.0F, 0.0F};
-static const Vec3f_t VEC3_Y_AXIS = {0.0F, 1.0F, 0.0F};
-static const Vec3f_t VEC3_Z_AXIS = {0.0F, 0.0F, 1.0F};
+static const Vec3f_t VEC3F_X_AXIS = {1.0F, 0.0F, 0.0F};
+static const Vec3f_t VEC3F_Y_AXIS = {0.0F, 1.0F, 0.0F};
+static const Vec3f_t VEC3F_Z_AXIS = {0.0F, 0.0F, 1.0F};
 #pragma endregion
 #pragma region Rendering
 static const Vec3f_t VEC3_VOXEL_FRONT_BOT_LEFT = {0.0F, 0.0F, 1.0F};
@@ -325,6 +335,18 @@ static inline Vec3i_t cmath_vec3f_to_vec3i(const Vec3f_t VEC3)
     return (Vec3i_t){(int)VEC3.x, (int)VEC3.y, (int)VEC3.z};
 }
 
+/// @brief converts vec3i to vec3f
+static inline Vec3f_t cmath_vec3i_to_vec3f(const Vec3i_t VEC3)
+{
+    return (Vec3f_t){(float)VEC3.x, (float)VEC3.y, (float)VEC3.z};
+}
+
+/// @brief converts vec3u8 to vec3i
+static inline Vec3i_t cmath_vec3u8_to_vec3i(const Vec3u8_t VEC3)
+{
+    return (Vec3i_t){(int)VEC3.x, (int)VEC3.y, (int)VEC3.z};
+}
+
 /// @brief True if all axes of the passed vector are 0.0F
 static inline bool cmath_vec3f_isZero(Vec3f_t vec3)
 {
@@ -359,10 +381,20 @@ static inline Vec3f_t cmath_vec3f_mult_scalarF(Vec3f_t vec3, float scalar)
     };
 }
 
-/// @brief Adds the axes of the left and right vector into one new vector
+/// @brief Adds the axes of the left and right vector into one new vector (float)
 static inline Vec3f_t cmath_vec3f_add_vec3f(Vec3f_t left, Vec3f_t right)
 {
     return (Vec3f_t){
+        .x = left.x + right.x,
+        .y = left.y + right.y,
+        .z = left.z + right.z,
+    };
+}
+
+/// @brief Adds the axes of the left and right vector into one new vector (int)
+static inline Vec3i_t cmath_vec3i_add_vec3i(Vec3i_t left, Vec3i_t right)
+{
+    return (Vec3i_t){
         .x = left.x + right.x,
         .y = left.y + right.y,
         .z = left.z + right.z,
@@ -382,7 +414,7 @@ static inline Vec3f_t cmath_vec3f_normalize(Vec3f_t vec3)
 
     // Avoid divide by zero
     if (length < CMATH_EPSILON_F)
-        return VEC3_ZERO;
+        return VEC3F_ZERO;
 
     return cmath_vec3f_mult_scalarF(vec3, 1.0F / length);
 }
@@ -585,7 +617,7 @@ static inline void cmath_quat_toAxisAngle(Quaternionf_t q, Vec3f_t *axis, float 
     if (sinHalfAngle < CMATH_EPSILON_F)
     {
         // Angle is zero so arbitrary axis
-        *axis = VEC3_RIGHT;
+        *axis = VEC3F_RIGHT;
         *angle = 0.0F;
     }
     else
@@ -888,7 +920,7 @@ static inline Mat4c_t cmath_lookAt(Vec3f_t eye, Vec3f_t center, Vec3f_t up)
     else
     {
         // Fallback forward
-        f = VEC3_FORWARD;
+        f = VEC3F_FORWARD;
     }
 
     // Normalize up
@@ -903,7 +935,7 @@ static inline Mat4c_t cmath_lookAt(Vec3f_t eye, Vec3f_t center, Vec3f_t up)
     else
     {
         // Fallback (use back)
-        upN = VEC3_BACK;
+        upN = VEC3F_BACK;
     }
 
     // Compute right vector (s = f × up)
@@ -921,7 +953,7 @@ static inline Mat4c_t cmath_lookAt(Vec3f_t eye, Vec3f_t center, Vec3f_t up)
     else
     {
         // Fallback right
-        s = VEC3_RIGHT;
+        s = VEC3F_RIGHT;
     }
 
     // Recompute orthogonal up vector
@@ -975,7 +1007,157 @@ static inline Mat4c_t cmath_perspective(float fovYRad, float aspect, float nearC
     return result;
 }
 #pragma endregion
+#pragma region Geometry
+/// @brief How many faces are on a cube
+#define CMATH_GEOM_CUBE_FACES 6
+#pragma endregion
+#pragma region Chunk
+// This shall NEVER change
+static const uint16_t CHUNK_AXIS_LENGTH = 16;
+// 16x16x16
+static const uint32_t CHUNK_BLOCK_CAPACITY = 4096;
+#define LXYZ_MASK_4 0x0FU
+#define LXYZ_SHIFT_X 8U
+#define LXYZ_SHIFT_Y 4U
+#define LXYZ_SHIFT_Z 0U
+
+/// @brief Capacity of pCHUNK_POINTS (const)
+static const size_t CMATH_CHUNK_POINTS_COUNT = 4096;
+/// @brief Capacity of pCMATH_CHUNK_POINTS_PACKED (const)
+static const size_t CMATH_CHUNK_POINTS_PACKED_COUNT = 4096;
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
+static const size_t CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT = 168;
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
+static const size_t CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT = 1176;
+/// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
+static const size_t CMATH_CHUNK_CORNER_POINT_COUNT = 8;
+/// @brief Capacity of pCHUNK_INNER_POINTS (const)
+static const size_t CMATH_CHUNK_INNER_POINTS_COUNT = 2744;
+/// @brief Capcity of pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS (const)
+static const size_t CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_COUNT = 24576;
+/// @brief Capcity of pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL (const)
+static const size_t CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL_COUNT = 24576;
+
+// Written to be accessed using CubeFace enum
+static const Vec3i_t pCMATH_CUBE_NEIGHBOR_OFFSETS[6] = {{-1, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+
+/// @brief Converts a block's x y z (local space) to the packed12 (flags = 0)
+static inline uint16_t blockPos_pack_localXYZ(const uint8_t LOCAL_X, const uint8_t LOCAL_Y, const uint8_t LOCAL_Z)
+{
+    return (uint16_t)((LOCAL_X & LXYZ_MASK_4) << LXYZ_SHIFT_X) |
+           (uint16_t)((LOCAL_Y & LXYZ_MASK_4) << LXYZ_SHIFT_Y) |
+           (uint16_t)((LOCAL_Z & LXYZ_MASK_4) << LXYZ_SHIFT_Z);
+}
+
+static inline uint8_t cmath_chunkBlockPosPackedGetLocal_x(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_X) & LXYZ_MASK_4); }
+static inline uint8_t cmath_chunkBlockPosPackedGetLocal_y(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Y) & LXYZ_MASK_4); }
+static inline uint8_t cmath_chunkBlockPosPackedGetLocal_z(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Z) & LXYZ_MASK_4); }
+
+/// @brief Converts a block's x y z (local space) to block index in the chunk
+static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, const uint8_t Z)
+{
+    return X * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH + Y * CHUNK_AXIS_LENGTH + Z;
+}
+
+/// @brief Gets the neighbor chunk positions of the passed pos. Size 6 heap-allocated array.
+Vec3i_t *cmath_chunk_chunkNeighborPos_get(const Vec3i_t CHUNK_POS);
+
+/// @brief Gets a heap-allocated array of unique chunk positions for the neighbors of all chunk positions in pCHUNK_POS.
+/// This does NOT include any positions in the original pCHUNK_POS set.
+Vec3i_t *cmath_chunk_GetNeighborsPosUnique_get(const Vec3i_t *restrict pCHUNK_POS, const size_t NUM_POS, size_t *restrict pOutCount);
+
+/// @brief The array of positions in the chunk local space (Vec3u8_t).
+Vec3u8_t *cmath_chunkPoints_Get(void);
+/// @brief The array of positions in the chunk packed (uint16_t).
+uint16_t *cmath_chunkPointsPacked_Get(void);
+/// @brief The array of chunk shell corners (Vec3u8_t).
+Vec3u8_t *cmath_chunkCornerPoints_Get(void);
+/// @brief The array of positions in the chunk shell edges. The outer edges of the chunk face minus corners. The inner faces of the shell are skipped (Vec3u8_t).
+Vec3u8_t *cmath_chunkShellEdgePoints_Get(void);
+/// @brief The array of positions in the chunk minus shell edges (Vec3u8_t). The inner points of the chunk.
+Vec3u8_t *cmath_chunkInnerPoints_Get(void);
+/// @brief The array of positions in the chunk shell without borders (Vec3u8_t).
+Vec3u8_t *cmath_chunkShellBorderlessPoints_Get(void);
+static inline size_t cmath_blockNeighborIndex(size_t i, int face) { return i * 6 + face; }
+/// @brief The array of positions of block neighbors for a chunk (Vec3u8_t).
+Vec3u8_t *cmath_chunk_blockNeighborPoints_Get(void);
+bool *cmath_chunk_blockNeighborPointsInChunkBool_Get(void);
+#pragma endregion
 #pragma region Algorithms
+/// @brief Returns an array of positions in the shell of the cube formed around origin and radius. Puts size of array in pSize.
+/// The border is skipped.
+static Vec3i_t *cmath_algo_cubicShellNoBorder(const Vec3i_t ORIGIN, int radius, size_t *pSize)
+{
+    if (!pSize)
+        return NULL;
+
+    const size_t R = (size_t)cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
+
+    const size_t COUNT = (R > 0) ? (size_t)(12 * (2 * R - 1)) : 0;
+    if (COUNT == 0)
+    {
+        *pSize = 0;
+        return NULL;
+    }
+
+    Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
+    if (!pResult)
+        return NULL;
+
+    if (radius == 0)
+    {
+        pResult[0] = ORIGIN;
+        *pSize = (size_t)COUNT;
+        return pResult;
+    }
+
+    const int MIN_Y = ORIGIN.y - radius;
+    const int MAX_Y = ORIGIN.y + radius;
+
+    const int MIN_Z = ORIGIN.z - radius;
+    const int MAX_Z = ORIGIN.z + radius;
+
+    const int MIN_X = ORIGIN.x - radius;
+    const int MAX_X = ORIGIN.x + radius;
+
+    size_t index = 0;
+    // vertical edges (exclude vertices)
+    for (int y = MIN_Y + 1; y <= MAX_Y - 1; ++y)
+    {
+        pResult[index++] = (Vec3i_t){MIN_X, y, MIN_Z};
+        pResult[index++] = (Vec3i_t){MIN_X, y, MAX_Z};
+        pResult[index++] = (Vec3i_t){MAX_X, y, MIN_Z};
+        pResult[index++] = (Vec3i_t){MAX_X, y, MAX_Z};
+    }
+
+    // 4 top edges (exclude corners)
+    for (int x = MIN_X + 1; x <= MAX_X - 1; ++x)
+    {
+        pResult[index++] = (Vec3i_t){x, MAX_Y, MIN_Z};
+        pResult[index++] = (Vec3i_t){x, MAX_Y, MAX_Z};
+    }
+    for (int z = MIN_Z + 1; z <= MAX_Z - 1; ++z)
+    {
+        pResult[index++] = (Vec3i_t){MIN_X, MAX_Y, z};
+        pResult[index++] = (Vec3i_t){MAX_X, MAX_Y, z};
+    }
+
+    // 4 bottom edges (exclude corners)
+    for (int x = MIN_X + 1; x <= MAX_X - 1; ++x)
+    {
+        pResult[index++] = (Vec3i_t){x, MIN_Y, MIN_Z};
+        pResult[index++] = (Vec3i_t){x, MIN_Y, MAX_Z};
+    }
+    for (int z = MIN_Z + 1; z <= MAX_Z - 1; ++z)
+    {
+        pResult[index++] = (Vec3i_t){MIN_X, MIN_Y, z};
+        pResult[index++] = (Vec3i_t){MAX_X, MIN_Y, z};
+    }
+
+    *pSize = COUNT;
+    return pResult;
+}
+
 /// @brief Returns an array of positions in the shell of the cube formed around origin and radius. Puts size of array in pSize.
 static Vec3i_t *cmath_algo_cubicShell(const Vec3i_t ORIGIN, int radius, size_t *pSize)
 {
@@ -985,6 +1167,11 @@ static Vec3i_t *cmath_algo_cubicShell(const Vec3i_t ORIGIN, int radius, size_t *
     const size_t R = (size_t)cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
     // shell (surface area) = volume - volume of (r-1) => (2r+1)^3 - (2r-1)^3 = 24r^2+2
     const size_t COUNT = R > 0 ? 24ULL * R * R + 2ULL : 1ULL;
+    if (COUNT == 0)
+    {
+        *pSize = 0;
+        return NULL;
+    }
 
     Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
     if (!pResult)
@@ -1053,6 +1240,11 @@ static Vec3i_t *cmath_algo_expandingCubicShell(const Vec3i_t ORIGIN, int radius,
     const size_t R = cmath_clampI(abs(radius), 0, CMATH_MAX_INT);
     // width = r + 1 + r => volume = width ^3 => volume = (2r+1)^3 where r E [0, MAX_INT]
     const size_t COUNT = R > 0 ? (R * 2ULL + 1ULL) * (R * 2ULL + 1ULL) * (R * 2ULL + 1ULL) : 1ULL;
+    if (COUNT == 0)
+    {
+        *pSize = 0;
+        return NULL;
+    }
 
     Vec3i_t *pResult = (Vec3i_t *)malloc(sizeof(Vec3i_t) * COUNT);
     if (!pResult)
@@ -1081,4 +1273,10 @@ static Vec3i_t *cmath_algo_expandingCubicShell(const Vec3i_t ORIGIN, int radius,
     *pSize = index;
     return pResult;
 }
+#pragma endregion
+#pragma region Init
+/// @brief Pre-calculate unchanging constants (no lazy math)
+void cmath_instantiate(void);
+/// @brief Frees baked maths
+void cmath_destroy(void);
 #pragma endregion

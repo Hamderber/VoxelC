@@ -6,7 +6,7 @@
 typedef struct Character_t
 {
     struct Entity_t *pEntity;
-    enum CharacterType_t type;
+    enum CharacterType_e type;
     // This does NOT include the null terminator
     size_t nameLength;
     char *pName;

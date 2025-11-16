@@ -42,191 +42,77 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
     }
     return NULL;
 }
-#pragma endregion
-#pragma region Create Mesh
-static bool chunk_mesh_create(State_t *pState, Chunk_t *pChunk)
+
+Chunk_t **chunkManager_getChunks(const State_t *restrict pSTATE, const Vec3i_t *restrict pCHUNK_POS, const size_t numChunkPos,
+                                 size_t *restrict pCount, const bool RESIZE)
 {
-    // TODO: Make neighbor check get the chunk adjacencies only once instead of per block (huge performance boost)
-    if (!pState || !pChunk || !pChunk->pBlockVoxels)
-        return false;
-
-    // max faces in a chunk possible (all transparent faces like glass)
-    const size_t MAX_VERTEX_COUNT = (size_t)CHUNK_BLOCK_CAPACITY * FACE_COUNT * VERTS_PER_FACE;
-    const size_t MAX_INDEX_COUNT = (size_t)CHUNK_BLOCK_CAPACITY * FACE_COUNT * INDICIES_PER_FACE;
-
-    ShaderVertexVoxel_t *pVertices = calloc(MAX_VERTEX_COUNT, sizeof(ShaderVertexVoxel_t));
-    uint32_t *pIndices = calloc(MAX_INDEX_COUNT, sizeof(uint32_t));
-    if (!pVertices || !pIndices)
+    if (!pSTATE || !pCHUNK_POS || !pCount)
     {
-        free(pVertices);
-        free(pIndices);
-        free(pChunk->pBlockVoxels);
-        free(pChunk);
-        return false;
+        if (pCount)
+            *pCount = 0;
+        return NULL;
     }
 
-    size_t vertexCursor = 0;
-    size_t indexCursor = 0;
+    Chunk_t **ppChunks = calloc(numChunkPos, sizeof(Chunk_t *));
+    if (!ppChunks)
+    {
+        *pCount = 0;
+        return NULL;
+    }
 
-    for (uint8_t x = 0; x < CHUNK_AXIS_LENGTH; x++)
-        for (uint8_t y = 0; y < CHUNK_AXIS_LENGTH; y++)
-            for (uint8_t z = 0; z < CHUNK_AXIS_LENGTH; z++)
+    size_t index = 0;
+
+    // cheaper to iterate chunk pos as main loop because the collection of chunks is bigger than the collection of points
+    for (size_t i = 0; i < numChunkPos; i++)
+    {
+        for (LinkedList_t *pNode = pSTATE->pWorldState->pChunksLL; pNode; pNode = pNode->pNext)
+        {
+            if (!pNode->pData)
+                continue;
+
+            Chunk_t *pC = (Chunk_t *)pNode->pData;
+            const int TOLERANCE = 0;
+            if (cmath_vec3i_equals(pC->chunkPos, pCHUNK_POS[i], TOLERANCE))
             {
-                const BlockDefinition_t *pBLOCK = pChunk->pBlockVoxels[xyz_to_chunkBlockIndex(x, y, z)].pBLOCK_DEFINITION;
-
-                if (pBLOCK->BLOCK_ID == BLOCK_ID_AIR)
-                    continue;
-
-#pragma region Neighbor Check
-                for (int face = 0; face < FACE_COUNT; ++face)
+                bool chunkIsLoaded = chunk_isLoaded(pSTATE, pCHUNK_POS[i]);
+                if (chunkIsLoaded)
                 {
-                    CubeFace_t cubeFace = (CubeFace_t)face;
-                    int nx = (int)x + spNEIGHBOR_OFFSETS[cubeFace].x;
-                    int ny = (int)y + spNEIGHBOR_OFFSETS[cubeFace].y;
-                    int nz = (int)z + spNEIGHBOR_OFFSETS[cubeFace].z;
-
-                    bool neighborInChunk =
-                        nx >= 0 && ny >= 0 && nz >= 0 &&
-                        nx < (int)CHUNK_AXIS_LENGTH &&
-                        ny < (int)CHUNK_AXIS_LENGTH &&
-                        nz < (int)CHUNK_AXIS_LENGTH;
-
-                    BlockVoxel_t neighbor = {0};
-                    bool drawFace = true;
-
-                    if (neighborInChunk)
-                    {
-                        neighbor = chunkManager_getBlock(pChunk, (Vec3u8_t){(uint8_t)nx, (uint8_t)ny, (uint8_t)nz});
-                        if (neighbor.pBLOCK_DEFINITION->BLOCK_RENDER_TYPE == BLOCK_RENDER_SOLID)
-                            drawFace = false;
-                    }
-                    else
-                    {
-                        // Determine which adjacent chunk this face crosses into
-                        Vec3i_t neighborChunkPos = pChunk->chunkPos;
-                        if (nx < 0)
-                            neighborChunkPos.x -= 1;
-                        else if (nx >= (int)CHUNK_AXIS_LENGTH)
-                            neighborChunkPos.x += 1;
-
-                        if (ny < 0)
-                            neighborChunkPos.y -= 1;
-                        else if (ny >= (int)CHUNK_AXIS_LENGTH)
-                            neighborChunkPos.y += 1;
-
-                        if (nz < 0)
-                            neighborChunkPos.z -= 1;
-                        else if (nz >= (int)CHUNK_AXIS_LENGTH)
-                            neighborChunkPos.z += 1;
-
-                        // Get pointer to that chunk (NULL if not loaded)
-                        logs_log(LOG_DEBUG, "Checking neighbor of chunk (%d, %d, %d) at (%d, %d, %d).",
-                                 pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z,
-                                 neighborChunkPos.x, neighborChunkPos.y, neighborChunkPos.z);
-                        Chunk_t *pNeighborChunk = chunkManager_getChunk(pState, neighborChunkPos);
-                        if (pNeighborChunk)
-                        {
-                            // Prevent out of bounds
-                            Vec3u8_t localPos = {
-                                (uint8_t)(nx + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH,
-                                (uint8_t)(ny + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH,
-                                (uint8_t)(nz + CHUNK_AXIS_LENGTH) % CHUNK_AXIS_LENGTH};
-
-                            neighbor = chunkManager_getBlock(pNeighborChunk, localPos);
-
-                            // drawing even if neighbor is a block (but transparent)
-                            if (neighbor.pBLOCK_DEFINITION->BLOCK_RENDER_TYPE == BLOCK_RENDER_SOLID)
-                                drawFace = false;
-                        }
-                    }
-
-                    if (!drawFace)
-                        continue;
-#pragma endregion
-#pragma region Face Creation
-                    const FaceTexture_t TEX = pBLOCK->pFACE_TEXTURES[face];
-                    const AtlasRegion_t *pATLAS_REGION = &pState->renderer.pAtlasRegions[TEX.atlasIndex];
-                    const Vec3f_t BASE_POS = {(float)x, (float)y, (float)z};
-
-                    // Copy per-face vertices
-                    for (int v = 0; v < VERTS_PER_FACE; ++v)
-                    {
-                        ShaderVertexVoxel_t vert = {0};
-                        vert.pos = cmath_vec3f_add_vec3f(BASE_POS, pFACE_POSITIONS[face][v]);
-                        vert.color = COLOR_WHITE;
-                        vert.atlasIndex = TEX.atlasIndex;
-                        vert.faceID = face;
-                        pVertices[vertexCursor + v] = vert;
-                    }
-
-                    assignFaceUVs(pVertices, vertexCursor, pATLAS_REGION, TEX.rotation);
-
-                    pIndices[indexCursor + 0] = (uint32_t)(vertexCursor + 0);
-                    pIndices[indexCursor + 1] = (uint32_t)(vertexCursor + 1);
-                    pIndices[indexCursor + 2] = (uint32_t)(vertexCursor + 3);
-                    pIndices[indexCursor + 3] = (uint32_t)(vertexCursor + 0);
-                    pIndices[indexCursor + 4] = (uint32_t)(vertexCursor + 3);
-                    pIndices[indexCursor + 5] = (uint32_t)(vertexCursor + 2);
-
-                    vertexCursor += VERTS_PER_FACE;
-                    indexCursor += INDICIES_PER_FACE;
+                    ppChunks[index++] = pC;
+                    break;
                 }
             }
-
-    if (indexCursor == 0 || vertexCursor == 0)
-    {
-        free(pVertices);
-        free(pIndices);
-
-        pChunk->pRenderChunk = NULL;
-        // Meshing succeeded and nothing to draw (full chunk and surrounded)
-        return true;
-    }
-#pragma endregion
-#pragma region RenderChunk
-    // Shrink to used size <= max allocation
-    ShaderVertexVoxel_t *pFinalVerts = realloc(pVertices, sizeof(ShaderVertexVoxel_t) * vertexCursor);
-    uint32_t *pFinalIndices = realloc(pIndices, sizeof(uint32_t) * indexCursor);
-    if (!pFinalVerts)
-        pFinalVerts = pVertices;
-    if (!pFinalIndices)
-        pFinalIndices = pIndices;
-
-    vertexBuffer_createFromData_Voxel(pState, pFinalVerts, (uint32_t)vertexCursor);
-    indexBuffer_createFromData(pState, pFinalIndices, (uint32_t)indexCursor);
-
-    RenderChunk_t *pRenderChunk = calloc(1, sizeof(RenderChunk_t));
-    if (!pRenderChunk)
-    {
-        free(pFinalVerts);
-        free(pFinalIndices);
-        free(pChunk->pBlockVoxels);
-        free(pChunk);
-        return false;
+        }
     }
 
-    pRenderChunk->vertexBuffer = pState->renderer.vertexBuffer;
-    pRenderChunk->vertexMemory = pState->renderer.vertexBufferMemory;
-    pRenderChunk->indexBuffer = pState->renderer.indexBuffer;
-    pRenderChunk->indexMemory = pState->renderer.indexBufferMemory;
-    pRenderChunk->indexCount = (uint32_t)indexCursor;
+    if (RESIZE)
+    {
+        ppChunks = realloc(ppChunks, sizeof(Chunk_t *) * index);
+        if (!ppChunks)
+        {
+            *pCount = 0;
+            free(ppChunks);
+            ppChunks = NULL;
+            return NULL;
+        }
+    }
 
-    free(pFinalVerts);
-    free(pFinalIndices);
+    *pCount = index;
 
-    pChunk->pRenderChunk = pRenderChunk;
-
-    Vec3f_t worldPosition = {
-        .x = pChunk->chunkPos.x * (float)CHUNK_AXIS_LENGTH,
-        .y = pChunk->chunkPos.y * (float)CHUNK_AXIS_LENGTH,
-        .z = pChunk->chunkPos.z * (float)CHUNK_AXIS_LENGTH,
-    };
-
-    chunk_placeRenderInWorld(pChunk->pRenderChunk, &worldPosition);
-
-    return true;
+    return ppChunks;
 }
-#pragma endregion
+
+Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
+{
+    Vec3i_t *pPOS = cmath_chunk_chunkNeighborPos_get(CHUNK_POS);
+    if (!pPOS)
+        return NULL;
+
+    size_t count;
+    Chunk_t **ppChunks = chunkManager_getChunks(pSTATE, pPOS, CMATH_GEOM_CUBE_FACES, &count, false);
+
+    free(pPOS);
+    return ppChunks;
+}
 #pragma endregion
 #pragma region Allocate Voxels
 static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const BlockDefinition_t *const *pBLOCK_DEFINITIONS, const Vec3i_t CHUNK_POS)
@@ -245,115 +131,243 @@ static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const BlockDefiniti
 }
 #pragma endregion
 #pragma region Create Chunk
-/// @brief Iterates the provided chunk positions and returns a heap array of non-loaded chunks positions from that collection.
-/// Places the size of that collection into pSize
-static Vec3i_t *chunks_getUnloadedPos(State_t *pState, const Vec3i_t *pCHUNK_POS, size_t *pSize)
+/// @brief Iterates the provided chunk positions and returns a heap array of chunk positions matching query from that collection.
+/// Places the length of that collection into pCount
+static bool chunks_getChunksPos(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
+                                Vec3i_t **restrict ppUnloadedPos, size_t *restrict pUnloadedCount,
+                                Vec3i_t **restrict ppLoadedPos, size_t *restrict pLoadedCount, const ChunkQuery_e QUERY)
 {
-    size_t index = 0;
-    Vec3i_t *pPos = calloc(*pSize, sizeof(Vec3i_t));
-    for (size_t i = 0; i < *pSize; i++)
+    if (!pState || !pCHUNK_POS || !pLoadedCount || !pUnloadedCount)
     {
-        if (!chunk_isLoaded(pState, pCHUNK_POS[i]))
-            pPos[index++] = pCHUNK_POS[i];
+        *pLoadedCount = 0;
+        *pUnloadedCount = 0;
+        return false;
     }
 
-    pPos = realloc(pPos, sizeof(Vec3i_t) * index);
-    *pSize = index;
-    return pPos;
+    switch (QUERY)
+    {
+    case QUERY_CHUNK_LOADED:
+        *ppLoadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+
+        if (!*ppLoadedPos)
+        {
+            *pLoadedCount = 0;
+            *pUnloadedCount = 0;
+            return false;
+        }
+        break;
+    case QUERY_CHUNK_UNLOADED:
+        *ppUnloadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+
+        if (!*ppUnloadedPos)
+        {
+            *pLoadedCount = 0;
+            *pUnloadedCount = 0;
+            return false;
+        }
+        break;
+    case QUERY_CHUNK_LOADED_AND_UNLOADED:
+        *ppLoadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+        *ppUnloadedPos = calloc(COUNT_MAX, sizeof(Vec3i_t));
+
+        if (!*ppLoadedPos || !*ppUnloadedPos)
+        {
+            *pLoadedCount = 0;
+            *pUnloadedCount = 0;
+            return false;
+        }
+        break;
+    default:
+        return false;
+        break;
+    }
+
+    size_t loadedCount = 0;
+    size_t unloadedCount = 0;
+    bool fail = false;
+    do
+    {
+        for (size_t i = 0; i < COUNT_MAX && !fail; i++)
+        {
+            bool chunkIsLoaded = chunk_isLoaded(pState, pCHUNK_POS[i]);
+            switch (QUERY)
+            {
+            case QUERY_CHUNK_LOADED:
+                if (chunkIsLoaded)
+                    (*ppLoadedPos)[loadedCount++] = pCHUNK_POS[i];
+                break;
+            case QUERY_CHUNK_UNLOADED:
+                if (!chunkIsLoaded)
+                    (*ppUnloadedPos)[unloadedCount++] = pCHUNK_POS[i];
+                break;
+            case QUERY_CHUNK_LOADED_AND_UNLOADED:
+                if (chunkIsLoaded)
+                    (*ppLoadedPos)[loadedCount++] = pCHUNK_POS[i];
+                else
+                    (*ppUnloadedPos)[unloadedCount++] = pCHUNK_POS[i];
+                break;
+            default:
+                fail = true;
+                break;
+            }
+        }
+
+        if (fail)
+            break;
+
+        *ppLoadedPos = realloc(*ppLoadedPos, sizeof(Vec3i_t) * loadedCount);
+        *ppUnloadedPos = realloc(*ppUnloadedPos, sizeof(Vec3i_t) * unloadedCount);
+        *pLoadedCount = loadedCount;
+        *pUnloadedCount = unloadedCount;
+
+        return true;
+    } while (0);
+
+    free(*ppLoadedPos);
+    free(*ppUnloadedPos);
+    *pLoadedCount = 0;
+    *pUnloadedCount = 0;
+
+    logs_log(LOG_ERROR, "Failed to query chunk(s)!");
+
+    return false;
 }
 
-bool chunkManager_chunk_createBatch(State_t *pState, const Vec3i_t *pCHUNK_POS, size_t count, Entity_t *pLoadingEntity)
+Chunk_t **chunkManager_chunk_createBatch(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
+                                         Vec3i_t *restrict pChunkPosUnloaded, size_t *restrict pUnloadedCount,
+                                         Vec3i_t *restrict pChunkPosLoaded, size_t *restrict pLoadedCount)
 {
-    if (!pState || !pCHUNK_POS || count == 0)
+    if (!pState || !pCHUNK_POS)
+        return NULL;
+
+    chunks_getChunksPos(pState, pCHUNK_POS, COUNT_MAX,
+                        &pChunkPosUnloaded, pUnloadedCount,
+                        &pChunkPosLoaded, pLoadedCount, QUERY_CHUNK_LOADED_AND_UNLOADED);
+
+    Chunk_t **ppNewChunks = calloc(*pUnloadedCount, sizeof(Chunk_t *));
+    const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();
+    if (!ppNewChunks || !pBLOCK_DEFINITIONS)
+    {
+        logs_log(LOG_ERROR, "Failed to allocate memory for new chunnks!");
+        *pUnloadedCount = 0;
+        free(ppNewChunks);
+        ppNewChunks = NULL;
+        return NULL;
+    }
+
+    for (size_t i = 0; i < *pUnloadedCount; i++)
+    {
+        ppNewChunks[i] = chunk_voxels_allocate(pState, pBLOCK_DEFINITIONS, pChunkPosUnloaded[i]);
+        ppNewChunks[i]->pEntitiesLoadingChunkLL = linkedList_root();
+        ppNewChunks[i]->pRenderChunk = NULL;
+        world_chunk_addToCollection(pState, ppNewChunks[i]);
+    }
+
+    return ppNewChunks;
+}
+
+bool chunkManager_chunk_addLoadingEntity(Chunk_t **ppChunks, size_t numChunks, Entity_t *pEntity)
+{
+    if (numChunks == 0)
         return false;
 
-    Vec3i_t *pPoints = chunks_getUnloadedPos(pState, pCHUNK_POS, &count);
-
-    Chunk_t **ppChunks = calloc(count, sizeof(Chunk_t *));
-    const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();
-
-    for (size_t i = 0; i < count; i++)
+    if (!ppChunks)
     {
-        ppChunks[i] = chunk_voxels_allocate(pState, pBLOCK_DEFINITIONS, pPoints[i]);
-        world_chunk_addToCollection(pState, ppChunks[i]);
+        logs_log(LOG_ERROR, "Attempted to add a loading entity to chunk(s) with an invalid collection of chunks!");
+        return false;
     }
 
-    for (size_t i = 0; i < count; i++)
+    if (!pEntity)
     {
-        // default player is loading the chunk
-        ppChunks[i]->pEntitiesLoadingChunkLL = calloc(1, sizeof(LinkedList_t));
-        const Vec3i_t CHUNK_POS = ppChunks[i]->chunkPos;
-        Entity_t *pEntity = pLoadingEntity ? pLoadingEntity : pState->pWorldState->pChunkLoadingEntity;
-        // logs_log(LOG_DEBUG, "Chunk (%d, %d, %d) is %sloaded. (Loading entity %p)",
-        //          CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z,
-        //          pLoadingEntity ? "" : "permanently ");
-
-        linkedList_data_add(&ppChunks[i]->pEntitiesLoadingChunkLL,
-                            // If no loading entity is passed, permanently chunk load it
-                            (void *)(pEntity));
+        logs_log(LOG_WARN, "Attempted to add a loading entity of NULL to chunk(s)! If you were trying to permanently load \
+chunk(s), use the correct (not this one) function for that instead.");
+        return false;
     }
 
-    // Blocks generated first so that neighbors can be accessed for mesh generation
-    for (size_t i = 0; i < count; i++)
-        chunk_mesh_create(pState, ppChunks[i]);
+    for (size_t i = 0; i < numChunks; i++)
+    {
+        if (ppChunks[i])
+            linkedList_data_add(&ppChunks[i]->pEntitiesLoadingChunkLL, (void *)(pEntity));
+        else
+        {
+            logs_log(LOG_ERROR, "Attempted to add a loading entity to a NULL chunk! That chunk was skipped.");
+            continue;
+        }
+    }
 
-    free(pPoints);
     return true;
 }
+
+bool chunkManager_chunk_permanentlyLoad(State_t *pState, Chunk_t **ppChunks, size_t numChunks)
+{
+    if (numChunks == 0)
+        return false;
+
+    if (!ppChunks)
+    {
+        logs_log(LOG_ERROR, "Attempted to permanently load an invalid collection of chunks!");
+        return false;
+    }
+
+    if (!pState || !pState->pWorldState || !pState->pWorldState->pChunkLoadingEntity)
+    {
+        logs_log(LOG_ERROR, "Attempted to permanently load chunk(s) with an invalid state reference!");
+        return false;
+    }
+
+    for (size_t i = 0; i < numChunks; i++)
+    {
+        if (ppChunks[i] && ppChunks[i]->pEntitiesLoadingChunkLL)
+            linkedList_data_addUnique(&ppChunks[i]->pEntitiesLoadingChunkLL, (void *)(pState->pWorldState->pChunkLoadingEntity));
+        else
+        {
+            logs_log(LOG_ERROR, "Attempted to permanently load a NULL chunk or a chunk with NULL members! That chunk was skipped.");
+            continue;
+        }
+    }
+
+    return true;
+}
+
 #pragma endregion
 #pragma region Destroy Chunk
-void chunk_linkedList_destroy(Chunk_t *pChunk)
+void chunk_entitiesLoadingLL_destroy(Chunk_t *pChunk)
 {
     if (!pChunk)
         return;
 
-    LinkedList_t *pRoot = pChunk->pEntitiesLoadingChunkLL;
+    linkedList_destroy(&pChunk->pEntitiesLoadingChunkLL, NULL, NULL);
+
     pChunk->pEntitiesLoadingChunkLL = NULL;
-
-    while (pRoot)
-    {
-        LinkedList_t *pNode = pRoot;
-        pRoot = pRoot->pNext;
-        pNode->pNext = NULL;
-        free(pNode);
-    }
 }
 
-void chunk_destroy(State_t *pState, Chunk_t *pChunk)
+void chunk_destroy(void *pCtx, Chunk_t *pChunk)
 {
-    if (!pState || !pChunk)
+    // Cast ctx to state so this can be used in a linked list destructor
+    if (!pCtx || !pChunk)
         return;
 
-    free(pChunk->pBlockVoxels);
-    chunk_linkedList_destroy(pChunk);
+    State_t *pState = (State_t *)pCtx;
     chunk_renderDestroy(pState, pChunk->pRenderChunk);
-}
-
-void chunkManager_linkedList_destroy(State_t *pState, LinkedList_t **ppChunksLL)
-{
-    if (!ppChunksLL || !*ppChunksLL)
-        return;
-
-    LinkedList_t *pCurrent = *ppChunksLL;
-    while (pCurrent)
-    {
-        LinkedList_t *pNext = pCurrent->pNext;
-        chunk_destroy(pState, (Chunk_t *)pCurrent->pData);
-        free(pCurrent);
-        pCurrent = pNext;
-    }
-
-    *ppChunksLL = NULL;
+    chunk_entitiesLoadingLL_destroy(pChunk);
+    free(pChunk->pBlockVoxels);
+    chunkSolidityGrid_destroy(pChunk->pTransparencyGrid);
 }
 #pragma endregion
 #pragma region Chunk (Un)Load
-bool chunk_isLoaded(State_t *pState, const Vec3i_t CHUNK_POS)
+bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
 {
-    return chunkManager_getChunk(pState, CHUNK_POS) != NULL;
+    // logs_log(LOG_DEBUG, "Checking if chunk (%d, %d, %d) is loaded.", CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
+    return chunkManager_getChunk(pSTATE, CHUNK_POS) != NULL;
 }
 
-EventResult_t player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
 {
+    // TODO: get unloaded chunks around player based off of simulation distance and load them
+    if (!pState || !pEvent || !pEvent->data.pGeneric)
+        return EVENT_RESULT_ERROR;
+
+    uint32_t simDist = pState->worldConfig.chunkSimulationDistance;
     pCtx;
 
     if (!pState || !pEvent)
@@ -367,6 +381,8 @@ EventResult_t player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
     Vec3i_t chunkPos = pChunk->chunkPos;
 
     logs_log(LOG_DEBUG, "Entity %p is now in chunk (%d, %d, %d).", pEntity, chunkPos.x, chunkPos.y, chunkPos.z);
+
+    world_chunks_load(pState, pEntity, chunkPos, simDist);
 
     return EVENT_RESULT_PASS;
 }
@@ -384,5 +400,7 @@ void chunkManager_create(State_t *pState)
 void chunkManager_destroy(State_t *pState)
 {
     events_unsubscribe(&pState->eventBus, EVENT_CHANNEL_CHUNK, player_onChunkChange);
+
+    linkedList_destroy(&pState->pWorldState->pChunksLL, chunk_destroy, pState);
 }
 #pragma endregion

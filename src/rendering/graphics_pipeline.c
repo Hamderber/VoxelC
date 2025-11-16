@@ -13,7 +13,7 @@
 #pragma endregion
 #pragma region Layout
 /// @brief Create info for the pipeline layout
-static void layout_createInfo_get(State_t *pState, const GraphicsPipeline_t GRAPHICS_PIPELINE, const GraphicsTarget_t TARGET,
+static void layout_createInfo_get(State_t *pState, const GraphicsPipeline_e GRAPHICS_PIPELINE, const GraphicsTarget_e TARGET,
                                   VkPipelineLayout *pLayout)
 {
     int crashLine = 0;
@@ -84,7 +84,7 @@ static void layout_createInfo_get(State_t *pState, const GraphicsPipeline_t GRAP
 #pragma endregion
 #pragma region Color Blend
 /// @brief Create info for the color blend state
-static void colorBlendState_createInfo_get(State_t *pState, const GraphicsPipeline_t GRAPHICS_PIPELINE,
+static void colorBlendState_createInfo_get(State_t *pState, const GraphicsPipeline_e GRAPHICS_PIPELINE,
                                            VkPipelineColorBlendAttachmentState *pColorBlendAttachmentStates,
                                            VkPipelineColorBlendStateCreateInfo *pCreateInfo)
 {
@@ -138,7 +138,7 @@ static void colorBlendState_createInfo_get(State_t *pState, const GraphicsPipeli
 #pragma endregion
 #pragma region Rasterization
 /// @brief Create info for the rasterization state
-static void rasterizationState_createInfo_get(State_t *pState, const GraphicsPipeline_t GRAPHICS_PIPELINE,
+static void rasterizationState_createInfo_get(State_t *pState, const GraphicsPipeline_e GRAPHICS_PIPELINE,
                                               VkPipelineRasterizationStateCreateInfo *pCreateInfo)
 {
     int crashLine = 0;
@@ -227,8 +227,8 @@ static void viewportState_createInfo_get(State_t *pState, VkViewport *pViewports
 #pragma region Shaders
 const char *pSHADER_FUNCTION_ENTRY_POINT = "main";
 /// @brief Load the shader for the graphics pipeline, target, and stage
-static void shader_load(State_t *pState, const GraphicsPipeline_t PIPELINE, const GraphicsTarget_t TARGET,
-                        const ShaderStage_t STAGE, VkShaderModule *pShaderModule)
+static void shader_load(State_t *pState, const GraphicsPipeline_e PIPELINE, const GraphicsTarget_e TARGET,
+                        const ShaderStage_e STAGE, VkShaderModule *pShaderModule)
 {
     ShaderBlob_t pVertexBlobs[GRAPHICS_TARGET_COUNT];
     pVertexBlobs[GRAPHICS_TARGET_MODEL] = (ShaderBlob_t){shaderVertCode, shaderVertCodeSize};
@@ -290,7 +290,7 @@ static void shader_load(State_t *pState, const GraphicsPipeline_t PIPELINE, cons
     }
 }
 
-static void shaderStage_createInfo_get(State_t *pState, const GraphicsPipeline_t PIPELINE, const GraphicsTarget_t TARGET,
+static void shaderStage_createInfo_get(State_t *pState, const GraphicsPipeline_e PIPELINE, const GraphicsTarget_e TARGET,
                                        VkPipelineShaderStageCreateInfo *pShaderStages, VkShaderModule *pVertexShaderModule,
                                        VkShaderModule *pFragmentShaderModule)
 {
@@ -326,7 +326,7 @@ static void shaderStage_createInfo_get(State_t *pState, const GraphicsPipeline_t
 }
 #pragma endregion
 #pragma region Create
-static void create(State_t *pState, const GraphicsPipeline_t PIPELINE, const GraphicsTarget_t TARGET)
+static void create(State_t *pState, const GraphicsPipeline_e PIPELINE, const GraphicsTarget_e TARGET)
 {
     VkShaderModule vertexShaderModule = {0};
     VkShaderModule fragmentShaderModule = {0};

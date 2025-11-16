@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum
+typedef enum TextureRotation_e
 {
     // default
     TEX_ROT_0 = 0,
@@ -10,4 +10,4 @@ typedef enum
     TEX_ROT_270 = 3,
     TEX_FLIP_X = 4,
     TEX_FLIP_Y = 5,
-} TextureRotation_t;
+} TextureRotation_e;

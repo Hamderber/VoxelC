@@ -1,10 +1,10 @@
 #pragma once
 
-typedef enum
+typedef enum SwapchainBuffering_e
 {
     SWAPCHAIN_BUFFERING_DEFAULT = 0,
     SWAPCHAIN_BUFFERING_SINGLE = 1,
     SWAPCHAIN_BUFFERING_DOUBLE = 2,
     SWAPCHAIN_BUFFERING_TRIPLE = 3,
     SWAPCHAIN_BUFFERING_QUADRUPLE = 4,
-} SwapchainBuffering_t;
+} SwapchainBuffering_e;

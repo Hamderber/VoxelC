@@ -32,6 +32,7 @@
 #include "rendering/types/renderModel_t.h"
 #include "scene/scene.h"
 #include "rendering/model_3d.h"
+#include "rendering/renderGC.h"
 #pragma endregion
 #pragma region Wireframe
 /// @brief Toggle wireframe pipeline
@@ -44,13 +45,13 @@ static void wireframe_toggle(State_t *pState)
         return;
     }
 
-    GraphicsPipeline_t current = pState->renderer.activeGraphicsPipeline;
-    GraphicsPipeline_t target = current == GRAPHICS_PIPELINE_MODEL_FILL ? GRAPHICS_PIPELINE_WIREFRAME : GRAPHICS_PIPELINE_MODEL_FILL;
+    GraphicsPipeline_e current = pState->renderer.activeGraphicsPipeline;
+    GraphicsPipeline_e target = current == GRAPHICS_PIPELINE_MODEL_FILL ? GRAPHICS_PIPELINE_WIREFRAME : GRAPHICS_PIPELINE_MODEL_FILL;
 
     pState->renderer.activeGraphicsPipeline = target;
 }
 
-EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (pEvent == NULL)
@@ -156,6 +157,8 @@ void rendering_create(State_t *pState)
     // Command buffers and sync last
     commandBuffer_create(pState);
     syncObjects_create(pState);
+
+    renderGC_init(pState);
 }
 #pragma endregion
 #pragma region Destroy

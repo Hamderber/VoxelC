@@ -37,7 +37,7 @@ void test_quaternion(void)
 
     // Pure yaw 90 deg about +Y. Forward (0,0,1) should go to +X.
     {
-        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3_UP);
+        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3F_UP);
         Mat4c_t m_full = cmath_quat2mat(q);
         Vec3f_t fwd = (Vec3f_t){0, 0, 1};
         Vec3f_t r_full = cmath_mat_transformByVec3(m_full, fwd);
@@ -47,7 +47,7 @@ void test_quaternion(void)
 
     // Pure pitch 90 deg about +X. Up (0,1,0) should go to +Z.
     {
-        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3_RIGHT);
+        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3F_RIGHT);
         Mat4c_t m_full = cmath_quat2mat(q);
         Vec3f_t up = (Vec3f_t){0, 1, 0};
         Vec3f_t r_full = cmath_mat_transformByVec3(m_full, up);
@@ -57,7 +57,7 @@ void test_quaternion(void)
 
     // Pure roll 90 deg about +Z
     {
-        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3_BACK);
+        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3F_BACK);
         Mat4c_t m_full = cmath_quat2mat(q);
         Vec3f_t right = (Vec3f_t){1, 0, 0};
         Vec3f_t r_full = cmath_mat_transformByVec3(m_full, right);
@@ -67,8 +67,8 @@ void test_quaternion(void)
 
     // Combined yaw then pitch. Compare quatRotateVec3 vs matrix transform.
     {
-        Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(30.0f), VEC3_UP);
-        Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(20.0f), VEC3_RIGHT);
+        Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(30.0f), VEC3F_UP);
+        Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(20.0f), VEC3F_RIGHT);
         Quaternionf_t q_full = cmath_quat_mult_quat(qYaw, qPitch);
         Vec3f_t v = (Vec3f_t){0.3f, -0.7f, 1.2f};
         Mat4c_t m_full = cmath_quat2mat(q_full);
@@ -88,7 +88,7 @@ void test_quaternion(void)
 
     // Inverse: q * q^-1 = identity
     {
-        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(45.0f), VEC3_RIGHT);
+        Quaternionf_t q = cmath_quat_fromAxisAngle(cmath_deg2radF(45.0f), VEC3F_RIGHT);
         Quaternionf_t qi = cmath_quat_inverse(q);
         Quaternionf_t id = cmath_quat_mult_quat(q, qi);
         fails += ut_assert(fabsf(id.qx) < EPS && fabsf(id.qy) < EPS && fabsf(id.qz) < EPS && fabsf(id.qw - 1.0f) < EPS,
@@ -97,8 +97,8 @@ void test_quaternion(void)
 
     // Multiplication non-commutativity
     {
-        Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3_UP);
-        Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3_RIGHT);
+        Quaternionf_t qYaw = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3F_UP);
+        Quaternionf_t qPitch = cmath_quat_fromAxisAngle(cmath_deg2radF(90.0f), VEC3F_RIGHT);
         Quaternionf_t a = cmath_quat_mult_quat(qYaw, qPitch);
         Quaternionf_t b = cmath_quat_mult_quat(qPitch, qYaw);
         int diff = (fabsf(a.qx - b.qx) > 1e-4f) || (fabsf(a.qy - b.qy) > 1e-4f) || (fabsf(a.qz - b.qz) > 1e-4f) || (fabsf(a.qw - b.qw) > 1e-4f);
@@ -139,7 +139,7 @@ void test_matrix(void)
 {
     // cmath_mat_rotate yaw 90 about +Y, both full and noRoll
     {
-        Mat4c_t r_full = cmath_mat_rotate(MAT4_IDENTITY, cmath_deg2radF(90.0f), VEC3_UP);
+        Mat4c_t r_full = cmath_mat_rotate(MAT4_IDENTITY, cmath_deg2radF(90.0f), VEC3F_UP);
         Vec3f_t fwd = (Vec3f_t){0, 0, 1};
         Vec3f_t a = cmath_mat_transformByVec3(r_full, fwd);
         fails += ut_assert(fabsf(a.x - 1.0f) < EPS_BIG && fabsf(a.z) < EPS_BIG,
@@ -148,7 +148,7 @@ void test_matrix(void)
 
     // cmath_mat_rotate pitch 90 about +X, both paths
     {
-        Mat4c_t r_full = cmath_mat_rotate(MAT4_IDENTITY, cmath_deg2radF(90.0f), VEC3_RIGHT);
+        Mat4c_t r_full = cmath_mat_rotate(MAT4_IDENTITY, cmath_deg2radF(90.0f), VEC3F_RIGHT);
         Vec3f_t up = (Vec3f_t){0, 1, 0};
         Vec3f_t a = cmath_mat_transformByVec3(r_full, up);
         fails += ut_assert(fabsf(a.z - 1.0f) < EPS_BIG && fabsf(a.y) < EPS_BIG,
@@ -157,7 +157,7 @@ void test_matrix(void)
 
     // cmath_mat_rotate roll 90 about +Z. Full rotates +X to +Y; noRoll ignores.
     {
-        Mat4c_t r_full = cmath_mat_rotate(MAT4_IDENTITY, cmath_deg2radF(90.0f), VEC3_BACK);
+        Mat4c_t r_full = cmath_mat_rotate(MAT4_IDENTITY, cmath_deg2radF(90.0f), VEC3F_BACK);
         Vec3f_t right = (Vec3f_t){1, 0, 0};
         Vec3f_t a = cmath_mat_transformByVec3(r_full, right);
         fails += ut_assert(fabsf(a.y - 1.0f) < EPS_BIG && fabsf(a.x) < EPS_BIG,

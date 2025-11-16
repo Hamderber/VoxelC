@@ -12,7 +12,7 @@ typedef struct
     int testValue;
 } EventTestPayload_t;
 
-static EventResult_t onGenericPass(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onGenericPass(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
@@ -23,7 +23,7 @@ static EventResult_t onGenericPass(struct State_t *state, Event_t *event, void *
     return EVENT_RESULT_PASS;
 }
 
-static EventResult_t onConsumeListener(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onConsumeListener(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
@@ -34,7 +34,7 @@ static EventResult_t onConsumeListener(struct State_t *state, Event_t *event, vo
     return EVENT_RESULT_PASS;
 }
 
-static EventResult_t onConsumeEvent(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onConsumeEvent(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
@@ -45,7 +45,7 @@ static EventResult_t onConsumeEvent(struct State_t *state, Event_t *event, void 
     return EVENT_RESULT_PASS;
 }
 
-static EventResult_t onIntentionalError(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onIntentionalError(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
@@ -66,10 +66,10 @@ static void eventTests_subscribe(State_t *state, EventBus_t *bus)
     events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onConsumeEvent, false, true, NULL);
     events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onIntentionalError, false, false, NULL);
 
-    EventSubscribeResult_t badSub = events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, NULL, false, false, NULL);
+    EventSubscribeResult_e badSub = events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, NULL, false, false, NULL);
     fails += ut_assert(badSub == EVENT_SUBSCRIBE_RESULT_FAIL, "Bad subscriber");
 
-    EventSubscribeResult_t badBus = events_subscribe(NULL, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
+    EventSubscribeResult_e badBus = events_subscribe(NULL, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
     fails += ut_assert(badBus == EVENT_SUBSCRIBE_RESULT_FAIL, "Bad event bus");
 
     payload.testValue = 1;

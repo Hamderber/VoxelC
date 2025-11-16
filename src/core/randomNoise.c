@@ -17,9 +17,9 @@ static const double STONE_WARP_OFF_Z = 73.73;
 
 /// @brief Samples stable domain-warped geological noise at world position.
 /// @return Smooth continuous noise value in [-1, 1].
-float randomNoise_stone_samplePackedPos(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_stone_samplePackedPos(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(pC->chunkPos, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -158,9 +158,9 @@ static const double WORM_WARP_OFF_X = 73.19;
 static const double WORM_WARP_OFF_Y = 19.47;
 static const double WORM_WARP_OFF_Z = 46.73;
 /// @brief Perlin-worm tunnels. Carves slender, windy tubes. [0, 1]
-float randomNoise_carve_stageWorms(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_carve_stageWorms(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(pC->chunkPos, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -225,9 +225,9 @@ static const double RAVINE_Y_CENTER_SCL = 0.00035;
 // how far up/down ravines can migrate (blocks)
 static const double RAVINE_Y_DRIFT_AMPL = 300.0;
 /// @brief Long chasms (huge) defined by 2D meanders with vertical shaping. [0, 1]
-float randomNoise_carve_stageRavinesHuge(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_carve_stageRavinesHuge(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(pC->chunkPos, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -283,10 +283,10 @@ float randomNoise_carve_stageRavinesHuge(const Chunk_t *pC, const uint16_t BLOCK
 }
 #pragma endregion
 #pragma region Carving Sample
-float randomNoise_carving_sampleXYZ(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_carving_sampleXYZ(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const float WORMS = randomNoise_carve_stageWorms(pC, BLOCK_POS_PACKED12);
-    const float RAVINES_HUGE = randomNoise_carve_stageRavinesHuge(pC, BLOCK_POS_PACKED12);
+    const float WORMS = randomNoise_carve_stageWorms(CHUNK_POS, BLOCK_POS_PACKED12);
+    const float RAVINES_HUGE = randomNoise_carve_stageRavinesHuge(CHUNK_POS, BLOCK_POS_PACKED12);
 
     const float ONE_MINUS_CARVE =
         (1.0F - cmath_clampF01(WORMS)) *

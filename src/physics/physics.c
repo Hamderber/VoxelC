@@ -50,7 +50,7 @@ void phys_applyRotationIntention(EntityDataPhysics_t *p, float dt)
                 p->rotation = cmath_quat_normalize(cmath_quat_mult_quat(dq, p->rotation));
         }
 
-        p->rotationIntentionEulerRad = VEC3_ZERO;
+        p->rotationIntentionEulerRad = VEC3F_ZERO;
     }
 
     // Per-frame quaternion delta (already time-scaled)
@@ -91,7 +91,7 @@ void phys_integrate(EntityDataPhysics_t *p, float dt)
     p->worldPosOld = p->worldPos;
     p->worldPos = cmath_vec3f_add_vec3f(p->worldPos, cmath_vec3f_mult_scalarF(p->velocity, dt));
 
-    p->transientAcceleration = VEC3_ZERO;
+    p->transientAcceleration = VEC3F_ZERO;
 }
 
 void phys_entityPhysicsApply(State_t *pState, float dt)
@@ -139,21 +139,24 @@ void phys_update(State_t *pState)
 
 void phys_loop(State_t *pState)
 {
-    double numPhysicsFrames = pState->time.fixedTimeAccumulated / pState->config.fixedTimeStep;
+    // If the world isn't loaded, don't do physics frames.
+    if (!pState || !pState->pWorldState || !pState->pWorldState->isLoaded)
+        return;
 
-    if (numPhysicsFrames > pState->config.maxPhysicsFrameDelay)
+    double numPhysicsFrames = phys_framesBehind_get(pState);
+
+    if (phys_isRunningBehind(pState))
     {
         // This is on the main thread, which means that it gets locked while the actual window resizing is taking place
-        logs_log(LOG_PHYSICS, "Physics is running %.lf frames behind! Skipping %.lf frames. If the window was just resized or moved, \
-this is expected behaviour.",
+        logs_log(LOG_PHYSICS, "Physics is running %.lf frames behind! Skipping %.lf frames.",
                  numPhysicsFrames, numPhysicsFrames - pState->config.maxPhysicsFrameDelay);
 
-        pState->time.fixedTimeAccumulated = pState->config.fixedTimeStep * pState->config.maxPhysicsFrameDelay;
+        pState->time.CPU_fixedTimeAccumulated = pState->config.fixedTimeStep * pState->config.maxPhysicsFrameDelay;
     }
 
-    while (pState->time.fixedTimeAccumulated >= pState->config.fixedTimeStep)
+    while (pState->time.CPU_fixedTimeAccumulated >= pState->config.fixedTimeStep)
     {
         phys_update(pState);
-        pState->time.fixedTimeAccumulated -= pState->config.fixedTimeStep;
+        pState->time.CPU_fixedTimeAccumulated -= pState->config.fixedTimeStep;
     }
 }

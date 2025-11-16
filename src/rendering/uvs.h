@@ -13,14 +13,15 @@ static const Vec2f_t faceUVs[4] = {
     {1.0F, 0.0F}, // bottom-right
 };
 
-static inline void assignFaceUVs(ShaderVertexVoxel_t *verts, size_t start, const AtlasRegion_t *region, TextureRotation_t rotation)
+static inline void uvs_voxel_assignFaceUVs(ShaderVertexVoxel_t *restrict pVerts, const size_t START,
+                                           const AtlasRegion_t *restrict REGION, const TextureRotation_e ROTATION)
 {
     Vec2f_t rotatedUVs[4];
-    applyTextureRotation(rotatedUVs, faceUVs, rotation);
+    applyTextureRotation(rotatedUVs, faceUVs, ROTATION);
 
     for (int i = 0; i < 4; ++i)
     {
-        verts[start + i].texCoord.x = cmath_clampF(region->uvMin.x + rotatedUVs[i].x * (region->uvMax.x - region->uvMin.x), 0.0F, 1.0F);
-        verts[start + i].texCoord.y = cmath_clampF(region->uvMin.y + rotatedUVs[i].y * (region->uvMax.y - region->uvMin.y), 0.0F, 1.0F);
+        pVerts[START + i].texCoord.x = cmath_clampF(REGION->uvMin.x + rotatedUVs[i].x * (REGION->uvMax.x - REGION->uvMin.x), 0.0F, 1.0F);
+        pVerts[START + i].texCoord.y = cmath_clampF(REGION->uvMin.y + rotatedUVs[i].y * (REGION->uvMax.y - REGION->uvMin.y), 0.0F, 1.0F);
     }
 }

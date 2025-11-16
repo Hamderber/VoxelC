@@ -32,7 +32,7 @@ void fileIO_file_close(FILE *pFile, const char *pDEBUG_NAME)
     logs_logIfError(fclose(pFile), "Error while closing file at address %p (%s)", pFile, pDEBUG_NAME);
 }
 
-FileIO_Result_t fileIO_file_open(FILE **ppFile, const char *pPATH, const char *pMODE, const char *pDEBUG_NAME)
+FileIO_Result_e fileIO_file_open(FILE **ppFile, const char *pPATH, const char *pMODE, const char *pDEBUG_NAME)
 {
     if (!pPATH || !pMODE)
     {
@@ -103,7 +103,7 @@ bool fileIO_file_exists(const char *pFOLDER_NAME, const char *pFILE_NAME, char *
 #endif
 }
 
-FileIO_Result_t fileIO_dir_create(const char *pFOLDER_NAME, char *pFullDir)
+FileIO_Result_e fileIO_dir_create(const char *pFOLDER_NAME, char *pFullDir)
 {
     if (!fileIO_dir_exists(pFOLDER_NAME, pFullDir))
     {
@@ -121,7 +121,7 @@ FileIO_Result_t fileIO_dir_create(const char *pFOLDER_NAME, char *pFullDir)
     return FILE_IO_RESULT_DIR_ALREADY_EXISTS;
 }
 
-FileIO_Result_t fileIO_file_create(FILE **ppFile, const char *pFOLDER_NAME, const char *pFILE_NAME)
+FileIO_Result_e fileIO_file_create(FILE **ppFile, const char *pFOLDER_NAME, const char *pFILE_NAME)
 {
     logs_log(LOG_DEBUG, "Checking if '%s' exists before creating %s", pFOLDER_NAME, pFILE_NAME);
 

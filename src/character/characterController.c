@@ -15,8 +15,11 @@
 #include "input/input.h"
 #include "collection/flags64_t.h"
 #pragma endregion
+#pragma region Defines
+// #define DEBUG_ACTIONS
+#pragma endregion
 #pragma region Axial Input
-EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (!pState || !pEvent)
@@ -65,13 +68,17 @@ EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCt
             case INPUT_ACTION_JUMP:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character jump (pressed)");
+#endif
                     // flight mode
                     pState->input.axialInput.y += 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character jump (released)");
+#endif
                     // flight mode
                     pState->input.axialInput.y -= 1.0F;
                 }
@@ -79,13 +86,17 @@ EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCt
             case INPUT_ACTION_CROUCH:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character crouch (pressed)");
+#endif
                     // flight mode
                     pState->input.axialInput.y -= 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character crouch (released)");
+#endif
                     // flight mode
                     pState->input.axialInput.y += 1.0F;
                 }
@@ -93,48 +104,64 @@ EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCt
             case INPUT_ACTION_MOVE_FORWARD:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving forward (pressed)");
+#endif
                     pState->input.axialInput.z -= 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving forward (released)");
+#endif
                     pState->input.axialInput.z += 1.0F;
                 }
                 break;
             case INPUT_ACTION_MOVE_BACKWARD:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving backward (pressed)");
+#endif
                     pState->input.axialInput.z += 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving backward (released)");
+#endif
                     pState->input.axialInput.z -= 1.0F;
                 }
                 break;
             case INPUT_ACTION_MOVE_LEFT:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving left (pressed)");
+#endif
                     pState->input.axialInput.x -= 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving left (released)");
+#endif
                     pState->input.axialInput.x += 1.0F;
                 }
                 break;
             case INPUT_ACTION_MOVE_RIGHT:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving right (pressed)");
+#endif
                     pState->input.axialInput.x += 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving right (released)");
+#endif
                     pState->input.axialInput.x -= 1.0F;
                 }
                 break;
@@ -167,7 +194,7 @@ void character_sprintToggle(State_t *pState, Character_t *pCharacter)
     logs_log(LOG_DEBUG, "Sprint toggled. Character %s speed is %lfm/s", pCharacter->pName, pComponentData->pPhysicsData->uniformSpeed);
 }
 
-EventResult_t character_onSprintTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e character_onSprintTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     if (pEvent == NULL)
         return EVENT_RESULT_ERROR;
@@ -257,7 +284,7 @@ Entity_t *character_entityCreate(State_t *pState, Character_t *pCharacter)
     pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->uniformSpeedBase = DEFAULT_UNIFORM_SPEED;
     pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->useLocalAxes = true;
 
-    Vec3f_t worldPos = VEC3_ZERO;
+    Vec3f_t worldPos = VEC3F_ZERO;
     switch (pCharacter->type)
     {
     case CHARACTER_TYPE_PLAYER:

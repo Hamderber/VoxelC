@@ -5,7 +5,7 @@
 typedef struct
 {
     // which tile in the atlas
-    AtlasFace_t atlasIndex;
+    AtlasFace_e atlasIndex;
     // rotation/flip to apply
-    TextureRotation_t rotation;
+    TextureRotation_e rotation;
 } FaceTexture_t;

@@ -7,13 +7,13 @@
 #include "collection/flags64_t.h"
 #include "character/character.h"
 
-typedef enum EntityComponentType_t
+typedef enum EntityComponentType_e
 {
     ENTITY_COMPONENT_TYPE_GENERIC = 0,
     ENTITY_COMPONENT_TYPE_CAMERA = 1,
     ENTITY_COMPONENT_TYPE_PHYSICS = 2,
     ENTITY_COMPONENT_TYPE_CHUNK = 3,
-} EntityComponentType_t;
+} EntityComponentType_e;
 
 typedef struct EntityDataPhysics_t
 {
@@ -63,11 +63,11 @@ typedef union EntityComponentData_t
 
 typedef struct EntityComponent_t
 {
-    enum EntityComponentType_t type;
+    enum EntityComponentType_e type;
     union EntityComponentData_t *pComponentData;
 } EntityComponent_t;
 
-typedef enum EntityType_t
+typedef enum EntityType_e
 {
     ENTITY_TYPE_GENERIC = 0,
     ENTITY_TYPE_CAMERA = 1,
@@ -75,13 +75,13 @@ typedef enum EntityType_t
     // An item floating in the world (not in an inventory)
     ENTITY_TYPE_ITEM_WORLD = 3,
     ENTITY_TYPE_COUNT,
-} EntityType_t;
+} EntityType_e;
 
 typedef struct Entity_t
 {
     bool heapAllocated;
     size_t refCount;
-    enum EntityType_t type;
+    enum EntityType_e type;
     size_t componentCount;
     struct EntityComponent_t *pComponents;
     flags64_t entityFlags;
@@ -89,11 +89,11 @@ typedef struct Entity_t
 
 #pragma region Entity Flags
 /// @brief Flags for an entity. Current range is [0, 63]
-typedef enum EntityFlags_t
+typedef enum EntityFlags_e
 {
     ENTITY_FLAG_PLAYER = 0,
     ENTITY_FLAG_COUNT,
-} EntityFlags_t;
+} EntityFlags_e;
 static inline bool entity_flag_isPlayer(Entity_t *pEntity)
 {
     if (!pEntity)
@@ -115,14 +115,7 @@ static void entity_chunkPos_update(struct State_t *pState, Entity_t *pEntity, En
     if (chunkChanged)
     {
         pComponentData->pPhysicsData->chunkPos = NEW;
-
-        /*
-            TODO: Add flag to chunks to track what (player) entity is loading it
-                  Add chunks to chunkmanager for rendering
-                  store cpu side chunk and render chunk separately and delete renter when out of render distance and
-                  unload cpu when not in simulation distance (config needs added and a region of world to the config)
-        */
-        logs_log(LOG_DEBUG, "Entity %p ChunkPos (%d, %d, %d) -> (%d, %d, %d).", pEntity, OLD.x, OLD.y, OLD.z, NEW.x, NEW.y, NEW.z);
+        // logs_log(LOG_DEBUG, "Entity %p ChunkPos (%d, %d, %d) -> (%d, %d, %d).", pEntity, OLD.x, OLD.y, OLD.z, NEW.x, NEW.y, NEW.z);
     }
 
     if (chunkChanged && entity_flag_isPlayer(pEntity))

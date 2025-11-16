@@ -11,7 +11,7 @@ typedef struct AppConfig_t
     const char *pENGINE_NAME;
     const char *pWINDOW_TITLE;
     uint32_t vkAPIVersion;
-    SwapchainBuffering_t swapchainBuffering;
+    SwapchainBuffering_e swapchainBuffering;
     VkComponentMapping swapchainComponentMapping;
     int windowWidth;
     int windowHeight;

@@ -73,6 +73,16 @@
         "weightedmaps.h": "c",
         "cubeface_t.h": "c",
         "chunkgenerator.h": "c",
-        "linkedlist_t.h": "c"
+        "linkedlist_t.h": "c",
+        "optional": "c",
+        "xtr1common": "c",
+        "chunk.h": "c",
+        "cmath.h": "c",
+        "uvs.h": "c",
+        "random": "c",
+        "worldstate_t.h": "c",
+        "dynamicqueue_t.h": "c",
+        "chunkremeshctx_t.h": "c",
+        "chunkmanager.h": "c"
     }
 }

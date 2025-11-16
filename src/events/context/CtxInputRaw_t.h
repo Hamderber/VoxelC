@@ -5,7 +5,7 @@
 typedef struct
 {
     int keyCode;
-    CtxDescriptor_t direction;
+    CtxDescriptor_e direction;
 } Keystroke_t;
 
 typedef struct

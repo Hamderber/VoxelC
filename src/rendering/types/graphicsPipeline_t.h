@@ -1,22 +1,22 @@
 #pragma once
 
-typedef enum
+typedef enum GraphicsPipeline_e
 {
     GRAPHICS_PIPELINE_MODEL_FILL,
     GRAPHICS_PIPELINE_VOXEL_FILL,
     GRAPHICS_PIPELINE_WIREFRAME,
     GRAPHICS_PIPELINE_COUNT,
-} GraphicsPipeline_t;
+} GraphicsPipeline_e;
 
-typedef enum
+typedef enum GraphicsTarget_e
 {
     GRAPHICS_TARGET_MODEL,
     GRAPHICS_TARGET_VOXEL,
     GRAPHICS_TARGET_COUNT,
-} GraphicsTarget_t;
+} GraphicsTarget_e;
 
-/// @brief Converts the GraphicsPipeline_t to string for debugging purposes
-static const char *graphicsPipeline_ToString(const GraphicsPipeline_t GP)
+/// @brief Converts the GraphicsPipeline_e to string for debugging purposes
+static const char *graphicsPipeline_ToString(const GraphicsPipeline_e GP)
 {
     switch (GP)
     {
@@ -31,8 +31,8 @@ static const char *graphicsPipeline_ToString(const GraphicsPipeline_t GP)
     }
 }
 
-/// @brief Converts the GraphicsTarget_t to string for debugging purposes
-static const char *graphicsTarget_ToString(const GraphicsTarget_t GT)
+/// @brief Converts the GraphicsTarget_e to string for debugging purposes
+static const char *graphicsTarget_ToString(const GraphicsTarget_e GT)
 {
     switch (GT)
     {

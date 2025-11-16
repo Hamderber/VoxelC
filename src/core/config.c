@@ -33,12 +33,12 @@
 #define WORLD_CFG_SIMULATION_DISTANCE "simulationDistance"
 #define WORLD_CFG_SPAWN_LOAD_RADIUS "spawnLoadRadius"
 
-typedef enum
+typedef enum ConfigType_e
 {
     CONFIG_TYPE_APP,
     CONFIG_TYPE_KEYBINDINGS,
     CONFIG_TYPE_WORLD,
-} ConfigType_t;
+} ConfigType_e;
 
 static const char *pCONFIG_FOLDER_NAME = "config";
 static const char *pKEYBINDINGS_FILE_NAME = "keybindings.json";
@@ -117,7 +117,7 @@ static void config_input_buildDefault(void)
         };
     }
 
-    InputActionMapping_t act;
+    InputActionMapping_e act;
     for (size_t i = 0; i < DEFAULT_KEY_MAPPINGS_COUNT; i++)
     {
         act = DEFAULT_KEY_MAPPINGS[i].action;
@@ -186,7 +186,7 @@ static void config_keyBindings_save(const Input_t *pINPUT, cJSON *pRoot)
     // Iterate over all GLFW keycodes
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
-        InputActionMapping_t mapping = pINPUT->pInputKeys[key].inputMapping;
+        InputActionMapping_e mapping = pINPUT->pInputKeys[key].inputMapping;
 
         // Only save mapped keys
         if (mapping != INPUT_ACTION_UNMAPPED)
@@ -222,10 +222,10 @@ static void config_app_save(const AppConfig_t *pCFG, cJSON *pRoot)
 static void config_world_save(const WorldConfig_t *pWRLD, cJSON *pRoot)
 {
     cJSON *pWorld = cJSON_AddObjectToObject(pRoot, WORLD_CFG_WORLD);
-    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "Spawn chunk radius that will be permanently loaded. Radius [0, 5]");
+    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "Spawn chunk radius that will be permanently loaded. Radius [0, 5].");
     cJSON_AddNumberToObject(pWorld, WORLD_CFG_SPAWN_LOAD_RADIUS, pWRLD->spawnChunkLoadingRadius);
     cJSON_AddStringToObject(pWorld, CFG_COMMENT, "CPU-based simulation distance. Similar to chunk render distance,");
-    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "but for the radius around a player that the cpu should still simulate.");
+    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "but for the radius around a player that the cpu should still simulate [1, 32].");
     cJSON_AddNumberToObject(pWorld, WORLD_CFG_SIMULATION_DISTANCE, pWRLD->chunkSimulationDistance);
 }
 
@@ -248,14 +248,14 @@ static bool config_keyBindings_load(Input_t *pInput, const cJSON *pROOT)
 
             if (cJSON_IsNumber(pKey))
             {
-                pInput->pInputKeys[pKey->valueint].inputMapping = (InputActionMapping_t)i;
+                pInput->pInputKeys[pKey->valueint].inputMapping = (InputActionMapping_e)i;
                 logs_log(LOG_DEBUG, "Keycode %3d -> %s", pKey->valueint, pACTION_NAME);
             }
             else if (i != INPUT_ACTION_UNMAPPED)
             {
                 logs_log(LOG_WARN, "Failed to parse keycode assignment [%d] for %s. Using default.", i, pACTION_NAME);
                 // Default key shift left 1 because UNMAPPED is a binding
-                pInput->pInputKeys[DEFAULT_KEY_MAPPINGS[i - 1].defaultKey].inputMapping = (InputActionMapping_t)i;
+                pInput->pInputKeys[DEFAULT_KEY_MAPPINGS[i - 1].defaultKey].inputMapping = (InputActionMapping_e)i;
             }
         }
     }
@@ -349,7 +349,7 @@ static bool config_world_load(WorldConfig_t *pCfg, const cJSON *pROOT)
     return true;
 }
 
-static void config_save(void *pCfg, const ConfigType_t TYPE)
+static void config_save(void *pCfg, const ConfigType_e TYPE)
 {
     logs_logIfError(pCfg == NULL, "Attempted to save the config from an invalid pointer!");
 
@@ -441,7 +441,7 @@ static bool config_json_load(cJSON **ppRoot, const char *pFULL_PATH, const char 
     return true;
 }
 
-static void config_load(void *pCfg, const ConfigType_t TYPE)
+static void config_load(void *pCfg, const ConfigType_e TYPE)
 {
     if (!pCfg)
     {
@@ -510,7 +510,7 @@ static void config_load(void *pCfg, const ConfigType_t TYPE)
     cJSON_Delete(pRoot);
 }
 
-static inline void *config_loadOrCreate(const ConfigType_t TYPE)
+static inline void *config_loadOrCreate(const ConfigType_e TYPE)
 {
     switch (TYPE)
     {

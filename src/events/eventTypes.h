@@ -8,7 +8,7 @@
 
 #define MAX_EVENT_LISTENERS 128
 
-typedef enum
+typedef enum EventType_e
 {
     EVENT_TYPE_NONE,
     EVENT_TYPE_INPUT_RAW,
@@ -20,7 +20,7 @@ typedef enum
     EVENT_TYPE_CHUNK_PLAYER_CHUNKPOS_CHANGE,
     EVENT_TYPE_PLAYER_JOIN,
     EVENT_TYPE_PLAYER_LEAVE,
-} EventType_t;
+} EventType_e;
 
 // Must be pointers
 typedef union
@@ -34,11 +34,11 @@ typedef union
 
 typedef struct
 {
-    EventType_t type;
+    EventType_e type;
     EventData_t data;
 } Event_t;
 
-typedef enum
+typedef enum EventResult_e
 {
     // Normal
     EVENT_RESULT_PASS,
@@ -46,10 +46,10 @@ typedef enum
     EVENT_RESULT_CONSUME,
     // Caught an error
     EVENT_RESULT_ERROR
-} EventResult_t;
+} EventResult_e;
 
 struct State_t;
-typedef EventResult_t (*EventCallbackFn)(struct State_t *pState, Event_t *pEvent, void *pCtx);
+typedef EventResult_e (*EventCallbackFn)(struct State_t *pState, Event_t *pEvent, void *pCtx);
 
 typedef struct
 {
@@ -67,13 +67,13 @@ typedef struct
     EventListener_t eventListeners[MAX_EVENT_LISTENERS];
 } EventSystem_t;
 
-typedef enum
+typedef enum EventSubscribeResult_e
 {
     EVENT_SUBSCRIBE_RESULT_FAIL = -1,
     EVENT_SUBSCRIBE_RESULT_PASS = 1,
-} EventSubscribeResult_t;
+} EventSubscribeResult_e;
 
-typedef enum
+typedef enum EventChannelID_e
 {
     // window resize, shutdown, etc.
     EVENT_CHANNEL_APP,
@@ -95,7 +95,7 @@ typedef enum
     EVENT_CHANNEL_PLAYER,
     // Keep this last so it represents the enum quantity
     EVENT_CHANNEL_COUNT,
-} EventChannelID_t;
+} EventChannelID_e;
 
 static const char *pEVENT_CHANNEL_NAMES[] = {
     "EVENT_CHANNEL_APP",
@@ -111,12 +111,12 @@ static const char *pEVENT_CHANNEL_NAMES[] = {
 
 typedef struct
 {
-    EventChannelID_t ID;
+    EventChannelID_e ID;
     EventSystem_t eventSystem;
 } EventChannel_t;
 
 typedef struct EventBus_t
 {
-    // There is a channel for every type of EventChannelID_t
+    // There is a channel for every type of EventChannelID_e
     EventChannel_t channels[EVENT_CHANNEL_COUNT];
 } EventBus_t;
