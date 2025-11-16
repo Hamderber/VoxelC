@@ -4,6 +4,7 @@
 #include "cmath/cmath.h"
 #include "core/types/state_t.h"
 #include "world/chunk.h"
+#include "api/chunk/chunkAPI.h"
 
 typedef enum ChunkQuery_e
 {

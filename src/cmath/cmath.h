@@ -35,43 +35,43 @@
 #pragma endregion
 #pragma region Types
 /// @brief 4-dimensional representation of rotation used in computer graphics etc. (float)
-typedef struct
+typedef struct Quaternionf_t
 {
     float qx, qy, qz, qw;
 } Quaternionf_t;
 
 /// @brief 2-dimensional value representation (float)
-typedef struct
+typedef struct Vec2f_t
 {
     float x, y;
 } Vec2f_t;
 
 /// @brief 3-dimensional value representation (float)
-typedef struct
+typedef struct Vec3f_t
 {
     float x, y, z;
 } Vec3f_t;
 
 /// @brief 3-dimensional value representation (int)
-typedef struct
+typedef struct Vec3i_t
 {
     int x, y, z;
 } Vec3i_t;
 
 /// @brief 3-dimensional value representation (uint8_t)
-typedef struct
+typedef struct Vec3u8_t
 {
     uint8_t x, y, z;
 } Vec3u8_t;
 
 /// @brief 4-dimensional value representation (float). A w of 1 means position and non-1 means rotation.
-typedef struct
+typedef struct Vec4f_t
 {
     float x, y, z, w;
 } Vec4f_t;
 
 /// @brief 4x4 Matrix column-major (array index is for each column). Struct members are the same as the shader codes'.
-typedef struct
+typedef struct Mat4c_t
 {
     Vec4f_t m[4];
 } Mat4c_t;

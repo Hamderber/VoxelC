@@ -2,6 +2,7 @@
 
 #include "core/types/state_t.h"
 #include "cmath/weightedMap_t.h"
+#include "api/chunk/chunkAPI.h"
 
 static float gStoneCDF[BLOCK_DEFS_STONE_COUNT];
 

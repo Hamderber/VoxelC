@@ -10,6 +10,7 @@
 #include "core/randomNoise.h"
 #include "chunkManager.h"
 #include "chunkSolidityGrid.h"
+#include "api/chunk/chunkAPI.h"
 #pragma endregion
 #pragma region Settings
 static const float CARVING_AIR_THRESHOLD = 0.5F;

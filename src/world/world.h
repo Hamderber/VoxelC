@@ -2,6 +2,7 @@
 
 #include "core/types/state_t.h"
 #include "world/chunk.h"
+#include "api/chunk/chunkAPI.h"
 
 void world_chunk_addToCollection(State_t *pState, Chunk_t *pChunk);
 

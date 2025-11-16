@@ -8,20 +8,6 @@
 #include "collection/linkedList_t.h"
 #include "chunkSolidityGrid.h"
 #pragma endregion
-#pragma region Definitions
-
-typedef struct Chunk_t
-{
-    RenderChunk_t *pRenderChunk;
-    BlockVoxel_t *pBlockVoxels;
-    Vec3i_t chunkPos;
-    LinkedList_t *pEntitiesLoadingChunkLL;
-    // This is stored in the chunk itself instead of the render chunk so that lighting calculations and such can be done
-    // separate from rendering
-    ChunkSolidityGrid_t *pTransparencyGrid;
-} Chunk_t;
-
-#pragma endregion
 #pragma region Chunk Pos
 /// @brief Converts chunk position to world position
 static inline Vec3i_t chunkPos_to_worldOrigin(const Vec3i_t CHUNK_POS)

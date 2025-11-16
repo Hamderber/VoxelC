@@ -11,6 +11,7 @@
 #include "rendering/uvs.h"
 #include "rendering/chunk/chunkRenderer.h"
 #include "rendering/renderGC.h"
+#include "api/chunk/chunkAPI.h"
 
 static const uint32_t MINIMUM_COLLECTION_SIZE = 256;
 

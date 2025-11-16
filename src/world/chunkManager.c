@@ -17,6 +17,8 @@
 #include "core/logs.h"
 #include "cmath/weightedMaps.h"
 #include "events/eventBus.h"
+#include "api/chunk/chunkAPI.h"
+#include "chunk/chunkSource_local.h"
 #pragma endregion
 #pragma region Get Chunk
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS)

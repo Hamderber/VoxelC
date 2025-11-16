@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cmath/cmath.h"
+#include "api/chunk/chunkAPI.h"
 #include "rendering/types/renderChunk_t.h"
 
 void chunkRendering_drawChunks(State_t *restrict pState, VkCommandBuffer *restrict pCmd, VkPipelineLayout *restrict pPipelineLayout);

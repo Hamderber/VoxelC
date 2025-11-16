@@ -58,7 +58,7 @@ typedef struct
     const FaceTexture_t pFACE_TEXTURES[6];
 } BlockDefinition_t;
 
-typedef struct
+typedef struct BlockVoxel_t
 {
     const BlockDefinition_t *pBLOCK_DEFINITION;
     // 12 bits needed to pack 16x16x16 pos

@@ -6,6 +6,7 @@
 #include "rendering/chunk/chunkRendering.h"
 #include "world/chunkManager.h"
 #include "core/cpuManager.h"
+#include "api/chunk/chunkAPI.h"
 #pragma endregion
 #pragma region Defines
 #define DEFAULT_QUEUE_SIZE 32

@@ -83,6 +83,12 @@
         "worldstate_t.h": "c",
         "dynamicqueue_t.h": "c",
         "chunkremeshctx_t.h": "c",
-        "chunkmanager.h": "c"
+        "chunkmanager.h": "c",
+        "chunksource_local.h": "c",
+        "chunkapi.h": "c",
+        "chunk_t.h": "c",
+        "chunksource_t.h": "c",
+        "chunksource_network.h": "c",
+        "stdlib.h": "c"
     }
 }
