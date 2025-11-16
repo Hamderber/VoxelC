@@ -3,11 +3,11 @@
 typedef struct
 {
     // Time since last frame
-    double frameTimeDelta;
+    double CPU_frameTimeDelta;
     // Actual last time (not delta)
-    double frameTimeLast;
-    double frameTimeTotal;
-    double framesPerSecond;
+    double CPU_frameTimeLast;
+    double CPU_frameTimeTotal;
+    double CPU_framesPerSecond;
     // Fixed-step physics
-    double fixedTimeAccumulated;
+    double CPU_fixedTimeAccumulated;
 } Time_t;

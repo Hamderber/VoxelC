@@ -21,7 +21,7 @@ Vec3f_t character_player_positionLerped_get(const State_t *pSTATE)
     {
         // Blend position for camera because its updated in physics but not required for rotation at this time
         // because rotation is per frame (mouse control)
-        float alpha = (float)(pSTATE->time.fixedTimeAccumulated / pSTATE->config.fixedTimeStep);
+        float alpha = (float)(pSTATE->time.CPU_fixedTimeAccumulated / pSTATE->config.fixedTimeStep);
         alpha = cmath_clampF(alpha, 0.0F, 1.0F);
 
         Vec3f_t posPrev = playerPhysicsData->pPhysicsData->worldPosOld;
@@ -69,7 +69,7 @@ void entity_player_chunkPos_update_publish(State_t *pState, Entity_t *pEntity,
 }
 #pragma endregion
 #pragma region Create
-Character_t *character_create(struct State_t *pState, enum CharacterType_t characterType)
+Character_t *character_create(struct State_t *pState, enum CharacterType_e characterType)
 {
     Character_t *pCharacter = calloc(1, sizeof(Character_t));
     pCharacter->type = characterType;

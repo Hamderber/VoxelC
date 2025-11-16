@@ -5,12 +5,12 @@
 // Aribtrary size, probably need to change this in the future
 #define ENTITIES_MAX_IN_COLLECTION 256
 
-typedef enum
+typedef enum EntityCollectionCategory_e
 {
     ENTITY_COLLECTION_GENERIC = 0,
     ENTITY_COLLECTION_PHYSICS,
     ENTITY_COLLECTION_COUNT,
-} EntityCollectionCategory_t;
+} EntityCollectionCategory_e;
 
 typedef struct EntityCollection_t
 {

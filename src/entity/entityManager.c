@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool em_entityDataGet(Entity_t *e, EntityComponentType_t type, EntityComponentData_t **outData)
+bool em_entityDataGet(Entity_t *e, EntityComponentType_e type, EntityComponentData_t **outData)
 {
     if (!e || !outData || e->componentCount == 0)
         return false;

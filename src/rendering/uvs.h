@@ -14,7 +14,7 @@ static const Vec2f_t faceUVs[4] = {
 };
 
 static inline void uvs_voxel_assignFaceUVs(ShaderVertexVoxel_t *restrict pVerts, const size_t START,
-                                           const AtlasRegion_t *restrict REGION, const TextureRotation_t ROTATION)
+                                           const AtlasRegion_t *restrict REGION, const TextureRotation_e ROTATION)
 {
     Vec2f_t rotatedUVs[4];
     applyTextureRotation(rotatedUVs, faceUVs, ROTATION);

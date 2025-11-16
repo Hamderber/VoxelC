@@ -81,7 +81,7 @@ char *logs_timestampGet(bool isForFileName)
     return s_buffer;
 }
 
-void logs_log(LogLevel_t level, const char *pFORMAT, ...)
+void logs_log(LogLevel_e level, const char *pFORMAT, ...)
 {
     // log() is built-in don't use it
     const char *pPREFIX = "Info";

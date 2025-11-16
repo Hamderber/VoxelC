@@ -3,7 +3,7 @@
 #include "core/types/state_t.h"
 #include "entity/entityCollection_t.h"
 
-enum EntityComponentType_t;
+enum EntityComponentType_e;
 union EntityComponentData_t;
 
 typedef struct EntityManger_t
@@ -12,7 +12,7 @@ typedef struct EntityManger_t
     struct EntityCollection_t entityCollections[ENTITY_COLLECTION_COUNT];
 } EntityManger_t;
 
-bool em_entityDataGet(struct Entity_t *e, enum EntityComponentType_t type, union EntityComponentData_t **outData);
+bool em_entityDataGet(struct Entity_t *e, enum EntityComponentType_e type, union EntityComponentData_t **outData);
 
 bool em_entityIndexSingleton(struct EntityCollection_t *collection, struct Entity_t *e, size_t *index);
 

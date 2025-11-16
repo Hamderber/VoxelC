@@ -9,5 +9,5 @@ typedef struct
     bool keyDown;
     bool pressedThisFrame;
     bool pressedLastFrame;
-    InputActionMapping_t inputMapping;
+    InputActionMapping_e inputMapping;
 } InputKey_t;

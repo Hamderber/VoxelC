@@ -6,7 +6,7 @@
 
 typedef struct RenderChunk_t
 {
-    bool queuedForRemesh;
+    bool needsRemesh;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexMemory;
     // Capacity of verticies

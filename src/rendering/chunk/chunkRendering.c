@@ -73,7 +73,7 @@ static inline void write_face_indices_u32(uint32_t *pIndicies, uint32_t base)
     pIndicies[5] = base + pCCW_QUAD_VERTS[5];
 }
 
-static inline Vec3u8_t wrap_to_neighbor_local(uint8_t nx, uint8_t ny, uint8_t nz, CubeFace_t face)
+static inline Vec3u8_t wrap_to_neighbor_local(uint8_t nx, uint8_t ny, uint8_t nz, CubeFace_e face)
 {
     switch (face)
     {
@@ -120,7 +120,7 @@ static bool emit_face(const Chunk_t **restrict ppNeighbors, const Vec3u8_t *rest
             const Chunk_t *pN = ppNeighbors[FACE];
             if (pN && pN->pTransparencyGrid)
             {
-                const Vec3u8_t POS_WRAP = wrap_to_neighbor_local(N_POS.x, N_POS.y, N_POS.z, (CubeFace_t)FACE);
+                const Vec3u8_t POS_WRAP = wrap_to_neighbor_local(N_POS.x, N_POS.y, N_POS.z, (CubeFace_e)FACE);
                 if (pN->pTransparencyGrid->pGrid[chunkSolidityGrid_index16(POS_WRAP.x, POS_WRAP.y, POS_WRAP.z)] != SOLIDITY_TRANSPARENT)
                     break;
             }
@@ -132,8 +132,8 @@ static bool emit_face(const Chunk_t **restrict ppNeighbors, const Vec3u8_t *rest
     return result;
 }
 
-bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINTS, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
-                       const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, Chunk_t *restrict pChunk)
+static bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINTS, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
+                              const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, Chunk_t *restrict pChunk)
 {
     if (!pState || !pState->pWorldState || !pChunk || !pChunk->pBlockVoxels || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK)
         return false;
@@ -143,8 +143,8 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
         return false;
 
     // max faces in a chunk possible (all transparent faces like glass or something)
-    const size_t MAX_VERTEX_COUNT = CHUNK_BLOCK_CAPACITY * CUBE_FACE_COUNT * VERTS_PER_FACE;
-    const size_t MAX_INDEX_COUNT = CHUNK_BLOCK_CAPACITY * CUBE_FACE_COUNT * INDICIES_PER_FACE;
+    const size_t MAX_VERTEX_COUNT = CHUNK_BLOCK_CAPACITY * CMATH_GEOM_CUBE_FACES * VERTS_PER_FACE;
+    const size_t MAX_INDEX_COUNT = CHUNK_BLOCK_CAPACITY * CMATH_GEOM_CUBE_FACES * INDICIES_PER_FACE;
 
     ShaderVertexVoxel_t *pVertices = malloc(sizeof(ShaderVertexVoxel_t) * MAX_VERTEX_COUNT);
     uint32_t *pIndices = malloc(sizeof(uint32_t) * MAX_INDEX_COUNT);
@@ -226,6 +226,8 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
             return false;
         }
 
+        pRenderChunk->needsRemesh = false;
+
         memset(pRenderChunk, 0, sizeof(*pRenderChunk));
 
         uint32_t vCapacity = vertexCursor < MINIMUM_COLLECTION_SIZE ? MINIMUM_COLLECTION_SIZE : vertexCursor;
@@ -298,5 +300,18 @@ bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict pPOINT
     free(ppNeighbors);
 
     return true;
+}
+
+bool chunkRenderer_chunk_remesh(State_t *restrict pState, const Vec3u8_t *restrict pPOINTS, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
+                                const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, Chunk_t *restrict pChunk)
+{
+    if (!pState || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK || !pChunk)
+        return false;
+
+    bool result = chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pChunk);
+    // The first time a chunk is meshed, the renderchunk just won't exist
+    if (pChunk->pRenderChunk)
+        pChunk->pRenderChunk->needsRemesh = false;
+    return result;
 }
 #pragma endregion

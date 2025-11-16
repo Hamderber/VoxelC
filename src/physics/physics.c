@@ -143,21 +143,20 @@ void phys_loop(State_t *pState)
     if (!pState || !pState->pWorldState || !pState->pWorldState->isLoaded)
         return;
 
-    double numPhysicsFrames = pState->time.fixedTimeAccumulated / pState->config.fixedTimeStep;
+    double numPhysicsFrames = phys_framesBehind_get(pState);
 
-    if (numPhysicsFrames > pState->config.maxPhysicsFrameDelay)
+    if (phys_isRunningBehind(pState))
     {
         // This is on the main thread, which means that it gets locked while the actual window resizing is taking place
-        logs_log(LOG_PHYSICS, "Physics is running %.lf frames behind! Skipping %.lf frames. If the window was just resized or moved, \
-this is expected behaviour.",
+        logs_log(LOG_PHYSICS, "Physics is running %.lf frames behind! Skipping %.lf frames.",
                  numPhysicsFrames, numPhysicsFrames - pState->config.maxPhysicsFrameDelay);
 
-        pState->time.fixedTimeAccumulated = pState->config.fixedTimeStep * pState->config.maxPhysicsFrameDelay;
+        pState->time.CPU_fixedTimeAccumulated = pState->config.fixedTimeStep * pState->config.maxPhysicsFrameDelay;
     }
 
-    while (pState->time.fixedTimeAccumulated >= pState->config.fixedTimeStep)
+    while (pState->time.CPU_fixedTimeAccumulated >= pState->config.fixedTimeStep)
     {
         phys_update(pState);
-        pState->time.fixedTimeAccumulated -= pState->config.fixedTimeStep;
+        pState->time.CPU_fixedTimeAccumulated -= pState->config.fixedTimeStep;
     }
 }

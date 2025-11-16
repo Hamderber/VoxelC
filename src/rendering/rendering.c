@@ -45,13 +45,13 @@ static void wireframe_toggle(State_t *pState)
         return;
     }
 
-    GraphicsPipeline_t current = pState->renderer.activeGraphicsPipeline;
-    GraphicsPipeline_t target = current == GRAPHICS_PIPELINE_MODEL_FILL ? GRAPHICS_PIPELINE_WIREFRAME : GRAPHICS_PIPELINE_MODEL_FILL;
+    GraphicsPipeline_e current = pState->renderer.activeGraphicsPipeline;
+    GraphicsPipeline_e target = current == GRAPHICS_PIPELINE_MODEL_FILL ? GRAPHICS_PIPELINE_WIREFRAME : GRAPHICS_PIPELINE_MODEL_FILL;
 
     pState->renderer.activeGraphicsPipeline = target;
 }
 
-EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (pEvent == NULL)

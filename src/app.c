@@ -21,6 +21,7 @@
 #include "cmath/weightedMaps.h"
 #include "rendering/chunk/chunkRenderer.h"
 #include "rendering/renderGC.h"
+#include "core/cpuManager.h"
 
 void app_init(State_t *restrict pState)
 {
@@ -91,7 +92,8 @@ void app_loop_main(State_t *restrict pState)
         world_loop(pState);
         phys_loop(pState);
         app_loop_render(pState);
-        // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
+        cpuManager_captureDeltaTime(pState);
+        // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.CPU_framesPerSecond, state->renderer.currentFrame);
     }
 }
 

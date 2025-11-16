@@ -4,11 +4,11 @@
 #include "weightedMap_t.h"
 #include "world/chunkGenerator.h"
 
-typedef enum
+typedef enum WeightedMapIndex_e
 {
     WEIGHTED_MAP_STONE,
     WEIGHTED_MAP_COUNT,
-} WeightedMapIndex_t;
+} WeightedMapIndex_e;
 
 static void weightedMaps_init(State_t *pState)
 {

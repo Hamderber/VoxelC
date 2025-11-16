@@ -43,11 +43,8 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
     return NULL;
 }
 
-/// @brief Iterates the provided chunk positions and returns a heap array of chunk positions matching query from that collection.
-/// Places the length of that collection into pCount. If there are duplicate chunkpos in the query then there will be duplicate
-/// results.
-static Chunk_t **chunks_getChunks(State_t *restrict pSTATE, const Vec3i_t *restrict pCHUNK_POS, const size_t numChunkPos,
-                                  size_t *pCount)
+Chunk_t **chunkManager_getChunks(const State_t *restrict pSTATE, const Vec3i_t *restrict pCHUNK_POS, const size_t numChunkPos,
+                                 size_t *restrict pCount, const bool RESIZE)
 {
     if (!pSTATE || !pCHUNK_POS || !pCount)
     {
@@ -87,13 +84,16 @@ static Chunk_t **chunks_getChunks(State_t *restrict pSTATE, const Vec3i_t *restr
         }
     }
 
-    ppChunks = realloc(ppChunks, sizeof(Chunk_t *) * index);
-    if (!ppChunks)
+    if (RESIZE)
     {
-        *pCount = 0;
-        free(ppChunks);
-        ppChunks = NULL;
-        return NULL;
+        ppChunks = realloc(ppChunks, sizeof(Chunk_t *) * index);
+        if (!ppChunks)
+        {
+            *pCount = 0;
+            free(ppChunks);
+            ppChunks = NULL;
+            return NULL;
+        }
     }
 
     *pCount = index;
@@ -103,20 +103,14 @@ static Chunk_t **chunks_getChunks(State_t *restrict pSTATE, const Vec3i_t *restr
 
 Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
 {
-    Chunk_t **ppChunks = calloc(6, sizeof(Chunk_t *));
-    if (!ppChunks)
+    Vec3i_t *pPOS = cmath_chunk_chunkNeighborPos_get(CHUNK_POS);
+    if (!pPOS)
         return NULL;
 
-    for (int cubeFace = 0; cubeFace < CUBE_FACE_COUNT; ++cubeFace)
-    {
-        int nx = CHUNK_POS.x + pCMATH_CUBE_NEIGHBOR_OFFSETS[cubeFace].x;
-        int ny = CHUNK_POS.y + pCMATH_CUBE_NEIGHBOR_OFFSETS[cubeFace].y;
-        int nz = CHUNK_POS.z + pCMATH_CUBE_NEIGHBOR_OFFSETS[cubeFace].z;
+    size_t count;
+    Chunk_t **ppChunks = chunkManager_getChunks(pSTATE, pPOS, CMATH_GEOM_CUBE_FACES, &count, false);
 
-        Vec3i_t nChunkPos = {nx, ny, nz};
-        ppChunks[cubeFace] = chunkManager_getChunk(pSTATE, nChunkPos);
-    }
-
+    free(pPOS);
     return ppChunks;
 }
 #pragma endregion
@@ -361,13 +355,13 @@ void chunk_destroy(void *pCtx, Chunk_t *pChunk)
 }
 #pragma endregion
 #pragma region Chunk (Un)Load
-bool chunk_isLoaded(State_t *pState, const Vec3i_t CHUNK_POS)
+bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
 {
     // logs_log(LOG_DEBUG, "Checking if chunk (%d, %d, %d) is loaded.", CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
-    return chunkManager_getChunk(pState, CHUNK_POS) != NULL;
+    return chunkManager_getChunk(pSTATE, CHUNK_POS) != NULL;
 }
 
-EventResult_t player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     // TODO: get unloaded chunks around player based off of simulation distance and load them
     if (!pState || !pEvent || !pEvent->data.pGeneric)

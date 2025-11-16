@@ -64,7 +64,7 @@ static inline void zoomFOV_undoZoom(State_t *pState) { pState->context.camera.fo
 static inline void zoomFOV_zoom(State_t *pState) { pState->context.camera.fov = pState->config.cameraFOV * FOV_ZOOM_MULTIPLIER; }
 
 /// @brief Toggles camera zoom
-static EventResult_t zoom_onPress(State_t *pState, Event_t *pEvent, void *pCtx)
+static EventResult_e zoom_onPress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (pEvent == NULL)

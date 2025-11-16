@@ -51,7 +51,7 @@ void chunkGen_stoneNoise_init(State_t *pState)
 }
 
 // The order of these determines what will occur adjacent (blending)
-static const BlockID_t gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
+static const BlockID_e gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
     BLOCK_ID_STONE,
     BLOCK_ID_ANDESITE,
     BLOCK_ID_CHERT,
@@ -68,10 +68,10 @@ static const BlockID_t gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
     BLOCK_ID_MARBLE_WHITE,
 };
 
-static const BlockID_t mapNoiseToStone(const State_t *restrict pSTATE, const float NOISE)
+static const BlockID_e mapNoiseToStone(const State_t *restrict pSTATE, const float NOISE)
 {
     const uint32_t STONE_INDEX = weightedMap_pick(&pSTATE->weightedMaps.pWeightMaps[WEIGHTED_MAP_STONE], NOISE);
-    const BlockID_t BLOCK_ID = gStoneIDs[STONE_INDEX];
+    const BlockID_e BLOCK_ID = gStoneIDs[STONE_INDEX];
 
     return BLOCK_ID;
 }
@@ -159,7 +159,7 @@ static bool chunkGen_paintStone(const State_t *restrict pSTATE, const BlockDefin
             continue;
 
         float stoneNoise = randomNoise_stone_samplePackedPos(CHUNK_POS, pBlock->blockPosPacked12);
-        BlockID_t stoneID = mapNoiseToStone(pSTATE, stoneNoise);
+        BlockID_e stoneID = mapNoiseToStone(pSTATE, stoneNoise);
 
         pBlock->pBLOCK_DEFINITION = pBLOCK_DEFINITIONS[stoneID];
     }

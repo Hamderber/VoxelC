@@ -6,7 +6,7 @@
 #include "rendering/types/faceTexture_t.h"
 #pragma endregion
 #pragma region Definitions
-typedef enum
+typedef enum BlockID_e
 {
     BLOCK_ID_AIR = 0,
     // Don't change these IDs without addressing where they are used as array indexes
@@ -25,7 +25,7 @@ typedef enum
     BLOCK_ID_MARBLE_BLACK = 13,
     BLOCK_ID_MARBLE_WHITE = 14,
     BLOCK_ID_COUNT
-} BlockID_t;
+} BlockID_e;
 
 static const char *pBLOCK_NAMES[] = {
     "BLOCK_AIR",
@@ -45,16 +45,16 @@ static const char *pBLOCK_NAMES[] = {
     "BLOCK_MARBLE_WHITE",
 };
 
-typedef enum
+typedef enum BlockRenderType_e
 {
     BLOCK_RENDER_SOLID,
     BLOCK_RENDER_ALPHA,
-} BlockRenderType_t;
+} BlockRenderType_e;
 
 typedef struct
 {
-    const BlockID_t BLOCK_ID;
-    const BlockRenderType_t BLOCK_RENDER_TYPE;
+    const BlockID_e BLOCK_ID;
+    const BlockRenderType_e BLOCK_RENDER_TYPE;
     const FaceTexture_t pFACE_TEXTURES[6];
 } BlockDefinition_t;
 

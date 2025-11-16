@@ -3,7 +3,7 @@
 #include "core/crash_handler.h"
 #pragma endregion
 #pragma region Definitions
-typedef enum
+typedef enum CrashType_e
 {
     CRASH_CHUNK_MATH,
 } CrashType_e;
@@ -21,6 +21,77 @@ static void crash(CrashType_e crashType)
 }
 #pragma endregion
 #pragma region Chunk
+Vec3i_t *cmath_chunk_chunkNeighborPos_get(const Vec3i_t CHUNK_POS)
+{
+    Vec3i_t *pPos = malloc(sizeof(Vec3i_t) * CMATH_GEOM_CUBE_FACES);
+    if (!pPos)
+        return NULL;
+
+    for (int i = 0; i < CMATH_GEOM_CUBE_FACES; ++i)
+    {
+        int nx = CHUNK_POS.x + pCMATH_CUBE_NEIGHBOR_OFFSETS[i].x;
+        int ny = CHUNK_POS.y + pCMATH_CUBE_NEIGHBOR_OFFSETS[i].y;
+        int nz = CHUNK_POS.z + pCMATH_CUBE_NEIGHBOR_OFFSETS[i].z;
+
+        pPos[i] = (Vec3i_t){nx, ny, nz};
+    }
+
+    return pPos;
+}
+
+Vec3i_t *cmath_chunk_GetNeighborsPosUnique_get(const Vec3i_t *restrict pCHUNK_POS, const size_t NUM_POS, size_t *restrict pOutCount)
+{
+    if (!pCHUNK_POS || !pOutCount || NUM_POS <= 0)
+        return NULL;
+
+    *pOutCount = 0;
+
+    Vec3i_t *pPos = malloc(sizeof(Vec3i_t) * CMATH_GEOM_CUBE_FACES * NUM_POS);
+    if (!pPos)
+        return NULL;
+
+    const int TOLERANCE = 0;
+    for (size_t i = 0; i < NUM_POS; ++i)
+    {
+        const Vec3i_t CHUNK_POS = pCHUNK_POS[i];
+        for (uint8_t face = 0; face < CMATH_GEOM_CUBE_FACES; face++)
+        {
+            Vec3i_t neighborPos = {
+                CHUNK_POS.x + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].x,
+                CHUNK_POS.y + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].y,
+                CHUNK_POS.z + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].z};
+
+            bool duplicate = false;
+            for (size_t j = 0; j < NUM_POS; j++)
+            {
+                if (cmath_vec3i_equals(neighborPos, pCHUNK_POS[j], TOLERANCE))
+                {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (!duplicate)
+                for (size_t j = 0; j < *pOutCount; j++)
+                {
+                    if (cmath_vec3i_equals(neighborPos, pPos[j], TOLERANCE))
+                    {
+                        duplicate = true;
+                        break;
+                    }
+                }
+
+            if (!duplicate)
+            {
+                pPos[*pOutCount] = neighborPos;
+                (*pOutCount)++;
+            }
+        }
+    }
+
+    return pPos;
+}
+
 static Vec3u8_t *pCMATH_CHUNK_POINTS = NULL;
 Vec3u8_t *cmath_chunkPoints_Get(void) { return pCMATH_CHUNK_POINTS; };
 static uint16_t *pCMATH_CHUNK_POINTS_PACKED = NULL;

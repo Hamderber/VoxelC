@@ -14,7 +14,7 @@
 #include "scene/scene.h"
 #pragma endregion
 #pragma region Binding
-static void pipeline_bind(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout, const GraphicsTarget_t TARGET)
+static void pipeline_bind(State_t *pState, VkCommandBuffer *pCmd, VkPipelineLayout *pPipelineLayout, const GraphicsTarget_e TARGET)
 {
     if (!pState || !pCmd || !pPipelineLayout)
         return;

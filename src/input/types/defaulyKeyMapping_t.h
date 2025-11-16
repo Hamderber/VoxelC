@@ -5,7 +5,7 @@
 
 typedef struct
 {
-    InputActionMapping_t action;
+    InputActionMapping_e action;
     int defaultKey;
 } DefaultKeyMapping_t;
 

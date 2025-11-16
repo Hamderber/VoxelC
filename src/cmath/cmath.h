@@ -1007,6 +1007,10 @@ static inline Mat4c_t cmath_perspective(float fovYRad, float aspect, float nearC
     return result;
 }
 #pragma endregion
+#pragma region Geometry
+/// @brief How many faces are on a cube
+#define CMATH_GEOM_CUBE_FACES 6
+#pragma endregion
 #pragma region Chunk
 // This shall NEVER change
 static const uint16_t CHUNK_AXIS_LENGTH = 16;
@@ -1054,6 +1058,13 @@ static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, 
 {
     return X * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH + Y * CHUNK_AXIS_LENGTH + Z;
 }
+
+/// @brief Gets the neighbor chunk positions of the passed pos. Size 6 heap-allocated array.
+Vec3i_t *cmath_chunk_chunkNeighborPos_get(const Vec3i_t CHUNK_POS);
+
+/// @brief Gets a heap-allocated array of unique chunk positions for the neighbors of all chunk positions in pCHUNK_POS.
+/// This does NOT include any positions in the original pCHUNK_POS set.
+Vec3i_t *cmath_chunk_GetNeighborsPosUnique_get(const Vec3i_t *restrict pCHUNK_POS, const size_t NUM_POS, size_t *restrict pOutCount);
 
 /// @brief The array of positions in the chunk local space (Vec3u8_t).
 Vec3u8_t *cmath_chunkPoints_Get(void);
