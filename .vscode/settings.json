@@ -89,6 +89,7 @@
         "chunk_t.h": "c",
         "chunksource_t.h": "c",
         "chunksource_network.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "chunkrenderer_t.h": "c"
     }
 }

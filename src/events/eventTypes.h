@@ -32,7 +32,7 @@ typedef union
     void *pGeneric;
 } EventData_t;
 
-typedef struct
+typedef struct Event_t
 {
     EventType_e type;
     EventData_t data;

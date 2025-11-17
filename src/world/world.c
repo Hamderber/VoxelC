@@ -13,6 +13,7 @@
 #include "world/chunkManager.h"
 #include "chunkGenerator.h"
 #include "rendering/chunk/chunkRenderer.h"
+#include "chunk/chunkManagerNew.h"
 #pragma endregion
 #pragma region Add Chunk to Col.
 static size_t addedChunks = 0;
@@ -21,7 +22,7 @@ void world_chunk_addToCollection(State_t *restrict pState, Chunk_t *restrict pCh
     if (!pState || !pChunk)
         return;
 
-    LinkedList_t *pAdd = linkedList_data_add(&pState->pWorldState->pChunksLL, (void *)pChunk);
+    LinkedList_t *pAdd = linkedList_data_add(&pState->pWorldState->pChunkManager->pChunksLL, (void *)pChunk);
     if (!pAdd)
     {
         logs_log(LOG_ERROR, "Failed to add chunk %p to the world's chunk linked list!", pChunk);
@@ -57,8 +58,7 @@ static void spawn_generate(State_t *pState)
 
 static void world_chunks_init(State_t *pState)
 {
-    pState->pWorldState->pChunksLL = calloc(1, sizeof(LinkedList_t));
-    if (!pState->pWorldState->pChunksLL)
+    if (!pState->pWorldState->pChunkManager->pChunksLL)
         return;
 
     Entity_t *pChunkLoadingEntity = em_entityCreateHeap();
@@ -96,7 +96,7 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
                                     &ppNewChunks, &newCount,
                                     &ppExistingChunk, &existingCount))
     {
-        // handle error
+        // TODO
     }
 
     if (newCount > 0)
@@ -104,7 +104,7 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
         if (!chunkManager_populateNewChunks(NULL, pState->pWorldState->pChunkSource,
                                             ppNewChunks, newCount))
         {
-            // handle failure
+            // TODO
         }
     }
 
@@ -116,6 +116,7 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
 static void init(State_t *pState)
 {
     pState->pWorldState = calloc(1, sizeof(WorldState_t));
+    pState->pWorldState->pChunkManager = chunkManager_createNew(pState);
 
     chunkRenderer_create(pState->pWorldState);
 
@@ -128,7 +129,6 @@ static void init(State_t *pState)
 
 void world_load(State_t *pState)
 {
-    chunkManager_create(pState);
     init(pState);
     pState->pWorldState->isLoaded = true;
 }
@@ -146,7 +146,7 @@ void world_destroy(State_t *pState)
     // Ensure nothing is in-flight that still uses these buffers
     vkDeviceWaitIdle(pState->context.device);
 
-    chunkManager_destroy(pState);
+    chunkManager_destroyNew(pState, pState->pWorldState->pChunkManager);
 
     pState->pWorldState = NULL;
 }

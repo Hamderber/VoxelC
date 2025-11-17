@@ -17,10 +17,10 @@ static const uint32_t MINIMUM_COLLECTION_SIZE = 256;
 
 void chunkRendering_drawChunks(State_t *restrict pState, VkCommandBuffer *restrict pCmd, VkPipelineLayout *restrict pPipelineLayout)
 {
-    if (!pState || !pState->pWorldState || !pState->pWorldState->pChunksLL || !pCmd || !pPipelineLayout)
+    if (!pState || !pState->pWorldState || !pState->pWorldState->pChunkManager->pChunksLL || !pCmd || !pPipelineLayout)
         return;
 
-    LinkedList_t *pCurrent = pState->pWorldState->pChunksLL;
+    LinkedList_t *pCurrent = pState->pWorldState->pChunkManager->pChunksLL;
     while (pCurrent)
     {
         Chunk_t *pChunk = (Chunk_t *)pCurrent->pData;

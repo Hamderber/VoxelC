@@ -29,13 +29,13 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
         logs_log(LOG_ERROR, "getChunk: bad state");
         return NULL;
     }
-    if (!pSTATE->pWorldState->pChunksLL)
+    if (!pSTATE->pWorldState->pChunkManager->pChunksLL)
     {
         logs_log(LOG_ERROR, "getChunk: chunk list is empty");
         return NULL;
     }
 
-    for (LinkedList_t *pNode = pSTATE->pWorldState->pChunksLL; pNode; pNode = pNode->pNext)
+    for (LinkedList_t *pNode = pSTATE->pWorldState->pChunkManager->pChunksLL; pNode; pNode = pNode->pNext)
     {
         if (!pNode->pData)
             continue;
@@ -68,7 +68,7 @@ Chunk_t **chunkManager_getChunks(const State_t *restrict pSTATE, const Vec3i_t *
     // cheaper to iterate chunk pos as main loop because the collection of chunks is bigger than the collection of points
     for (size_t i = 0; i < numChunkPos; i++)
     {
-        for (LinkedList_t *pNode = pSTATE->pWorldState->pChunksLL; pNode; pNode = pNode->pNext)
+        for (LinkedList_t *pNode = pSTATE->pWorldState->pChunkManager->pChunksLL; pNode; pNode = pNode->pNext)
         {
             if (!pNode->pData)
                 continue;
@@ -374,194 +374,5 @@ bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
 {
     // logs_log(LOG_DEBUG, "Checking if chunk (%d, %d, %d) is loaded.", CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
     return chunkManager_getChunk(pSTATE, CHUNK_POS) != NULL;
-}
-
-EventResult_e player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
-{
-    // TODO: get unloaded chunks around player based off of simulation distance and load them
-    if (!pState || !pEvent || !pEvent->data.pGeneric)
-        return EVENT_RESULT_ERROR;
-
-    uint32_t simDist = pState->pWorldConfig->chunkSimulationDistance;
-    pCtx;
-
-    if (!pState || !pEvent)
-        return EVENT_RESULT_ERROR;
-
-    CtxChunk_t *pChunkEventData = pEvent->data.pChunkEvntData;
-    Entity_t *pEntity = pChunkEventData->pEntitySource;
-    Chunk_t *pChunk = pChunkEventData->pChunk;
-    if (!pChunk)
-        return EVENT_RESULT_ERROR;
-    Vec3i_t chunkPos = pChunk->chunkPos;
-
-    logs_log(LOG_DEBUG, "Entity %p is now in chunk (%d, %d, %d).", pEntity, chunkPos.x, chunkPos.y, chunkPos.z);
-
-    world_chunks_load(pState, pEntity, chunkPos, simDist);
-
-    return EVENT_RESULT_PASS;
-}
-#pragma endregion
-#pragma region Create
-void chunkManager_create(State_t *pState)
-{
-    const void *pSUB_CTX = NULL;
-    static const bool CONSUME_LISTENER = false;
-    static const bool CONSUME_EVENT = false;
-    events_subscribe(&pState->eventBus, EVENT_CHANNEL_CHUNK, player_onChunkChange, CONSUME_LISTENER, CONSUME_EVENT, &pSUB_CTX);
-}
-#pragma endregion
-#pragma region Destroy
-void chunkManager_destroy(State_t *pState)
-{
-    events_unsubscribe(&pState->eventBus, EVENT_CHANNEL_CHUNK, player_onChunkChange);
-
-    linkedList_destroy(&pState->pWorldState->pChunksLL, chunk_destroy, pState);
-}
-#pragma endregion
-#pragma region Chunk API
-bool chunkManager_chunks_aquire(ChunkManager_t *pChunkManager,
-                                const Vec3i_t *pCHUNK_POS,
-                                size_t count,
-                                Chunk_t ***pppNewChunks,
-                                size_t *pNewCount,
-                                Chunk_t ***pppExistingChunks,
-                                size_t *pExistingCount)
-{
-    if (!pChunkManager || !pCHUNK_POS || !pppNewChunks || !pNewCount || !pppExistingChunks || !pExistingCount)
-    {
-        if (pNewCount)
-            *pNewCount = 0;
-        if (pExistingCount)
-            *pExistingCount = 0;
-        return false;
-    }
-
-    // Max possible sizes = count
-    Chunk_t **pNew = calloc(count, sizeof(Chunk_t *));
-    Chunk_t **pExisting = calloc(count, sizeof(Chunk_t *));
-    bool *pFound = calloc(count, sizeof(bool)); // flags per requested position
-
-    if (!pNew || !pExisting || !pFound)
-    {
-        free(pNew);
-        free(pExisting);
-        free(pFound);
-        *pNewCount = 0;
-        *pExistingCount = 0;
-        return false;
-    }
-
-    size_t existingCount = 0;
-    size_t newCount = 0;
-
-    // If there are existing chunks, walk the list once and match against requested positions
-    for (LinkedList_t *pNode = pChunkManager->pChunksLL; pNode; pNode = pNode->pNext)
-    {
-        Chunk_t *pC = (Chunk_t *)pNode->pData;
-        if (!pC)
-            continue;
-
-        const Vec3i_t EXISTING_POS = pC->chunkPos;
-
-        for (size_t i = 0; i < count; ++i)
-        {
-            if (pFound[i])
-                continue; // already matched this requested pos
-
-            const Vec3i_t REQ_POS = pCHUNK_POS[i];
-
-            if (cmath_vec3i_equals(EXISTING_POS, REQ_POS, 0))
-            {
-                pExisting[existingCount++] = pC;
-                pFound[i] = true;
-                break; // move to next existing chunk
-            }
-        }
-    }
-
-    // For any requested position not found above, create a new chunk
-    for (size_t i = 0; i < count; ++i)
-    {
-        if (pFound[i])
-            continue;
-
-        const Vec3i_t CHUNK_POS = pCHUNK_POS[i];
-        Chunk_t *pChunk = chunk_create(CHUNK_POS);
-        if (!pChunk)
-        {
-            // handle cleanup during failure
-            for (size_t j = 0; j < newCount; ++j)
-                chunk_destroy_world(pNew[j]);
-
-            free(pNew);
-            free(pExisting);
-            free(pFound);
-            *pNewCount = 0;
-            *pExistingCount = 0;
-            return false;
-        }
-
-        world_chunk_addToCollection(NULL, pChunk);
-
-        pNew[newCount++] = pChunk;
-    }
-
-    free(pFound);
-
-    if (existingCount > 0)
-    {
-        Chunk_t **tmp = realloc(pExisting, existingCount * sizeof(Chunk_t *));
-        if (tmp)
-            pExisting = tmp;
-    }
-    else
-    {
-        free(pExisting);
-        pExisting = NULL;
-    }
-
-    if (newCount > 0)
-    {
-        Chunk_t **tmp = realloc(pNew, newCount * sizeof(Chunk_t *));
-        if (tmp)
-            pNew = tmp;
-    }
-    else
-    {
-        free(pNew);
-        pNew = NULL;
-    }
-
-    *pppExistingChunks = pExisting;
-    *pppNewChunks = pNew;
-    *pExistingCount = existingCount;
-    *pNewCount = newCount;
-
-    return true;
-}
-
-bool chunkManager_populateNewChunks(
-    ChunkManager_t *pMgr,
-    ChunkSource_t *pSource,
-    Chunk_t **ppNewChunks,
-    size_t newCount)
-{
-    (void)pMgr;
-
-    for (size_t i = 0; i < newCount; ++i)
-    {
-        Chunk_t *pChunk = ppNewChunks[i];
-
-        if (!chunkSource_loadChunk(pSource, pChunk))
-        {
-            // handle error
-            return false;
-        }
-
-        pChunk->chunkState = CHUNK_STATE_CPU;
-    }
-
-    return true;
 }
 #pragma endregion

@@ -23,7 +23,7 @@ typedef struct State_t
     Context_t context;
     Renderer_t renderer;
     Time_t time;
-    EventBus_t eventBus;
+    struct EventBus_t eventBus;
     struct EntityManger_t entityManager;
     Input_t input;
     GUI_State_t gui;
