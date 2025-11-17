@@ -42,9 +42,9 @@ static inline size_t chunkSolidityGrid_index16(const uint8_t LOCAL_X, const uint
 static inline size_t chunkSolidityGrid_index16_fromPacked(const uint16_t PACKED)
 {
     const Vec3u8_t LOCAL = {
-        .x = cmath_chunkBlockPosPackedGetLocal_x(PACKED),
-        .y = cmath_chunkBlockPosPackedGetLocal_y(PACKED),
-        .z = cmath_chunkBlockPosPackedGetLocal_z(PACKED)};
+        .x = cmath_chunk_blockPosPacked_getLocal_x(PACKED),
+        .y = cmath_chunk_blockPosPacked_getLocal_y(PACKED),
+        .z = cmath_chunk_blockPosPacked_getLocal_z(PACKED)};
 
     return chunkSolidityGrid_index18(LOCAL.x + HALO, LOCAL.y + HALO, LOCAL.z + HALO);
 }

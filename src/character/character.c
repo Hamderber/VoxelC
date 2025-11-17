@@ -7,7 +7,6 @@
 #include "world/worldState_t.h"
 #include "character/characterController.h"
 #include "events/eventBus.h"
-#include "world/chunk.h"
 #include "world/chunkManager.h"
 #include "entity/entityManager.h"
 #include "api/chunk/chunkAPI.h"

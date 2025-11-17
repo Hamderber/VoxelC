@@ -10,6 +10,10 @@
 #include "world/world.h"
 // TODO: Finish move to chunkManagerNew
 #include "world/chunkManager.h"
+#pragma endregion
+#pragma region Get Chunk(s)
+
+#pragma endregion
 #pragma region Events
 EventResult_e chunkEvents_player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
 {
@@ -41,13 +45,9 @@ EventResult_e chunkEvents_player_onChunkChange(State_t *pState, Event_t *pEvent,
 }
 #pragma endregion
 #pragma region Chunk API
-bool chunkManager_chunks_aquire(ChunkManager_t *pChunkManager,
-                                const Vec3i_t *pCHUNK_POS,
-                                size_t count,
-                                Chunk_t ***pppNewChunks,
-                                size_t *pNewCount,
-                                Chunk_t ***pppExistingChunks,
-                                size_t *pExistingCount)
+bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Vec3i_t *restrict pCHUNK_POS, size_t count,
+                                Chunk_t ***restrict pppNewChunks, size_t *restrict pNewCount, Chunk_t ***restrict pppExistingChunks,
+                                size_t *restrict pExistingCount)
 {
     if (!pChunkManager || !pCHUNK_POS || !pppNewChunks || !pNewCount || !pppExistingChunks || !pExistingCount)
     {
@@ -209,7 +209,7 @@ ChunkManager_t *chunkManager_createNew(State_t *pState)
     return pChunkManager;
 }
 
-void chunkManager_destroyNew(State_t *pState, ChunkManager_t *pChunkManager)
+void chunkManager_destroyNew(State_t *restrict pState, ChunkManager_t *restrict pChunkManager)
 {
     if (!pChunkManager)
         return;

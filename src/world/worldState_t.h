@@ -5,7 +5,6 @@
 #include "api/chunk/chunkAPI.h"
 #include "world/world_t.h"
 #include "entity/entity_t.h"
-#include "world/chunk.h"
 #include "collection/linkedList_t.h"
 #include "rendering/types/chunkRenderer_t.h"
 #include "chunk/chunkManager_t.h"

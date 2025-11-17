@@ -76,7 +76,6 @@
         "linkedlist_t.h": "c",
         "optional": "c",
         "xtr1common": "c",
-        "chunk.h": "c",
         "cmath.h": "c",
         "uvs.h": "c",
         "random": "c",
@@ -90,6 +89,10 @@
         "chunksource_t.h": "c",
         "chunksource_network.h": "c",
         "stdlib.h": "c",
-        "chunkrenderer_t.h": "c"
+        "chunkrenderer_t.h": "c",
+        "block_t.h": "c",
+        "random.h": "c",
+        "chunkmanager_t.h": "c",
+        "randomnoise.h": "c"
     }
 }

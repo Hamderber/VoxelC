@@ -8,7 +8,6 @@
 #include "character/characterType_t.h"
 #include "character/character.h"
 #include "rendering/chunk/chunkRendering.h"
-#include "chunk.h"
 #include "core/random.h"
 #include "world/chunkManager.h"
 #include "chunkGenerator.h"

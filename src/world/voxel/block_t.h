@@ -1,7 +1,6 @@
 #pragma region Includes
 #pragma once
 #include <stdint.h>
-#include "world/chunk.h"
 #include "world/voxel/cubeFace_t.h"
 #include "rendering/types/faceTexture_t.h"
 #pragma endregion

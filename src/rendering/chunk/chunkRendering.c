@@ -12,6 +12,8 @@
 #include "rendering/chunk/chunkRenderer.h"
 #include "rendering/renderGC.h"
 #include "api/chunk/chunkAPI.h"
+#include "world/chunkSolidityGrid.h"
+#include "world/voxel/block_t.h"
 
 static const uint32_t MINIMUM_COLLECTION_SIZE = 256;
 
@@ -246,7 +248,7 @@ static bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict
         pRenderChunk->indexCount = indexCursor;
         pChunk->pRenderChunk = pRenderChunk;
 
-        Vec3f_t worldPosition = cmath_vec3i_to_vec3f(chunkPos_to_worldOrigin(pChunk->chunkPos));
+        Vec3f_t worldPosition = cmath_vec3i_to_vec3f(cmath_chunk_chunkPos_2_worldPosI(pChunk->chunkPos));
         chunk_placeRenderInWorld(pChunk->pRenderChunk, &worldPosition);
     }
     else if (vertexCursor <= pRenderChunk->vertexCapacity && indexCursor <= pRenderChunk->indexCapacity)

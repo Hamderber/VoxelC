@@ -303,7 +303,7 @@ Entity_t *character_entityCreate(State_t *pState, Character_t *pCharacter)
     }
 
     // Store initial chunkPos directly
-    pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->chunkPos = worldPosf_to_chunkPos(worldPos);
+    pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->chunkPos = cmath_chunk_worldPosF_2_chunkPos(worldPos);
 
     return pCharacterEntity;
 }

@@ -2,7 +2,6 @@
 
 #include <stdbool.h>
 #include "core/logs.h"
-#include "world/chunk.h"
 #include "rendering/camera/camera_t.h"
 #include "collection/flags64_t.h"
 #include "character/character.h"
@@ -108,8 +107,8 @@ struct State_t;
 static void entity_chunkPos_update(struct State_t *pState, Entity_t *pEntity, EntityComponentData_t *pComponentData)
 {
 #ifdef DEBUG
-    const Vec3i_t OLD = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPosOld);
-    const Vec3i_t NEW = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPos);
+    const Vec3i_t OLD = cmath_chunk_worldPosF_2_chunkPos(pComponentData->pPhysicsData->worldPosOld);
+    const Vec3i_t NEW = cmath_chunk_worldPosF_2_chunkPos(pComponentData->pPhysicsData->worldPos);
 
     bool chunkChanged = !cmath_vec3i_equals(OLD, NEW, 0);
     if (chunkChanged)
@@ -127,7 +126,7 @@ static void entity_chunkPos_update(struct State_t *pState, Entity_t *pEntity, En
     pState;
     pEntity;
     // Just set the chunkpos directly
-    pComponentData->pPhysicsData->chunkPos = worldPosf_to_chunkPos(pComponentData->pPhysicsData->worldPos);
+    pComponentData->pPhysicsData->chunkPos = cmath_chunk_worldPosF_2_chunkPos(pComponentData->pPhysicsData->worldPos);
 #endif
 }
 #pragma endregion

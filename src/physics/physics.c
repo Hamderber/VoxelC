@@ -8,7 +8,7 @@
 void phys_applyForce(EntityDataPhysics_t *p, Vec3f_t force, float mass)
 {
     // f=ma
-    Vec3f_t a = cmath_vec3f_mult_scalarF(force, 1.0F / mass);
+    Vec3f_t a = cmath_vec3f_mult_scalar(force, 1.0F / mass);
     p->transientAcceleration = cmath_vec3f_add_vec3f(p->transientAcceleration, a);
 }
 
@@ -23,10 +23,10 @@ void phys_applyImpulseUniform(EntityDataPhysics_t *p, Vec3f_t direction, bool is
 {
     if (isNormalized)
         p->velocity = cmath_vec3f_add_vec3f(p->velocity,
-                                            cmath_vec3f_mult_scalarF(direction, p->uniformSpeed));
+                                            cmath_vec3f_mult_scalar(direction, p->uniformSpeed));
     else
         p->velocity = cmath_vec3f_add_vec3f(p->velocity,
-                                            cmath_vec3f_mult_scalarF(cmath_vec3f_normalize(direction), p->uniformSpeed));
+                                            cmath_vec3f_mult_scalar(cmath_vec3f_normalize(direction), p->uniformSpeed));
 }
 
 void phys_applyRotationIntention(EntityDataPhysics_t *p, float dt)
@@ -34,12 +34,12 @@ void phys_applyRotationIntention(EntityDataPhysics_t *p, float dt)
     // Convert angular velocity (rad/s) -> quaternion delta
     if (!cmath_vec3f_isZero(p->rotationIntentionEulerRad))
     {
-        Vec3f_t delta = cmath_vec3f_mult_scalarF(p->rotationIntentionEulerRad, dt);
+        Vec3f_t delta = cmath_vec3f_mult_scalar(p->rotationIntentionEulerRad, dt);
         float angle = cmath_vec3f_magnitudeF(delta);
 
         if (angle > CMATH_EPSILON_F)
         {
-            Vec3f_t axis = cmath_vec3f_mult_scalarF(delta, 1.0f / angle);
+            Vec3f_t axis = cmath_vec3f_mult_scalar(delta, 1.0f / angle);
             Quaternionf_t dq = cmath_quat_fromAxisAngle(angle, axis);
 
             if (p->useLocalAxes)
@@ -74,7 +74,7 @@ void phys_applyMoveIntention(EntityDataPhysics_t *p, float dt)
     dir = cmath_vec3f_normalize(dir);
 
     // Scale by dt because uniformSpeed is in m/s and we're applying every tick
-    Vec3f_t scaledDir = cmath_vec3f_mult_scalarF(dir, dt);
+    Vec3f_t scaledDir = cmath_vec3f_mult_scalar(dir, dt);
 
     static const bool IS_NORMALIZED = true;
     phys_applyImpulseUniform(p, scaledDir, IS_NORMALIZED);
@@ -82,14 +82,14 @@ void phys_applyMoveIntention(EntityDataPhysics_t *p, float dt)
 
 void phys_integrate(EntityDataPhysics_t *p, float dt)
 {
-    p->velocity = cmath_vec3f_add_vec3f(p->velocity, cmath_vec3f_mult_scalarF(p->transientAcceleration, dt));
+    p->velocity = cmath_vec3f_add_vec3f(p->velocity, cmath_vec3f_mult_scalar(p->transientAcceleration, dt));
 
     // Apply drag. Don't let a huge drag result in going the opposite direction. Normally drag would be
     // Just 1F - drag * dt but bigger numbers help for things like snappy flight controls etc
-    p->velocity = cmath_vec3f_mult_scalarF(p->velocity, cmath_clampF(1.0F - p->drag * dt, 0.0F, CMATH_MAX_F));
+    p->velocity = cmath_vec3f_mult_scalar(p->velocity, cmath_clampF(1.0F - p->drag * dt, 0.0F, CMATH_MAX_F));
 
     p->worldPosOld = p->worldPos;
-    p->worldPos = cmath_vec3f_add_vec3f(p->worldPos, cmath_vec3f_mult_scalarF(p->velocity, dt));
+    p->worldPos = cmath_vec3f_add_vec3f(p->worldPos, cmath_vec3f_mult_scalar(p->velocity, dt));
 
     p->transientAcceleration = VEC3F_ZERO;
 }

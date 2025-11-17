@@ -3,7 +3,6 @@
 #include "cmath/cmath.h"
 #include "core/types/state_t.h"
 #include "cmath/weightedMap_t.h"
-#include "world/chunk.h"
 #include "world/voxel/block_t.h"
 #include "chunkGenerator.h"
 #include "cmath/weightedMaps.h"

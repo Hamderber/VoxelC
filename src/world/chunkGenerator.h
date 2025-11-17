@@ -3,6 +3,7 @@
 #include "core/types/state_t.h"
 #include "cmath/weightedMap_t.h"
 #include "api/chunk/chunkAPI.h"
+#include "world/voxel/block_t.h"
 
 static float gStoneCDF[BLOCK_DEFS_STONE_COUNT];
 

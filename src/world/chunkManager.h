@@ -3,9 +3,9 @@
 #include <stdbool.h>
 #include "cmath/cmath.h"
 #include "core/types/state_t.h"
-#include "world/chunk.h"
 #include "api/chunk/chunkAPI.h"
 #include "chunk/chunkManager_t.h"
+#include "world/voxel/block_t.h"
 
 typedef enum ChunkQuery_e
 {
@@ -58,20 +58,8 @@ bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 /// @brief Destroys the and frees internals of the chunk. DOES NOT free the chunk. pCtx here is pState (so this can be called from)
 /// a linked list destructor
 void chunk_destroy(void *pCtx, Chunk_t *pChunk);
-
-/// @brief Subscribes to events in the chunk event channel
-void chunkManager_create(State_t *pState);
-
-/// @brief Destroys the chunk manager, any loaded chunks, and unsubscribes from chunk events
-void chunkManager_destroy(State_t *pState);
-
-bool chunkManager_chunks_aquire(ChunkManager_t *pChunkManager,
-                                const Vec3i_t *pCHUNK_POS,
-                                size_t count,
-                                Chunk_t ***pppNewChunks,
-                                size_t *pNewCount,
-                                Chunk_t ***pppExistingChunks,
-                                size_t *pExistingCount);
+void chunk_destroy_world(Chunk_t *pChunk);
+Chunk_t *chunk_create(const Vec3i_t CHUNK_POS);
 
 bool chunkManager_populateNewChunks(
     ChunkManager_t *pMgr,
