@@ -1,6 +1,7 @@
 #pragma once
 #include "cmath/cmath.h"
 
+enum ChunkState_e;
 struct RenderChunk_t;
 struct BlockVoxel_t;
 struct LinkedList_t;
@@ -8,6 +9,7 @@ struct ChunkSolidityGrid_t;
 
 typedef struct Chunk_t
 {
+    enum ChunkState_e chunkState;
     struct RenderChunk_t *pRenderChunk;
     struct BlockVoxel_t *pBlockVoxels;
     struct Vec3i_t chunkPos;

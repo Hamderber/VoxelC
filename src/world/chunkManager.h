@@ -5,6 +5,7 @@
 #include "core/types/state_t.h"
 #include "world/chunk.h"
 #include "api/chunk/chunkAPI.h"
+#include "chunk/chunkManager_t.h"
 
 typedef enum ChunkQuery_e
 {
@@ -63,3 +64,17 @@ void chunkManager_create(State_t *pState);
 
 /// @brief Destroys the chunk manager, any loaded chunks, and unsubscribes from chunk events
 void chunkManager_destroy(State_t *pState);
+
+bool chunkManager_chunks_aquire(ChunkManager_t *pChunkManager,
+                                const Vec3i_t *pCHUNK_POS,
+                                size_t count,
+                                Chunk_t ***pppNewChunks,
+                                size_t *pNewCount,
+                                Chunk_t ***pppExistingChunks,
+                                size_t *pExistingCount);
+
+bool chunkManager_populateNewChunks(
+    ChunkManager_t *pMgr,
+    ChunkSource_t *pSource,
+    Chunk_t **ppNewChunks,
+    size_t newCount);

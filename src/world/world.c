@@ -35,7 +35,7 @@ static void spawn_generate(State_t *pState)
 {
     size_t size;
     const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
-    const int SPAWN_RAD = pState->worldConfig.spawnChunkLoadingRadius;
+    const int SPAWN_RAD = pState->pWorldConfig->spawnChunkLoadingRadius;
     Vec3i_t *pPoints = cmath_algo_expandingCubicShell(SPAWN_ORIGIN, SPAWN_RAD, &size);
 
     // spawn chunks are permanently chunkloaded
@@ -80,23 +80,36 @@ void world_loop(State_t *pState)
 #pragma region Load
 void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
 {
+    pLoadingEntity;
+
     size_t size;
     Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
 
-    size_t newChunkCount = size, alreadyLoadedChunkCount = size;
-    Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
-    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
-                                                           pChunkPosUnloaded, &newChunkCount,
-                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
+    size_t newCount = size;
+    size_t existingCount = size;
+    Chunk_t **ppNewChunks = NULL;
+    Chunk_t **ppExistingChunk = NULL;
 
-    if (ppNewChunks)
+    if (!chunkManager_chunks_aquire(NULL,
+                                    pPoints,
+                                    size,
+                                    &ppNewChunks, &newCount,
+                                    &ppExistingChunk, &existingCount))
     {
-        // Permanently load these because this is spawn
-        chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
-
-        for (size_t i = 0; i < newChunkCount; i++)
-            chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
+        // handle error
     }
+
+    if (newCount > 0)
+    {
+        if (!chunkManager_populateNewChunks(NULL, pState->pWorldState->pChunkSource,
+                                            ppNewChunks, newCount))
+        {
+            // handle failure
+        }
+    }
+
+    free(ppNewChunks);
+    free(ppExistingChunk);
 }
 #pragma endregion
 #pragma region Create

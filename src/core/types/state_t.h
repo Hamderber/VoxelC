@@ -31,7 +31,7 @@ typedef struct State_t
     // Contains data on non-voxel models for rendering
     Scene_t scene;
     struct WorldState_t *pWorldState;
-    struct WorldConfig_t worldConfig;
+    struct WorldConfig_t *pWorldConfig;
 
     // Math
     WeightMaps_t weightedMaps;
