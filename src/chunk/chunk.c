@@ -47,30 +47,44 @@ void chunk_destroy(void *pCtx, Chunk_t *pChunk)
     if (!pCtx || !pChunk)
         return;
 
-#if defined(DEBUG_CHUNK)
     const Vec3i_t CHUNK_POS = pChunk->chunkPos;
-#endif
 
     State_t *pState = (State_t *)pCtx;
 
-    // Only attempt to destroy the GPU-side if there is a gpu-associated state
-    if (chunkState_gpu(pChunk))
+    // Fall-through for handling different chunk states during destruction!
+    switch (pChunk->chunkState)
     {
-        chunk_renderDestroy(pState, pChunk->pRenderChunk);
-        chunkState_set(pChunk, CHUNK_STATE_CPU_ONLY);
-    }
+    // Something has gone wrong and the chunk is being destroyed early because of it
+    case CHUNK_STATE_CPU_LOADING:
+        logs_log(LOG_WARN, "Destroying chunk %p at (%d, %d, %d) despite it still being in a loading state! \
+Something must've gone wrong for this to happen.",
+                 pChunk, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
 
-    // Verify that there is a cpu-side for the chunk. This should always be the case
-    if (chunkState_cpu(pChunk))
+    case CHUNK_STATE_CPU_GPU:
+        // Only attempt to destroy the GPU-side if there is a gpu-associated state
+        if (chunkState_gpu(pChunk))
+        {
+            // TODO: Finish decoupling the state from the chunk system. There is only one state and only one renderer, after all
+            chunk_renderDestroy(pState, pChunk->pRenderChunk);
+            pChunk->pRenderChunk = NULL;
+            chunkState_set(pChunk, CHUNK_STATE_CPU_ONLY);
+        }
+
+    case CHUNK_STATE_CPU_ONLY:
+    case CHUNK_STATE_CPU_EMPTY:
+    default:
         chunk_world_destroy(pChunk);
 
 #if defined(DEBUG_CHUNK)
-    chunkFreedCount++;
-    logs_log(LOG_DEBUG, "[Chunk free # %u] freed %u bytes at %p for chunk at (%d, %d, %d).", chunkFreedCount,
-             sizeof(Chunk_t), pChunk, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
+        chunkFreedCount++;
+        logs_log(LOG_DEBUG, "[Chunk free # %u] freed %u bytes at %p for chunk at (%d, %d, %d).", chunkFreedCount,
+                 sizeof(Chunk_t), pChunk, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
 #endif
-
-    free(pChunk);
+        // There is no need to set chunk state to empty because its just freed. This means that when debugging chunk state,
+        // the last entry will be "Chunk 0000022C822F68A0 at (0, 0, 0) state CHUNK_STATE_CPU_LOADING -> CHUNK_STATE_CPU_EMPTY."
+        free(pChunk);
+        break;
+    };
 }
 #pragma endregion
 #pragma region Create

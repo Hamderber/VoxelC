@@ -173,8 +173,8 @@ static inline LinkedList_t *linkedList_node_addUnique(LinkedList_t **ppRoot, Lin
 static inline bool linkedList_destroy(LinkedList_t **ppRoot, LinkedListDataDestructor destructor, void *pCtx)
 {
     size_t removedSize = 0;
-    // root node will always have NULL data
-    if (!ppRoot || (*ppRoot) || !(*ppRoot)->pNext)
+    // root node will always have NULL data (sentinel)
+    if (!ppRoot)
         return false;
 
     LinkedList_t *pNode = *ppRoot;
