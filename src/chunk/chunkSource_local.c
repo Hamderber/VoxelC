@@ -3,16 +3,17 @@
 #include <string.h>
 #include "chunkSource_local.h"
 #include "world/worldConfig_t.h"
+#include "world/chunkGenerator.h"
 #pragma endregion
 #pragma region Defines
-static bool local_loadChunk(ChunkSource_t *restrict pSource, Chunk_t *restrict pChunk);
-static void local_unloadChunk(ChunkSource_t *restrict pSource, Chunk_t *restrict pChunk);
+static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count);
+static void local_unloadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count);
 static void local_tick(ChunkSource_t *pSource, double deltaTime);
 static void local_destroy(ChunkSource_t *pSource);
 
 static const ChunkSourceVTable_t LOCAL_CHUNK_SOURCE_VTABLE = {
-    .pLoadChunkFunc = local_loadChunk,
-    .pUnloadChunkFunc = local_unloadChunk,
+    .pLoadChunksFunc = local_loadChunks,
+    .pUnloadChunksFunc = local_unloadChunks,
     .pTickFunc = local_tick,
     .pDestroyFunc = local_destroy};
 #pragma endregion
@@ -40,33 +41,39 @@ ChunkSource_t *chunkSource_createLocal(WorldConfig_t *restrict pWorldCfg, const 
 }
 #pragma endregion
 #pragma region VTable Functions
-static bool local_loadChunk(ChunkSource_t *restrict pSource, Chunk_t *restrict pChunk)
+static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count)
 {
+    ppChunks;
+
     LocalChunkSourceImpl_t *pImplData = (LocalChunkSourceImpl_t *)pSource->pImplData;
 
     bool tryLoadResult = false;
-    logs_log(LOG_DEBUG, "Trying to load chunk (%d, %d, %d) from %s...",
-             pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z, pImplData->saveDirectory);
+    logs_log(LOG_DEBUG, "Trying to load %d, chunk(s) (%d, %d, %d) from %s...", count, pImplData->saveDirectory);
 
-    if (tryLoadResult)
+    for (size_t i = 0; i < count; i++)
     {
-        // load
-    }
-    else
-    {
-        // generate pChunk
+        const Vec3i_t CHUNK_POS = ppChunks[i]->chunkPos;
+        if (tryLoadResult)
+        {
+            // load
+        }
+        else
+        {
+            logs_log(LOG_DEBUG, "Generating chunk %p at (%d, %d, %d).", ppChunks[i], CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
+        }
     }
     return true;
 }
 
-static void local_unloadChunk(ChunkSource_t *restrict pSource, Chunk_t *restrict pChunk)
+static void local_unloadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count)
 {
     LocalChunkSourceImpl_t *pImplData = (LocalChunkSourceImpl_t *)pSource->pImplData;
 
     // TODO: Actually save this somewhere
 
+    count;
     pImplData;
-    pChunk;
+    ppChunks;
 }
 
 static void local_tick(ChunkSource_t *pSource, double deltaTime)

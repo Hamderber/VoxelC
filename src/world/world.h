@@ -3,7 +3,7 @@
 #include "core/types/state_t.h"
 #include "api/chunk/chunkAPI.h"
 
-void world_chunk_addToCollection(State_t *restrict pState, Chunk_t *restrict pChunk);
+void world_chunk_addToCollection(ChunkManager_t *restrict pChunkManager, Chunk_t *restrict pChunk);
 
 void world_loop(State_t *pState);
 

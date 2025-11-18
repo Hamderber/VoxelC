@@ -27,18 +27,8 @@ Chunk_t **chunkManager_getChunks(const State_t *restrict pSTATE, const Vec3i_t *
 /// neighbor chunk at CHUNK_POS. (Heap)
 Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 
-/// @brief Create chunks at the passed positions and add them directly to the world.
-/// Maximum size must be passed through both new and already loaded. The final resulting size of each is placed into the passed addresses.
-Chunk_t **chunkManager_chunk_createBatch(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
-                                         Vec3i_t *restrict pChunkPosUnloaded, size_t *restrict pUnloadedCount,
-                                         Vec3i_t *restrict pChunkPosLoaded, size_t *restrict pLoadedCount);
-
 /// @brief Adds the passed entity to each chunk in the passed collection's entity loading linked list.
 bool chunkManager_chunk_addLoadingEntity(Chunk_t **ppChunks, size_t numChunks, Entity_t *pEntity);
-
-/// @brief Adds the world's permanent chunk loading entity to each chunk in the passed collection's entity loading linked list.
-/// Having that entity be in the loading collection will prevent the chunk from being unloaded.
-bool chunkManager_chunk_permanentlyLoad(State_t *pState, Chunk_t **ppChunks, size_t numChunks);
 
 /// @brief Gets the the block in the chunk's local coord system
 const inline BlockVoxel_t chunkManager_getBlock(const Chunk_t *pCHUNK, const Vec3u8_t LOCAL_POS)
@@ -58,8 +48,6 @@ bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 /// @brief Destroys the and frees internals of the chunk. DOES NOT free the chunk. pCtx here is pState (so this can be called from)
 /// a linked list destructor
 void chunk_destroy(void *pCtx, Chunk_t *pChunk);
-void chunk_destroy_world(Chunk_t *pChunk);
-Chunk_t *chunk_create(const Vec3i_t CHUNK_POS);
 
 bool chunkManager_populateNewChunks(
     ChunkManager_t *pMgr,

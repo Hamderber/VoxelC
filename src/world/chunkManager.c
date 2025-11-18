@@ -117,29 +117,6 @@ Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CH
     return ppChunks;
 }
 #pragma endregion
-#pragma region Allocate Voxels
-Chunk_t *chunk_create(const Vec3i_t CHUNK_POS)
-{
-    Chunk_t *pChunk = malloc(sizeof(Chunk_t));
-    if (!pChunk)
-        return NULL;
-
-    pChunk->pBlockVoxels = calloc(CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
-    pChunk->chunkPos = CHUNK_POS;
-
-    return pChunk;
-}
-
-static Chunk_t *chunk_voxels_allocate(const State_t *pSTATE, const BlockDefinition_t *const *pBLOCK_DEFINITIONS, const Vec3i_t CHUNK_POS)
-{
-    Chunk_t *pChunk = chunk_create(CHUNK_POS);
-
-    if (!chunkGen_genChunk(pSTATE, pBLOCK_DEFINITIONS, pChunk))
-        return NULL;
-
-    return pChunk;
-}
-#pragma endregion
 #pragma region Create Chunk
 /// @brief Iterates the provided chunk positions and returns a heap array of chunk positions matching query from that collection.
 /// Places the length of that collection into pCount
@@ -243,39 +220,6 @@ static bool chunks_getChunksPos(State_t *restrict pState, const Vec3i_t *restric
     return false;
 }
 
-Chunk_t **chunkManager_chunk_createBatch(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
-                                         Vec3i_t *restrict pChunkPosUnloaded, size_t *restrict pUnloadedCount,
-                                         Vec3i_t *restrict pChunkPosLoaded, size_t *restrict pLoadedCount)
-{
-    if (!pState || !pCHUNK_POS)
-        return NULL;
-
-    chunks_getChunksPos(pState, pCHUNK_POS, COUNT_MAX,
-                        &pChunkPosUnloaded, pUnloadedCount,
-                        &pChunkPosLoaded, pLoadedCount, QUERY_CHUNK_LOADED_AND_UNLOADED);
-
-    Chunk_t **ppNewChunks = calloc(*pUnloadedCount, sizeof(Chunk_t *));
-    const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();
-    if (!ppNewChunks || !pBLOCK_DEFINITIONS)
-    {
-        logs_log(LOG_ERROR, "Failed to allocate memory for new chunnks!");
-        *pUnloadedCount = 0;
-        free(ppNewChunks);
-        ppNewChunks = NULL;
-        return NULL;
-    }
-
-    for (size_t i = 0; i < *pUnloadedCount; i++)
-    {
-        ppNewChunks[i] = chunk_voxels_allocate(pState, pBLOCK_DEFINITIONS, pChunkPosUnloaded[i]);
-        ppNewChunks[i]->pEntitiesLoadingChunkLL = linkedList_root();
-        ppNewChunks[i]->pRenderChunk = NULL;
-        world_chunk_addToCollection(pState, ppNewChunks[i]);
-    }
-
-    return ppNewChunks;
-}
-
 bool chunkManager_chunk_addLoadingEntity(Chunk_t **ppChunks, size_t numChunks, Entity_t *pEntity)
 {
     if (numChunks == 0)
@@ -297,7 +241,7 @@ chunk(s), use the correct (not this one) function for that instead.");
     for (size_t i = 0; i < numChunks; i++)
     {
         if (ppChunks[i])
-            linkedList_data_add(&ppChunks[i]->pEntitiesLoadingChunkLL, (void *)(pEntity));
+            linkedList_data_addUnique(&ppChunks[i]->pEntitiesLoadingChunkLL, (void *)(pEntity));
         else
         {
             logs_log(LOG_ERROR, "Attempted to add a loading entity to a NULL chunk! That chunk was skipped.");
@@ -308,68 +252,6 @@ chunk(s), use the correct (not this one) function for that instead.");
     return true;
 }
 
-bool chunkManager_chunk_permanentlyLoad(State_t *pState, Chunk_t **ppChunks, size_t numChunks)
-{
-    if (numChunks == 0)
-        return false;
-
-    if (!ppChunks)
-    {
-        logs_log(LOG_ERROR, "Attempted to permanently load an invalid collection of chunks!");
-        return false;
-    }
-
-    if (!pState || !pState->pWorldState || !pState->pWorldState->pChunkLoadingEntity)
-    {
-        logs_log(LOG_ERROR, "Attempted to permanently load chunk(s) with an invalid state reference!");
-        return false;
-    }
-
-    for (size_t i = 0; i < numChunks; i++)
-    {
-        if (ppChunks[i] && ppChunks[i]->pEntitiesLoadingChunkLL)
-            linkedList_data_addUnique(&ppChunks[i]->pEntitiesLoadingChunkLL, (void *)(pState->pWorldState->pChunkLoadingEntity));
-        else
-        {
-            logs_log(LOG_ERROR, "Attempted to permanently load a NULL chunk or a chunk with NULL members! That chunk was skipped.");
-            continue;
-        }
-    }
-
-    return true;
-}
-
-#pragma endregion
-#pragma region Destroy Chunk
-void chunk_entitiesLoadingLL_destroy(Chunk_t *pChunk)
-{
-    if (!pChunk)
-        return;
-
-    linkedList_destroy(&pChunk->pEntitiesLoadingChunkLL, NULL, NULL);
-
-    pChunk->pEntitiesLoadingChunkLL = NULL;
-}
-
-void chunk_destroy_world(Chunk_t *pChunk)
-{
-    chunk_entitiesLoadingLL_destroy(pChunk);
-    free(pChunk->pBlockVoxels);
-    chunkSolidityGrid_destroy(pChunk->pTransparencyGrid);
-}
-
-void chunk_destroy(void *pCtx, Chunk_t *pChunk)
-{
-    // Cast ctx to state so this can be used in a linked list destructor
-    if (!pCtx || !pChunk)
-        return;
-
-    State_t *pState = (State_t *)pCtx;
-    chunk_renderDestroy(pState, pChunk->pRenderChunk);
-    chunk_destroy_world(pChunk);
-}
-#pragma endregion
-#pragma region Chunk (Un)Load
 bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
 {
     // logs_log(LOG_DEBUG, "Checking if chunk (%d, %d, %d) is loaded.", CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);

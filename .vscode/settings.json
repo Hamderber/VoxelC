@@ -93,6 +93,7 @@
         "block_t.h": "c",
         "random.h": "c",
         "chunkmanager_t.h": "c",
-        "randomnoise.h": "c"
+        "randomnoise.h": "c",
+        "index_buffer.h": "c"
     }
 }

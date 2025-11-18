@@ -174,7 +174,7 @@ static inline bool linkedList_destroy(LinkedList_t **ppRoot, LinkedListDataDestr
 {
     size_t removedSize = 0;
     // root node will always have NULL data
-    if (!ppRoot || (*ppRoot)->pData || !(*ppRoot)->pNext)
+    if (!ppRoot || (*ppRoot) || !(*ppRoot)->pNext)
         return false;
 
     LinkedList_t *pNode = *ppRoot;

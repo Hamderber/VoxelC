@@ -13,59 +13,7 @@
 #include "chunkGenerator.h"
 #include "rendering/chunk/chunkRenderer.h"
 #include "chunk/chunkManagerNew.h"
-#pragma endregion
-#pragma region Add Chunk to Col.
-static size_t addedChunks = 0;
-void world_chunk_addToCollection(State_t *restrict pState, Chunk_t *restrict pChunk)
-{
-    if (!pState || !pChunk)
-        return;
-
-    LinkedList_t *pAdd = linkedList_data_add(&pState->pWorldState->pChunkManager->pChunksLL, (void *)pChunk);
-    if (!pAdd)
-    {
-        logs_log(LOG_ERROR, "Failed to add chunk %p to the world's chunk linked list!", pChunk);
-        return;
-    }
-    addedChunks++;
-}
-#pragma endregion
-#pragma region Chunks Init
-static void spawn_generate(State_t *pState)
-{
-    size_t size;
-    const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
-    const int SPAWN_RAD = pState->pWorldConfig->spawnChunkLoadingRadius;
-    Vec3i_t *pPoints = cmath_algo_expandingCubicShell(SPAWN_ORIGIN, SPAWN_RAD, &size);
-
-    // spawn chunks are permanently chunkloaded
-    size_t newChunkCount = size, alreadyLoadedChunkCount = size;
-    Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
-    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
-                                                           pChunkPosUnloaded, &newChunkCount,
-                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
-
-    if (ppNewChunks)
-    {
-        // Permanently load these because this is spawn
-        chunkManager_chunk_permanentlyLoad(pState, ppNewChunks, newChunkCount);
-
-        for (size_t i = 0; i < newChunkCount; i++)
-            chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
-    }
-}
-
-static void world_chunks_init(State_t *pState)
-{
-    if (!pState->pWorldState->pChunkManager->pChunksLL)
-        return;
-
-    Entity_t *pChunkLoadingEntity = em_entityCreateHeap();
-
-    pState->pWorldState->pChunkLoadingEntity = pChunkLoadingEntity;
-
-    spawn_generate(pState);
-}
+#include "chunk/chunkSource_local.h"
 #pragma endregion
 #pragma region Loop
 void world_loop(State_t *pState)
@@ -89,21 +37,21 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
     Chunk_t **ppNewChunks = NULL;
     Chunk_t **ppExistingChunk = NULL;
 
-    if (!chunkManager_chunks_aquire(NULL,
+    if (!chunkManager_chunks_aquire(pState->pWorldState->pChunkManager,
                                     pPoints,
                                     size,
                                     &ppNewChunks, &newCount,
                                     &ppExistingChunk, &existingCount))
     {
-        // TODO
+        logs_log(LOG_ERROR, "Failed to aquire %u chunks!", size);
     }
 
     if (newCount > 0)
     {
-        if (!chunkManager_populateNewChunks(NULL, pState->pWorldState->pChunkSource,
+        if (!chunkManager_populateNewChunks(pState->pWorldState->pChunkManager, pState->pWorldState->pChunkSource,
                                             ppNewChunks, newCount))
         {
-            // TODO
+            logs_log(LOG_ERROR, "Failed to populate %u chunks!", size);
         }
     }
 
@@ -112,9 +60,32 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
 }
 #pragma endregion
 #pragma region Create
+static void spawn_generate(State_t *pState)
+{
+    const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
+    const int SPAWN_RAD = pState->pWorldConfig->spawnChunkLoadingRadius;
+    world_chunks_load(pState, pState->pWorldState->pChunkLoadingEntity, SPAWN_ORIGIN, SPAWN_RAD);
+}
+
+static void world_chunks_init(State_t *pState)
+{
+    if (!pState->pWorldState->pChunkManager->pChunksLL)
+        return;
+
+    Entity_t *pChunkLoadingEntity = em_entityCreateHeap();
+
+    pState->pWorldState->pChunkLoadingEntity = pChunkLoadingEntity;
+
+    spawn_generate(pState);
+}
+
 static void init(State_t *pState)
 {
     pState->pWorldState = calloc(1, sizeof(WorldState_t));
+    // Don't forget about this
+    const char *pSaveDirectory = "SAVE_DIR_NYI";
+    logs_log(LOG_WARN, "Save directory is still NYI!");
+    pState->pWorldState->pChunkSource = chunkSource_createLocal(pState->pWorldConfig, pSaveDirectory);
     pState->pWorldState->pChunkManager = chunkManager_createNew(pState);
 
     chunkRenderer_create(pState->pWorldState);
@@ -137,8 +108,6 @@ void world_destroy(State_t *pState)
 {
     if (!pState || !pState->pWorldState)
         return;
-
-    logs_log(LOG_DEBUG, "Chunks added: %d", addedChunks);
 
     pState->pWorldState->isLoaded = false;
 

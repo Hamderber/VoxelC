@@ -8,8 +8,25 @@
 #include "events/eventTypes.h"
 #include "events/eventBus.h"
 #include "world/world.h"
+#include "chunk/chunk.h"
 // TODO: Finish move to chunkManagerNew
 #include "world/chunkManager.h"
+#pragma endregion
+#pragma region Chunk Registration
+static size_t addedChunks = 0;
+void chunkManager_chunk_register(ChunkManager_t *restrict pChunkManager, Chunk_t *restrict pChunk)
+{
+    if (!pChunkManager || !pChunk)
+        return;
+
+    LinkedList_t *pAdd = linkedList_data_add(&pChunkManager->pChunksLL, (void *)pChunk);
+    if (!pAdd)
+    {
+        logs_log(LOG_ERROR, "Failed to add chunk %p to the world's chunk linked list!", pChunk);
+        return;
+    }
+    addedChunks++;
+}
 #pragma endregion
 #pragma region Get Chunk(s)
 
@@ -108,12 +125,12 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
             continue;
 
         const Vec3i_t CHUNK_POS = pCHUNK_POS[i];
-        Chunk_t *pChunk = chunk_create(CHUNK_POS);
+        Chunk_t *pChunk = chunk_world_create(CHUNK_POS);
         if (!pChunk)
         {
             // handle cleanup during failure
             for (size_t j = 0; j < newCount; ++j)
-                chunk_destroy_world(pNew[j]);
+                chunk_world_destroy(pNew[j]);
 
             free(pNew);
             free(pExisting);
@@ -123,7 +140,7 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
             return false;
         }
 
-        world_chunk_addToCollection(NULL, pChunk);
+        chunkManager_chunk_register(pChunkManager, pChunk);
 
         pNew[newCount++] = pChunk;
     }
@@ -162,15 +179,16 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
     return true;
 }
 
-bool chunkManager_populateNewChunks(ChunkManager_t *pChunkManager, ChunkSource_t *pSource, Chunk_t **ppNewChunks, size_t newCount)
+bool chunkManager_populateNewChunks(ChunkManager_t *pChunkManager, ChunkSource_t *pSource, Chunk_t **ppNewChunks, size_t count)
 {
     (void)pChunkManager;
+    pSource;
 
-    for (size_t i = 0; i < newCount; ++i)
+    for (size_t i = 0; i < count; ++i)
     {
         Chunk_t *pChunk = ppNewChunks[i];
 
-        if (!chunkSource_loadChunk(pSource, pChunk))
+        if (!chunkSource_loadChunks(pSource, ppNewChunks, count))
         {
             // TODO
             return false;
@@ -213,6 +231,8 @@ void chunkManager_destroyNew(State_t *restrict pState, ChunkManager_t *restrict 
 {
     if (!pChunkManager)
         return;
+
+    logs_log(LOG_DEBUG, "Chunks added: %d", addedChunks);
 
     events_unsubscribe(&pState->eventBus, EVENT_CHANNEL_CHUNK, chunkEvents_player_onChunkChange);
 
