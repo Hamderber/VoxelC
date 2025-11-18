@@ -13,6 +13,8 @@ typedef enum ChunkState_e
     CHUNK_STATE_CPU_EMPTY,
     // Chunk is actively being created/loaded from some source (async?)
     CHUNK_STATE_CPU_LOADING,
+    // Chunk loading failed!
+    CHUNK_STATE_CPU_FAILED,
     // CPU-only, so world simulation with no rendering
     CHUNK_STATE_CPU_ONLY,
     // Fully loaded chunk that is both simulated and rendered
@@ -25,6 +27,7 @@ static const char *pCHUNK_STATE_NAMES[] = {
     "CHUNK_STATE_UNLOADED",
     "CHUNK_STATE_CPU_EMPTY",
     "CHUNK_STATE_CPU_LOADING",
+    "CHUNK_STATE_CPU_FAILED",
     "CHUNK_STATE_CPU_ONLY",
     "CHUNK_STATE_CPU_GPU",
 };

@@ -512,8 +512,3 @@ void graphicsPipeline_destroyAll(State_t *pState)
     vkDestroyPipelineLayout(pState->context.device, pState->renderer.pipelineLayoutWireframeVoxel, pState->context.pAllocator);
 }
 #pragma endregion
-#pragma region Undefines
-#undef VIEWPORT_COUNT
-#undef SCISSOR_COUNT
-#undef COLOR_BLEND_COUNT
-#pragma endregion

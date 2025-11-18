@@ -49,8 +49,5 @@ bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 /// a linked list destructor
 void chunk_destroy(void *pCtx, Chunk_t *pChunk);
 
-bool chunkManager_populateNewChunks(
-    ChunkManager_t *pMgr,
-    ChunkSource_t *pSource,
-    Chunk_t **ppNewChunks,
-    size_t newCount);
+bool chunkManager_chunks_populateNew(State_t *pState, ChunkManager_t *pChunkManager, ChunkSource_t *pSource,
+                                     Chunk_t **ppNewChunks, size_t count);

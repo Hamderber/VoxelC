@@ -12,6 +12,11 @@
 // TODO: Finish move to chunkManagerNew
 #include "world/chunkManager.h"
 #pragma endregion
+#pragma region Defines
+#if defined(DEBUG)
+#define DEBUG_CHUNKMANAGER
+#endif
+#pragma endregion
 #pragma region Chunk Registration
 static size_t addedChunks = 0;
 void chunkManager_chunk_register(ChunkManager_t *restrict pChunkManager, Chunk_t *restrict pChunk)
@@ -19,17 +24,30 @@ void chunkManager_chunk_register(ChunkManager_t *restrict pChunkManager, Chunk_t
     if (!pChunkManager || !pChunk)
         return;
 
-    LinkedList_t *pAdd = linkedList_data_add(&pChunkManager->pChunksLL, (void *)pChunk);
+    LinkedList_t *pAdd = linkedList_data_addUnique(&pChunkManager->pChunksLL, (void *)pChunk);
     if (!pAdd)
     {
-        logs_log(LOG_ERROR, "Failed to add chunk %p to the world's chunk linked list!", pChunk);
+#if defined(DEBUG_CHUNKMANAGER)
+        logs_log(LOG_ERROR, "Failed to add chunk %p to chunk manager %p's chunk linked list!", pChunk, pChunkManager);
+#endif
         return;
     }
     addedChunks++;
 }
-#pragma endregion
-#pragma region Get Chunk(s)
 
+void chunkManager_chunk_deregister(ChunkManager_t *restrict pChunkManager, Chunk_t *restrict pChunk)
+{
+    if (!pChunkManager || !pChunk)
+        return;
+
+    if (linkedList_data_remove(&pChunkManager->pChunksLL, (void *)pChunk))
+    {
+#if defined(DEBUG_CHUNKMANAGER)
+        logs_log(LOG_ERROR, "Removed chunk %p from chunk manager %p's chunk linked list.", pChunk, pChunkManager);
+#endif
+        addedChunks--;
+    }
+}
 #pragma endregion
 #pragma region Events
 EventResult_e chunkEvents_player_onChunkChange(State_t *pState, Event_t *pEvent, void *pCtx)
@@ -53,8 +71,10 @@ EventResult_e chunkEvents_player_onChunkChange(State_t *pState, Event_t *pEvent,
         return EVENT_RESULT_ERROR;
     Vec3i_t chunkPos = pChunk->chunkPos;
 
+#if defined(DEBUG_CHUNKMANAGER)
     logs_log(LOG_DEBUG, "Entity %p is now in chunk (%d, %d, %d) of ChunkManager %p.", pEntity,
              chunkPos.x, chunkPos.y, chunkPos.z, pChunkManager);
+#endif
 
     world_chunks_load(pState, pEntity, chunkPos, simDist);
 
@@ -75,7 +95,9 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
         return false;
     }
 
+#if defined(DEBUG_CHUNKMANAGER)
     logs_log(LOG_DEBUG, "Trying to aquire %u chunks from chunk manager %p.", count, pChunkManager);
+#endif
 
     // Max possible sizes = count
     Chunk_t **pNew = calloc(count, sizeof(Chunk_t *));
@@ -178,18 +200,48 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
     *pExistingCount = existingCount;
     *pNewCount = newCount;
 
+#if defined(DEBUG_CHUNKMANAGER)
+    logs_log(LOG_DEBUG, "Aquired %u new chunk(s) and %u existing chunk(s) from chunk manager %p",
+             *pNewCount, *pExistingCount, pChunkManager);
+#endif
     return true;
 }
 
-bool chunkManager_populateNewChunks(ChunkManager_t *pChunkManager, ChunkSource_t *pSource, Chunk_t **ppNewChunks, size_t count)
+bool chunkManager_chunks_populateNew(State_t *pState, ChunkManager_t *pChunkManager, ChunkSource_t *pSource,
+                                     Chunk_t **ppNewChunks, size_t count)
 {
-    if (!chunkSource_loadChunks(pSource, ppNewChunks, count))
+    Chunk_t **ppOutChunksBad = NULL;
+    size_t outCount = 0;
+
+    if (chunkSource_loadChunks(pSource, ppNewChunks, count, &ppOutChunksBad, &outCount))
     {
-        logs_log(LOG_DEBUG, "Failed to load %u chunks from chunk manager %p.", count, pChunkManager);
+#if defined(DEBUG_CHUNKMANAGER)
+        logs_log(LOG_DEBUG, "Loaded %zu chunks (%zu failed) from chunk manager %p.", count - outCount, outCount, pChunkManager);
+#endif
+        if (outCount > 0)
+        {
+#if defined(DEBUG_CHUNKMANAGER)
+            logs_log(LOG_DEBUG, "Failed to load %zu chunks from chunk manager %p. Destroying those chunks.", outCount, pChunkManager);
+#endif
+            for (size_t i = 0; i < outCount; i++)
+            {
+                chunkManager_chunk_deregister(pChunkManager, ppOutChunksBad[i]);
+                // Don't worry about the render side because this must pass first to get tangible data for the rendering side
+                // to do anything
+                chunk_destroy(pState, ppOutChunksBad[i]);
+            }
+            free(ppOutChunksBad);
+        }
+        return true;
+    }
+    else
+    {
+#if defined(DEBUG_CHUNKMANAGER)
+        logs_log(LOG_DEBUG, "Chunk population failed for %u chunks with chunk manager %p.", count, pChunkManager);
+#endif
+        free(ppOutChunksBad);
         return false;
     }
-
-    return true;
 }
 #pragma endregion
 #pragma region Create/Destroy
@@ -224,7 +276,10 @@ void chunkManager_destroyNew(State_t *restrict pState, ChunkManager_t *restrict 
     if (!pChunkManager)
         return;
 
-    logs_log(LOG_DEBUG, "Chunks added: %d", addedChunks);
+#if defined(DEBUG_CHUNKMANAGER)
+    logs_log(LOG_DEBUG, "%d chunk(s) were still registered with chunk manager %p at the chunk manager's end-of-life.",
+             addedChunks, pChunkManager);
+#endif
 
     events_unsubscribe(&pState->eventBus, EVENT_CHANNEL_CHUNK, chunkEvents_player_onChunkChange);
 

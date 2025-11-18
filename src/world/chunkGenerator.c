@@ -10,10 +10,35 @@
 #include "chunkManager.h"
 #include "chunkSolidityGrid.h"
 #include "api/chunk/chunkAPI.h"
+#include "core/random.h"
+#pragma endregion
+#pragma region Defines
+#if defined(DEBUG)
+#define DEBUG_CHUNKGEN
+#endif
+
+// The order of these determines what will occur adjacent (blending)
+static const BlockID_e gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
+    BLOCK_ID_STONE,
+    BLOCK_ID_ANDESITE,
+    BLOCK_ID_CHERT,
+    BLOCK_ID_LIMESTONE,
+    BLOCK_ID_SANDSTONE_YELLOW,
+    BLOCK_ID_GRANITE,
+    BLOCK_ID_JASPER,
+    BLOCK_ID_SANDSTONE_RED,
+    BLOCK_ID_SLATE,
+    BLOCK_ID_SHALE,
+    BLOCK_ID_MARBLE_BLACK,
+    BLOCK_ID_DIORITE,
+    BLOCK_ID_CHALK,
+    BLOCK_ID_MARBLE_WHITE,
+};
 #pragma endregion
 #pragma region Settings
 static const float CARVING_AIR_THRESHOLD = 0.5F;
 #pragma endregion
+#pragma region Operations
 void chunkGen_stoneNoise_init(WeightMaps_t *pWeightedMaps)
 {
     // TODO:
@@ -49,24 +74,6 @@ void chunkGen_stoneNoise_init(WeightMaps_t *pWeightedMaps)
              pWeightedMap->count, pWeightedMap->total,
              pWeightedMap->cdf[0], pWeightedMap->cdf[pWeightedMap->count - 1]);
 }
-
-// The order of these determines what will occur adjacent (blending)
-static const BlockID_e gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
-    BLOCK_ID_STONE,
-    BLOCK_ID_ANDESITE,
-    BLOCK_ID_CHERT,
-    BLOCK_ID_LIMESTONE,
-    BLOCK_ID_SANDSTONE_YELLOW,
-    BLOCK_ID_GRANITE,
-    BLOCK_ID_JASPER,
-    BLOCK_ID_SANDSTONE_RED,
-    BLOCK_ID_SLATE,
-    BLOCK_ID_SHALE,
-    BLOCK_ID_MARBLE_BLACK,
-    BLOCK_ID_DIORITE,
-    BLOCK_ID_CHALK,
-    BLOCK_ID_MARBLE_WHITE,
-};
 
 static const BlockID_e mapNoiseToStone(const WeightMaps_t *pWEIGHTED_MAPS, const float NOISE)
 {
@@ -204,14 +211,17 @@ static ChunkSolidityGrid_t *chunkGen_transparencyGrid(const Chunk_t *restrict pC
     return pTransparancyGrid;
 }
 
-static bool chunkGen_genChunk(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
-                              Chunk_t *restrict pChunk)
+bool chunkGen_genChunk(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
+                       Chunk_t *restrict pChunk)
 {
     if (!pWEIGHTED_MAPS || !pBLOCK_DEFINITIONS || !pChunk)
     {
         logs_log(LOG_ERROR, "Attempted to generate a chunk with invalid pointer parameters!");
         return false;
     }
+
+    if (random_5050())
+        return false;
 
     const Vec3i_t CHUNK_POS = pChunk->chunkPos;
 
@@ -254,3 +264,4 @@ static bool chunkGen_genChunk(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDef
     chunkSolidityGrid_destroy(pStoneSolidity);
     return true;
 }
+#pragma endregion

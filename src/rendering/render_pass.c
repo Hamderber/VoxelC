@@ -119,8 +119,3 @@ void renderpass_destroy(State_t *pState)
     pState->renderer.renderpassAttachmentCount = 0;
 }
 #pragma endregion
-#pragma region Undefs
-#undef SUBPASS_COUNT
-#undef DEPENDENCY_COUNT
-#undef ATTACHMENT_COUNT
-#pragma endregion

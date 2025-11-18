@@ -37,23 +37,22 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
     Chunk_t **ppNewChunks = NULL;
     Chunk_t **ppExistingChunk = NULL;
 
-    if (!chunkManager_chunks_aquire(pState->pWorldState->pChunkManager,
-                                    pPoints,
-                                    size,
-                                    &ppNewChunks, &newCount,
+    if (!chunkManager_chunks_aquire(pState->pWorldState->pChunkManager, pPoints, size, &ppNewChunks, &newCount,
                                     &ppExistingChunk, &existingCount))
     {
-        logs_log(LOG_ERROR, "Failed to aquire %u chunks!", size);
+        logs_log(LOG_ERROR, "Failed to aquire %zu chunks!", size);
     }
 
     if (newCount > 0)
     {
-        if (!chunkManager_populateNewChunks(pState->pWorldState->pChunkManager, pState->pWorldState->pChunkSource,
-                                            ppNewChunks, newCount))
+        if (!chunkManager_chunks_populateNew(pState, pState->pWorldState->pChunkManager, pState->pWorldState->pChunkSource,
+                                             ppNewChunks, newCount))
         {
-            logs_log(LOG_ERROR, "Failed to populate %u chunks!", size);
+            logs_log(LOG_ERROR, "Failed to populate %zu chunks!", size);
         }
     }
+
+    // TODO: Re-implement rendering
 
     free(ppNewChunks);
     free(ppExistingChunk);

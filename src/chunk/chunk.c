@@ -106,6 +106,3 @@ Chunk_t *chunk_world_create(const Vec3i_t CHUNK_POS)
     return pChunk;
 }
 #pragma endregion
-#pragma region
-#undef DEBUG_CHUNK
-#pragma endregion

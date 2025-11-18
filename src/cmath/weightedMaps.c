@@ -4,6 +4,8 @@
 
 static WeightMaps_t *pWeightedMaps = NULL;
 
+WeightMaps_t *weightedMaps_get(void) { return pWeightedMaps; };
+
 void weightedMaps_destroy(void)
 {
     if (!pWeightedMaps)

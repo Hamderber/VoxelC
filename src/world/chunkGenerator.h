@@ -9,4 +9,5 @@ static float gStoneCDF[BLOCK_DEFS_STONE_COUNT];
 
 void chunkGen_stoneNoise_init(WeightMaps_t *pWeightedMaps);
 
-static const BlockID_e mapNoiseToStone(const WeightMaps_t *pWEIGHTED_MAPS, const float NOISE);
+bool chunkGen_genChunk(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
+                       Chunk_t *restrict pChunk);

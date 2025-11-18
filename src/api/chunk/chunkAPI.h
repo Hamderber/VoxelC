@@ -6,9 +6,10 @@
 #include "api/chunk/chunkState_e.h"
 #pragma endregion
 #pragma region VTable Wrappers
-static inline bool chunkSource_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count)
+static inline bool chunkSource_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count,
+                                          Chunk_t ***pppOutChunksBad, size_t *pOutCount)
 {
-    return pSource->pVTABLE->pLoadChunksFunc(pSource, ppChunks, count);
+    return pSource->pVTABLE->pLoadChunksFunc(pSource, ppChunks, count, pppOutChunksBad, pOutCount);
 }
 
 static inline void chunkSource_unloadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count)

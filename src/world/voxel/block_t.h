@@ -50,7 +50,7 @@ typedef enum BlockRenderType_e
     BLOCK_RENDER_ALPHA,
 } BlockRenderType_e;
 
-typedef struct
+typedef struct BlockDefinition_t
 {
     const BlockID_e BLOCK_ID;
     const BlockRenderType_e BLOCK_RENDER_TYPE;
@@ -245,6 +245,7 @@ static const BlockDefinition_t sBLOCK_DEF_MARBLE_WHITE = {
     }};
 #pragma endregion
 #pragma region All Blocks
+// TODO: Put this in a .c
 /* Get a collection of pointers to all block definitions.
 Access with "const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();" */
 static const BlockDefinition_t *const *block_defs_getAll(void)

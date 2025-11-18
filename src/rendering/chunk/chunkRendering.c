@@ -27,7 +27,7 @@ void chunkRendering_drawChunks(State_t *restrict pState, VkCommandBuffer *restri
     {
         Chunk_t *pChunk = (Chunk_t *)pCurrent->pData;
         pCurrent = pCurrent->pNext;
-        if (!pChunk)
+        if (!pChunk || !chunkState_gpu(pChunk))
             continue;
 
         RenderChunk_t *pRenderChunk = pChunk->pRenderChunk;

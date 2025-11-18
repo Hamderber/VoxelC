@@ -10,6 +10,8 @@ typedef enum WeightedMapIndex_e
     WEIGHTED_MAP_COUNT,
 } WeightedMapIndex_e;
 
+WeightMaps_t *weightedMaps_get(void);
+
 void weightedMaps_destroy(void);
 
 void weightedMaps_instantiate(void);
