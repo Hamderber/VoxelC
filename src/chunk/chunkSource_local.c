@@ -8,8 +8,8 @@
 #include "cmath/weightedMaps.h"
 #pragma endregion
 #pragma region Defines
-static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count,
-                             Chunk_t ***pppOutChunksBad, size_t *pOutCount);
+static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **ppChunks, size_t count,
+                             Chunk_t ***pppOutChunksBad, size_t *restrict pOutCount);
 static void local_unloadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count);
 static void local_tick(ChunkSource_t *pSource, double deltaTime);
 static void local_destroy(ChunkSource_t *pSource);
@@ -21,7 +21,7 @@ static const ChunkSourceVTable_t LOCAL_CHUNK_SOURCE_VTABLE = {
     .pDestroyFunc = local_destroy};
 
 #if defined(DEBUG)
-#define DEBUG_CHUNKSOURCELOCAL
+// #define DEBUG_CHUNKSOURCELOCAL
 #endif
 #pragma endregion
 #pragma region Caching
@@ -59,7 +59,7 @@ ChunkSource_t *chunkSource_createLocal(ChunkManager_t *restrict pChunkManager, W
 #pragma endregion
 #pragma region VTable Functions
 static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **ppChunks, size_t count,
-                             Chunk_t ***pppOutChunksBad, size_t *pOutCount)
+                             Chunk_t ***pppOutChunksBad, size_t *restrict pOutCount)
 {
     if (!pSource || !ppChunks || count == 0 || !pppOutChunksBad || !pOutCount)
     {
@@ -78,6 +78,7 @@ static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **ppChunks
     chunkState_setBatch(ppChunks, count, CHUNK_STATE_CPU_LOADING);
 
     LocalChunkSourceImpl_t *pImplData = (LocalChunkSourceImpl_t *)pSource->pImplData;
+    pImplData;
 
     bool tryLoadResult = false;
     bool inlineFunctionPlaceholder = true;

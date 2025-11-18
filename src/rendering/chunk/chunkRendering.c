@@ -52,7 +52,7 @@ void chunk_placeRenderInWorld(RenderChunk_t *restrict pChunk, Vec3f_t *restrict 
     pChunk->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, *pWorldPosition);
 }
 
-void chunk_renderDestroy(State_t *restrict pState, RenderChunk_t *restrict pRenderChunk)
+void chunk_render_Destroy(State_t *restrict pState, RenderChunk_t *restrict pRenderChunk)
 {
     if (!pRenderChunk)
         return;
@@ -121,7 +121,7 @@ static bool emit_face(const Chunk_t **restrict ppNeighbors, const Vec3u8_t *rest
         else
         {
             const Chunk_t *pN = ppNeighbors[FACE];
-            if (pN && pN->pTransparencyGrid)
+            if (pN && chunkState_cpu(pN) && pN->pTransparencyGrid)
             {
                 const Vec3u8_t POS_WRAP = wrap_to_neighbor_local(N_POS.x, N_POS.y, N_POS.z, (CubeFace_e)FACE);
                 if (pN->pTransparencyGrid->pGrid[chunkSolidityGrid_index16(POS_WRAP.x, POS_WRAP.y, POS_WRAP.z)] != SOLIDITY_TRANSPARENT)
@@ -144,6 +144,14 @@ static bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict
     Chunk_t **ppNeighbors = chunkManager_getChunkNeighbors(pState, pChunk->chunkPos);
     if (!ppNeighbors)
         return false;
+
+    for (size_t i = 0; i < CMATH_GEOM_CUBE_FACES; i++)
+    {
+        if (ppNeighbors[i] && chunkState_cpu(ppNeighbors[i]))
+            logs_log(LOG_DEBUG, "Chunk (%d, %d, %d) is using neighbor (%d, %d, %d) during remesh.",
+                     pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z,
+                     ppNeighbors[i]->chunkPos.x, ppNeighbors[i]->chunkPos.y, ppNeighbors[i]->chunkPos.z);
+    }
 
     // max faces in a chunk possible (all transparent faces like glass or something)
     const size_t MAX_VERTEX_COUNT = CHUNK_BLOCK_CAPACITY * CMATH_GEOM_CUBE_FACES * VERTS_PER_FACE;
@@ -308,13 +316,15 @@ static bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict
 bool chunkRenderer_chunk_remesh(State_t *restrict pState, const Vec3u8_t *restrict pPOINTS, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
                                 const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, Chunk_t *restrict pChunk)
 {
-    if (!pState || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK || !pChunk)
+    if (!pState || !pPOINTS || !pNEIGHBOR_BLOCK_POS || !pNEIGHBOR_BLOCK_IN_CHUNK || !pChunk || !chunkState_cpu(pChunk))
         return false;
 
     bool result = chunk_mesh_create(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pChunk);
     // The first time a chunk is meshed, the renderchunk just won't exist
     if (pChunk->pRenderChunk)
         pChunk->pRenderChunk->needsRemesh = false;
+    if (!chunkState_gpu(pChunk))
+        chunkState_set(pChunk, CHUNK_STATE_CPU_GPU);
     return result;
 }
 #pragma endregion

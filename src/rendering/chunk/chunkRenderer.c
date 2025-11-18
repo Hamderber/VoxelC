@@ -9,6 +9,13 @@
 #include "api/chunk/chunkAPI.h"
 #pragma endregion
 #pragma region Defines
+#if defined(DEBUG)
+#define DEBUG_CHUNKRENDER
+#if defined(DEBUG_CHUNKRENDER)
+static uint32_t remeshQueueSize = 0;
+static uint32_t remeshCount = 0;
+#endif
+#endif
 #define DEFAULT_QUEUE_SIZE 32
 #define MAX_REMESH_PER_FRAME 5
 #pragma endregion
@@ -26,8 +33,18 @@ bool chunkRenderer_enqueueRemesh(WorldState_t *restrict pWorldState, Chunk_t *re
         return true;
 
     if (dynamicStack_pushUnique(pWorldState->chunkRenderer.pRemeshCtxQueue, pChunk))
+    {
         if (pRenderChunk)
             pRenderChunk->needsRemesh = true;
+    }
+    else
+        return false;
+#if defined(DEBUG_CHUNKRENDER)
+    const Vec3i_t CHUNK_POS = pChunk->chunkPos;
+    logs_log(LOG_DEBUG, "Enqueued chunk %p at (%d, %d, %d) for remesh. [#%u]", pChunk, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z,
+             remeshQueueSize);
+    remeshQueueSize++;
+#endif
 
     return true;
 }
@@ -70,7 +87,8 @@ static bool chunkRenderer_meshBatch(State_t *restrict pState, const uint32_t BAT
 
     size_t neighborCount = 0;
     Vec3i_t *pNeighborPos = cmath_chunk_GetNeighborsPosUnique_get(pChunkPos, chunkPosIndex, &neighborCount);
-    Chunk_t **ppNeighbors = chunkManager_getChunks(pState, pNeighborPos, neighborCount, &neighborCount, true);
+    const bool RESIZE_COLLECTION = true;
+    Chunk_t **ppNeighbors = chunkManager_getChunks(pState, pNeighborPos, neighborCount, &neighborCount, RESIZE_COLLECTION);
 
     if (neighborCount > 0)
         for (uint32_t i = 0; i < neighborCount; i++)
@@ -87,10 +105,24 @@ static bool chunkRenderer_meshBatch(State_t *restrict pState, const uint32_t BAT
         if (!pRemesh)
             break;
 
-        chunkRenderer_chunk_remesh(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pRemesh);
+        bool result = chunkRenderer_chunk_remesh(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pRemesh);
+#if defined(DEBUG_CHUNKRENDER)
+        const Vec3i_t CHUNK_POS = pRemesh->chunkPos;
+        if (result)
+            logs_log(LOG_DEBUG, "Remeshed chunk %p at (%d, %d, %d). [#%u]",
+                     pRemesh, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z, remeshCount);
+        else
+            logs_log(LOG_DEBUG, "Didn't remesh chunk %p at (%d, %d, %d). [#%u] (Result = false)",
+                     pRemesh, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z, remeshCount);
+        remeshCount++;
+#endif
     } while (pRemesh);
 
     dynamicStack_destroy(pStack);
+#if defined(DEBUG_CHUNKRENDER)
+    remeshCount = 0;
+    remeshQueueSize = 0;
+#endif
     return true;
 }
 

@@ -220,9 +220,6 @@ bool chunkGen_genChunk(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDefinition
         return false;
     }
 
-    if (random_5050())
-        return false;
-
     const Vec3i_t CHUNK_POS = pChunk->chunkPos;
 
     size_t size = sizeof(uint16_t) * CMATH_CHUNK_POINTS_PACKED_COUNT;

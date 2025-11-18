@@ -8,10 +8,12 @@
 #include "collection/linkedList_t.h"
 #pragma endregion
 #pragma region Defines
-#define DEBUG_CHUNK
+#if defined(DEBUG)
+// #define DEBUG_CHUNK
 #if defined(DEBUG_CHUNK)
 static size_t chunkAllocatedCount = 0;
 static size_t chunkFreedCount = 0;
+#endif
 #endif
 #pragma endregion
 #pragma region Destroy
@@ -65,7 +67,7 @@ Something must've gone wrong for this to happen.",
         if (chunkState_gpu(pChunk))
         {
             // TODO: Finish decoupling the state from the chunk system. There is only one state and only one renderer, after all
-            chunk_renderDestroy(pState, pChunk->pRenderChunk);
+            chunk_render_Destroy(pState, pChunk->pRenderChunk);
             pChunk->pRenderChunk = NULL;
             chunkState_set(pChunk, CHUNK_STATE_CPU_ONLY);
         }
@@ -95,7 +97,7 @@ Chunk_t *chunk_world_create(const Vec3i_t CHUNK_POS)
         return NULL;
 
     chunkState_set(pChunk, CHUNK_STATE_CPU_EMPTY);
-    pChunk->pBlockVoxels = malloc(sizeof(BlockVoxel_t) * CHUNK_BLOCK_CAPACITY);
+    pChunk->pBlockVoxels = calloc(CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
     pChunk->chunkPos = CHUNK_POS;
 
 #if defined(DEBUG_CHUNK)

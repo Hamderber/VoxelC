@@ -3,8 +3,9 @@
 #include "core/logs.h"
 #pragma endregion
 #pragma region Defines
-#define DEBUG_CHUNKSTATE
-
+#if defined(DEBUG)
+// #define DEBUG_CHUNKSTATE
+#endif
 typedef enum ChunkState_e
 {
     // Unloaded chunk, such as invalid data or just not loaded yet
@@ -58,10 +59,11 @@ static inline bool chunkState_setBatch(Chunk_t **ppChunks, size_t count, ChunkSt
     return true;
 }
 
-static inline bool chunkState_cpu(Chunk_t *pChunk)
+static inline bool chunkState_cpu(const Chunk_t *pCHUNK)
 {
-    ChunkState_e state = pChunk->chunkState;
-    return state == CHUNK_STATE_CPU_EMPTY || state == CHUNK_STATE_CPU_LOADING || state == CHUNK_STATE_CPU_ONLY;
+    const ChunkState_e STATE = pCHUNK->chunkState;
+    return STATE == CHUNK_STATE_CPU_EMPTY || STATE == CHUNK_STATE_CPU_LOADING || STATE == CHUNK_STATE_CPU_ONLY ||
+           STATE == CHUNK_STATE_CPU_GPU;
 }
 
 static inline bool chunkState_gpu(Chunk_t *pChunk)

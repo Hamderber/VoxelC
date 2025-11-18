@@ -123,8 +123,8 @@ void logs_log(LogLevel_e level, const char *pFORMAT, ...)
     // Print to file if open otherwise console
     FILE *pTarget = s_pLogFile ? s_pLogFile : stdout;
 
-    const bool IS_FOR_FILE = false;
-    fprintf(pTarget, "[%s][%s] ", pPREFIX, logs_timestampGet(IS_FOR_FILE));
+    // const bool IS_FOR_FILE = false;
+    // fprintf(pTarget, "[%s][%s] ", pPREFIX, logs_timestampGet(IS_FOR_FILE));
     vfprintf(pTarget, pFORMAT, args);
     fprintf(pTarget, "\n");
     fflush(pTarget);
