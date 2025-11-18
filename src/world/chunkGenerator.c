@@ -14,7 +14,7 @@
 #pragma region Settings
 static const float CARVING_AIR_THRESHOLD = 0.5F;
 #pragma endregion
-void chunkGen_stoneNoise_init(State_t *pState)
+void chunkGen_stoneNoise_init(WeightMaps_t *pWeightedMaps)
 {
     // TODO:
     // Add stone pallet selection and a better mapping selection _t for associating what adjacencies and rarities
@@ -36,7 +36,7 @@ void chunkGen_stoneNoise_init(State_t *pState)
         5.50F,
     };
 
-    WeightedMap_t *pWeightedMap = &pState->weightedMaps.pWeightMaps[WEIGHTED_MAP_STONE];
+    WeightedMap_t *pWeightedMap = &pWeightedMaps->pWeightMaps[WEIGHTED_MAP_STONE];
     pWeightedMap->cdf = gStoneCDF;
     if (!weightedMap_bake(pWeightedMap, pStoneWeights, BLOCK_DEFS_STONE_COUNT))
     {
@@ -68,9 +68,9 @@ static const BlockID_e gStoneIDs[BLOCK_DEFS_STONE_COUNT] = {
     BLOCK_ID_MARBLE_WHITE,
 };
 
-static const BlockID_e mapNoiseToStone(const State_t *restrict pSTATE, const float NOISE)
+static const BlockID_e mapNoiseToStone(const WeightMaps_t *pWEIGHTED_MAPS, const float NOISE)
 {
-    const uint32_t STONE_INDEX = weightedMap_pick(&pSTATE->weightedMaps.pWeightMaps[WEIGHTED_MAP_STONE], NOISE);
+    const uint32_t STONE_INDEX = weightedMap_pick(&pWEIGHTED_MAPS->pWeightMaps[WEIGHTED_MAP_STONE], NOISE);
     const BlockID_e BLOCK_ID = gStoneIDs[STONE_INDEX];
 
     return BLOCK_ID;
@@ -145,7 +145,7 @@ static bool chunkGen_clearSingleSolidsInChunk(uint16_t *restrict pPackedPos, Chu
     return true;
 }
 
-static bool chunkGen_paintStone(const State_t *restrict pSTATE, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
+static bool chunkGen_paintStone(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
                                 Chunk_t *restrict pChunk, const Vec3i_t CHUNK_POS, const ChunkSolidityGrid_t *restrict pSOLIDITY)
 {
     const Vec3u8_t *pPOS = cmath_chunkPoints_Get();
@@ -159,7 +159,7 @@ static bool chunkGen_paintStone(const State_t *restrict pSTATE, const BlockDefin
             continue;
 
         float stoneNoise = randomNoise_stone_samplePackedPos(CHUNK_POS, pBlock->blockPosPacked12);
-        BlockID_e stoneID = mapNoiseToStone(pSTATE, stoneNoise);
+        BlockID_e stoneID = mapNoiseToStone(pWEIGHTED_MAPS, stoneNoise);
 
         pBlock->pBLOCK_DEFINITION = pBLOCK_DEFINITIONS[stoneID];
     }
@@ -183,7 +183,7 @@ static bool chunkGen_blockDefinitionsInit(const BlockDefinition_t *const *restri
     return true;
 }
 
-ChunkSolidityGrid_t *chunkGen_transparencyGrid(const Chunk_t *restrict pCHUNK)
+static ChunkSolidityGrid_t *chunkGen_transparencyGrid(const Chunk_t *restrict pCHUNK)
 {
     if (!pCHUNK || !pCHUNK->pBlockVoxels)
         return NULL;
@@ -204,10 +204,10 @@ ChunkSolidityGrid_t *chunkGen_transparencyGrid(const Chunk_t *restrict pCHUNK)
     return pTransparancyGrid;
 }
 
-bool chunkGen_genChunk(const State_t *restrict pSTATE, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
-                       Chunk_t *restrict pChunk)
+static bool chunkGen_genChunk(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDefinition_t *const *restrict pBLOCK_DEFINITIONS,
+                              Chunk_t *restrict pChunk)
 {
-    if (!pSTATE || !pBLOCK_DEFINITIONS || !pChunk)
+    if (!pWEIGHTED_MAPS || !pBLOCK_DEFINITIONS || !pChunk)
     {
         logs_log(LOG_ERROR, "Attempted to generate a chunk with invalid pointer parameters!");
         return false;
@@ -245,7 +245,7 @@ bool chunkGen_genChunk(const State_t *restrict pSTATE, const BlockDefinition_t *
     // Apply characteristics if there is anything solid
     if (CHUNK_HAS_ANYTHING_SOLID)
         // This is by far the most expensive operation
-        chunkGen_paintStone(pSTATE, pBLOCK_DEFINITIONS, pChunk, CHUNK_POS, pStoneSolidity);
+        chunkGen_paintStone(pWEIGHTED_MAPS, pBLOCK_DEFINITIONS, pChunk, CHUNK_POS, pStoneSolidity);
 
     pChunk->pTransparencyGrid = chunkGen_transparencyGrid(pChunk);
 

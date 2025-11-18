@@ -65,6 +65,7 @@ static void spawn_generate(State_t *pState)
     const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
     const int SPAWN_RAD = pState->pWorldConfig->spawnChunkLoadingRadius;
     world_chunks_load(pState, pState->pWorldState->pChunkLoadingEntity, SPAWN_ORIGIN, SPAWN_RAD);
+    logs_log(LOG_DEBUG, "Spawn created for world %p.", pState->pWorldState);
 }
 
 static void world_chunks_init(State_t *pState)
@@ -82,11 +83,8 @@ static void world_chunks_init(State_t *pState)
 static void init(State_t *pState)
 {
     pState->pWorldState = calloc(1, sizeof(WorldState_t));
-    // Don't forget about this
-    const char *pSaveDirectory = "SAVE_DIR_NYI";
-    logs_log(LOG_WARN, "Save directory is still NYI!");
-    pState->pWorldState->pChunkSource = chunkSource_createLocal(pState->pWorldConfig, pSaveDirectory);
     pState->pWorldState->pChunkManager = chunkManager_createNew(pState);
+    pState->pWorldState->pChunkSource = chunkSource_createLocal(pState->pWorldState->pChunkManager, pState->pWorldConfig, NULL);
 
     chunkRenderer_create(pState->pWorldState);
 

@@ -94,6 +94,8 @@
         "random.h": "c",
         "chunkmanager_t.h": "c",
         "randomnoise.h": "c",
-        "index_buffer.h": "c"
+        "index_buffer.h": "c",
+        "chunk.h": "c",
+        "worldconfig_t.h": "c"
     }
 }

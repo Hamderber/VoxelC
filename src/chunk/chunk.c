@@ -27,9 +27,18 @@ static void entitiesLoadingLL_destroy(Chunk_t *pChunk)
 
 void chunk_world_destroy(Chunk_t *pChunk)
 {
+    // Verify that the chunk isn't still connected to the GPU. It shouldn't be at this point
+    if (chunkState_gpu(pChunk))
+    {
+        logs_log(LOG_ERROR, "Attempted to destroy the world portion of a chunk while it is still associated with the GPU!");
+        return;
+    }
+
     entitiesLoadingLL_destroy(pChunk);
     free(pChunk->pBlockVoxels);
     chunkSolidityGrid_destroy(pChunk->pTransparencyGrid);
+
+    chunkState_set(pChunk, CHUNK_STATE_CPU_EMPTY);
 }
 
 void chunk_destroy(void *pCtx, Chunk_t *pChunk)
@@ -43,14 +52,25 @@ void chunk_destroy(void *pCtx, Chunk_t *pChunk)
 #endif
 
     State_t *pState = (State_t *)pCtx;
-    chunk_renderDestroy(pState, pChunk->pRenderChunk);
-    chunk_world_destroy(pChunk);
+
+    // Only attempt to destroy the GPU-side if there is a gpu-associated state
+    if (chunkState_gpu(pChunk))
+    {
+        chunk_renderDestroy(pState, pChunk->pRenderChunk);
+        chunkState_set(pChunk, CHUNK_STATE_CPU_ONLY);
+    }
+
+    // Verify that there is a cpu-side for the chunk. This should always be the case
+    if (chunkState_cpu(pChunk))
+        chunk_world_destroy(pChunk);
 
 #if defined(DEBUG_CHUNK)
     chunkFreedCount++;
     logs_log(LOG_DEBUG, "[Chunk free # %u] freed %u bytes at %p for chunk at (%d, %d, %d).", chunkFreedCount,
              sizeof(Chunk_t), pChunk, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
 #endif
+
+    free(pChunk);
 }
 #pragma endregion
 #pragma region Create
@@ -60,6 +80,7 @@ Chunk_t *chunk_world_create(const Vec3i_t CHUNK_POS)
     if (!pChunk)
         return NULL;
 
+    chunkState_set(pChunk, CHUNK_STATE_CPU_EMPTY);
     pChunk->pBlockVoxels = malloc(sizeof(BlockVoxel_t) * CHUNK_BLOCK_CAPACITY);
     pChunk->chunkPos = CHUNK_POS;
 

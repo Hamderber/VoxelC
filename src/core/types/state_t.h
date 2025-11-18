@@ -32,7 +32,4 @@ typedef struct State_t
     Scene_t scene;
     struct WorldState_t *pWorldState;
     struct WorldConfig_t *pWorldConfig;
-
-    // Math
-    WeightMaps_t weightedMaps;
 } State_t;

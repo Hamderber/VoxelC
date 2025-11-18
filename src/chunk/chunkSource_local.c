@@ -4,6 +4,7 @@
 #include "chunkSource_local.h"
 #include "world/worldConfig_t.h"
 #include "world/chunkGenerator.h"
+#include "chunk.h"
 #pragma endregion
 #pragma region Defines
 static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count);
@@ -18,7 +19,8 @@ static const ChunkSourceVTable_t LOCAL_CHUNK_SOURCE_VTABLE = {
     .pDestroyFunc = local_destroy};
 #pragma endregion
 #pragma region Operations
-ChunkSource_t *chunkSource_createLocal(WorldConfig_t *restrict pWorldCfg, const char *restrict SAVE_DIR)
+ChunkSource_t *chunkSource_createLocal(ChunkManager_t *restrict pChunkManager, WorldConfig_t *restrict pWorldCfg,
+                                       const char *restrict SAVE_DIR)
 {
     ChunkSource_t *pSource = malloc(sizeof(ChunkSource_t));
     if (!pSource)
@@ -34,6 +36,7 @@ ChunkSource_t *chunkSource_createLocal(WorldConfig_t *restrict pWorldCfg, const 
     pImplData->pWorldCfg = pWorldCfg;
     pImplData->saveDirectory = SAVE_DIR;
 
+    pSource->pCHUNK_MANAGER = pChunkManager;
     pSource->pVTABLE = &LOCAL_CHUNK_SOURCE_VTABLE;
     pSource->pImplData = pImplData;
 
@@ -43,12 +46,17 @@ ChunkSource_t *chunkSource_createLocal(WorldConfig_t *restrict pWorldCfg, const 
 #pragma region VTable Functions
 static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict ppChunks, size_t count)
 {
-    ppChunks;
+    chunkState_setBatch(ppChunks, count, CHUNK_STATE_CPU_LOADING);
 
     LocalChunkSourceImpl_t *pImplData = (LocalChunkSourceImpl_t *)pSource->pImplData;
 
     bool tryLoadResult = false;
-    logs_log(LOG_DEBUG, "Trying to load %d, chunk(s) (%d, %d, %d) from %s...", count, pImplData->saveDirectory);
+    bool inlineFunctionPlaceholder = true;
+
+    // Don't forget about this
+    logs_log(LOG_WARN, "Save directory is still NYI!");
+    logs_log(LOG_DEBUG, "Trying to load %d chunk(s) from %s with chunk manager %p...", count, pImplData->saveDirectory,
+             pSource->pCHUNK_MANAGER);
 
     for (size_t i = 0; i < count; i++)
     {
@@ -57,11 +65,18 @@ static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **restrict
         {
             // load
         }
+        else if (inlineFunctionPlaceholder)
+        {
+            logs_log(LOG_DEBUG, "Generating chunk %p at (%d, %d, %d) with chunk manager %p.",
+                     ppChunks[i], CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z, pSource->pCHUNK_MANAGER);
+        }
         else
         {
-            logs_log(LOG_DEBUG, "Generating chunk %p at (%d, %d, %d).", ppChunks[i], CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z);
+            logs_log(LOG_ERROR, "Failed to load chunk %p at (%d, %d, %d) with chunk manager %p!",
+                     ppChunks[i], CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z, pSource->pCHUNK_MANAGER);
         }
     }
+
     return true;
 }
 

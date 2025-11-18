@@ -10,5 +10,6 @@ typedef struct LocalChunkSourceImpl_t
 } LocalChunkSourceImpl_t;
 #pragma endregion
 #pragma region Operations
-ChunkSource_t *chunkSource_createLocal(struct WorldConfig_t *restrict pWorldCfg, const char *restrict SAVE_DIR);
+ChunkSource_t *chunkSource_createLocal(struct ChunkManager_t *restrict pChunkManager, struct WorldConfig_t *restrict pWorldCfg,
+                                       const char *restrict SAVE_DIR);
 #pragma endregion

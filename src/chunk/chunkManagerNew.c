@@ -75,6 +75,8 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
         return false;
     }
 
+    logs_log(LOG_DEBUG, "Trying to aquire %u chunks from chunk manager %p.", count, pChunkManager);
+
     // Max possible sizes = count
     Chunk_t **pNew = calloc(count, sizeof(Chunk_t *));
     Chunk_t **pExisting = calloc(count, sizeof(Chunk_t *));
@@ -181,20 +183,10 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
 
 bool chunkManager_populateNewChunks(ChunkManager_t *pChunkManager, ChunkSource_t *pSource, Chunk_t **ppNewChunks, size_t count)
 {
-    (void)pChunkManager;
-    pSource;
-
-    for (size_t i = 0; i < count; ++i)
+    if (!chunkSource_loadChunks(pSource, ppNewChunks, count))
     {
-        Chunk_t *pChunk = ppNewChunks[i];
-
-        if (!chunkSource_loadChunks(pSource, ppNewChunks, count))
-        {
-            // TODO
-            return false;
-        }
-
-        pChunk->chunkState = CHUNK_STATE_CPU;
+        logs_log(LOG_DEBUG, "Failed to load %u chunks from chunk manager %p.", count, pChunkManager);
+        return false;
     }
 
     return true;
