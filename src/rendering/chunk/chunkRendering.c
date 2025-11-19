@@ -15,6 +15,12 @@
 #include "world/chunkSolidityGrid.h"
 #include "world/voxel/block_t.h"
 
+#pragma region Defines
+#if defined(DEBUG)
+// #define DEBUG_CHUNKRENDER
+#endif
+#pragma endregion
+
 static const uint32_t MINIMUM_COLLECTION_SIZE = 256;
 
 void chunkRendering_drawChunks(State_t *restrict pState, VkCommandBuffer *restrict pCmd, VkPipelineLayout *restrict pPipelineLayout)
@@ -76,42 +82,21 @@ static inline void write_face_indices_u32(uint32_t *pIndicies, uint32_t base)
     pIndicies[5] = base + pCCW_QUAD_VERTS[5];
 }
 
-static inline Vec3u8_t wrap_to_neighbor_local(uint8_t nx, uint8_t ny, uint8_t nz, CubeFace_e face)
-{
-    switch (face)
-    {
-    case CUBE_FACE_RIGHT: // nx == CHUNK_AXIS_LENGTH
-        return (Vec3u8_t){0, ny, nz};
-
-    case CUBE_FACE_LEFT: // nx == -1
-        return (Vec3u8_t){(uint8_t)(CHUNK_AXIS_LENGTH - 1), ny, nz};
-
-    case CUBE_FACE_TOP: // ny == CHUNK_AXIS_LENGTH
-        return (Vec3u8_t){nx, 0, nz};
-
-    case CUBE_FACE_BOTTOM: // ny == -1
-        return (Vec3u8_t){nx, (uint8_t)(CHUNK_AXIS_LENGTH - 1), nz};
-
-    case CUBE_FACE_FRONT: // nz == CHUNK_AXIS_LENGTH
-        return (Vec3u8_t){nx, ny, 0};
-
-    case CUBE_FACE_BACK: // nz == -1
-        return (Vec3u8_t){nx, ny, (uint8_t)(CHUNK_AXIS_LENGTH - 1)};
-    }
-
-    // This should never happen
-    return (Vec3u8_t){0, 0, 0};
-}
-
-static bool emit_face(const Chunk_t **restrict ppNeighbors, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
+static bool emit_face(const Vec3u8_t LOCAL_POS, const Chunk_t **restrict ppNeighbors, const Vec3u8_t *restrict pNEIGHBOR_BLOCK_POS,
                       const bool *restrict pNEIGHBOR_BLOCK_IN_CHUNK, const Chunk_t *restrict pCHUNK,
                       const size_t BLOCK_INDEX, const int FACE)
 {
+    LOCAL_POS;
     bool result = false;
     do
     {
         const Vec3u8_t N_POS = pNEIGHBOR_BLOCK_POS[cmath_blockNeighborIndex(BLOCK_INDEX, FACE)];
         const bool IN_CHUNK = pNEIGHBOR_BLOCK_IN_CHUNK[cmath_blockNeighborIndex(BLOCK_INDEX, FACE)];
+#if defined(DEBUG_CHUNKRENDER)
+        if (!IN_CHUNK)
+            logs_log(LOG_DEBUG, "Cube face %s of local block (%u, %u, %u) has a neighbor position of (%u, %u, %u)",
+                     pCUBE_FACE_NAMES[FACE], LOCAL_POS.x, LOCAL_POS.y, LOCAL_POS.z, N_POS.x, N_POS.y, N_POS.z);
+#endif
 
         if (IN_CHUNK && pCHUNK->pTransparencyGrid)
         {
@@ -121,10 +106,30 @@ static bool emit_face(const Chunk_t **restrict ppNeighbors, const Vec3u8_t *rest
         else
         {
             const Chunk_t *pN = ppNeighbors[FACE];
+#if defined(DEBUG_CHUNKRENDER)
+            logs_log(LOG_DEBUG, "Checking face %s of local block (%u, %u, %u). It is outside of the local chunk.",
+                     pCUBE_FACE_NAMES[FACE], LOCAL_POS.x, LOCAL_POS.y, LOCAL_POS.z);
+
+#endif
             if (pN && chunkState_cpu(pN) && pN->pTransparencyGrid)
             {
-                const Vec3u8_t POS_WRAP = wrap_to_neighbor_local(N_POS.x, N_POS.y, N_POS.z, (CubeFace_e)FACE);
-                if (pN->pTransparencyGrid->pGrid[chunkSolidityGrid_index16(POS_WRAP.x, POS_WRAP.y, POS_WRAP.z)] != SOLIDITY_TRANSPARENT)
+                bool notTransparent = pN->pTransparencyGrid->pGrid[chunkSolidityGrid_index16(N_POS.x, N_POS.y, N_POS.z)] !=
+                                      SOLIDITY_TRANSPARENT;
+#if defined(DEBUG_CHUNKRENDER)
+                Vec3u8_t selfPos = cmath_chunk_blockPosPacked_2_localPos((uint16_t)BLOCK_INDEX);
+                Vec3i_t selfChunk = pCHUNK->chunkPos;
+                Vec3i_t neighChunk = pN->chunkPos;
+                logs_log(LOG_DEBUG,
+                         "Boundary check: self chunk (%d,%d,%d) block (%u,%u,%u) face %s -> "
+                         "neighbor chunk (%d,%d,%d) local (%u,%u,%u), val=%u",
+                         selfChunk.x, selfChunk.y, selfChunk.z,
+                         selfPos.x, selfPos.y, selfPos.z,
+                         pCUBE_FACE_NAMES[FACE],
+                         neighChunk.x, neighChunk.y, neighChunk.z,
+                         N_POS.x, N_POS.y, N_POS.z,
+                         notTransparent);
+#endif
+                if (notTransparent)
                     break;
             }
         }
@@ -145,17 +150,35 @@ static bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict
     if (!ppNeighbors)
         return false;
 
-    for (size_t i = 0; i < CMATH_GEOM_CUBE_FACES; i++)
+#if defined(DEBUG_CHUNKRENDER)
+    for (int face = 0; face < CMATH_GEOM_CUBE_FACES; face++)
     {
-        if (ppNeighbors[i] && chunkState_cpu(ppNeighbors[i]))
+        const Chunk_t *pN = ppNeighbors[face];
+        if (!pN)
+            continue;
+
+        Vec3i_t chunkPos = pChunk->chunkPos;
+        Vec3i_t delta = {
+            pN->chunkPos.x - chunkPos.x,
+            pN->chunkPos.y - chunkPos.y,
+            pN->chunkPos.z - chunkPos.z};
+
+        logs_log(LOG_DEBUG,
+                 "Chunk (%d,%d,%d): face %s has neighbor (%d, %d, %d) (delta %d, %d, %d)",
+                 chunkPos.x, chunkPos.y, chunkPos.z,
+                 pCUBE_FACE_NAMES[face],
+                 pN->chunkPos.x, pN->chunkPos.y, pN->chunkPos.z,
+                 delta.x, delta.y, delta.z);
+        if (chunkState_cpu(ppNeighbors[face]))
             logs_log(LOG_DEBUG, "Chunk (%d, %d, %d) is using neighbor (%d, %d, %d) during remesh.",
                      pChunk->chunkPos.x, pChunk->chunkPos.y, pChunk->chunkPos.z,
-                     ppNeighbors[i]->chunkPos.x, ppNeighbors[i]->chunkPos.y, ppNeighbors[i]->chunkPos.z);
+                     ppNeighbors[face]->chunkPos.x, ppNeighbors[face]->chunkPos.y, ppNeighbors[face]->chunkPos.z);
     }
+#endif
 
     // max faces in a chunk possible (all transparent faces like glass or something)
-    const size_t MAX_VERTEX_COUNT = CHUNK_BLOCK_CAPACITY * CMATH_GEOM_CUBE_FACES * VERTS_PER_FACE;
-    const size_t MAX_INDEX_COUNT = CHUNK_BLOCK_CAPACITY * CMATH_GEOM_CUBE_FACES * INDICIES_PER_FACE;
+    const size_t MAX_VERTEX_COUNT = CMATH_CHUNK_BLOCK_CAPACITY * CMATH_GEOM_CUBE_FACES * VERTS_PER_FACE;
+    const size_t MAX_INDEX_COUNT = CMATH_CHUNK_BLOCK_CAPACITY * CMATH_GEOM_CUBE_FACES * INDICIES_PER_FACE;
 
     ShaderVertexVoxel_t *pVertices = malloc(sizeof(ShaderVertexVoxel_t) * MAX_VERTEX_COUNT);
     uint32_t *pIndices = malloc(sizeof(uint32_t) * MAX_INDEX_COUNT);
@@ -179,7 +202,10 @@ static bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict
 
         for (int face = 0; face < 6; ++face)
         {
-            if (!emit_face(ppNeighbors, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pChunk, i, face))
+            // if (face == 3)
+            //     continue;
+
+            if (!emit_face(pPOINTS[i], ppNeighbors, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pChunk, i, face))
                 continue;
 
             const FaceTexture_t TEX = pBLOCK->pFACE_TEXTURES[face];

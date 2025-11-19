@@ -3,6 +3,9 @@
 #include "core/crash_handler.h"
 #pragma endregion
 #pragma region Definitions
+#if defined(DEBUG)
+// #define DEBUG_CMATH
+#endif
 typedef enum CrashType_e
 {
     CRASH_CHUNK_MATH,
@@ -28,13 +31,7 @@ Vec3i_t *cmath_chunk_chunkNeighborPos_get(const Vec3i_t CHUNK_POS)
         return NULL;
 
     for (int i = 0; i < CMATH_GEOM_CUBE_FACES; ++i)
-    {
-        int nx = CHUNK_POS.x + pCMATH_CUBE_NEIGHBOR_OFFSETS[i].x;
-        int ny = CHUNK_POS.y + pCMATH_CUBE_NEIGHBOR_OFFSETS[i].y;
-        int nz = CHUNK_POS.z + pCMATH_CUBE_NEIGHBOR_OFFSETS[i].z;
-
-        pPos[i] = (Vec3i_t){nx, ny, nz};
-    }
+        pPos[i] = cmath_vec3i_add_vec3i(CHUNK_POS, pCMATH_CUBE_NEIGHBOR_OFFSETS[i]);
 
     return pPos;
 }
@@ -56,10 +53,7 @@ Vec3i_t *cmath_chunk_GetNeighborsPosUnique_get(const Vec3i_t *restrict pCHUNK_PO
         const Vec3i_t CHUNK_POS = pCHUNK_POS[i];
         for (uint8_t face = 0; face < CMATH_GEOM_CUBE_FACES; face++)
         {
-            Vec3i_t neighborPos = {
-                CHUNK_POS.x + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].x,
-                CHUNK_POS.y + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].y,
-                CHUNK_POS.z + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].z};
+            Vec3i_t neighborPos = cmath_vec3i_add_vec3i(CHUNK_POS, pCMATH_CUBE_NEIGHBOR_OFFSETS[face]);
 
             bool duplicate = false;
             for (size_t j = 0; j < NUM_POS; j++)
@@ -110,7 +104,7 @@ static Vec3u8_t *pCMATH_CHUNK_SHELL_BORDERLESS_POINTS = NULL;
 Vec3u8_t *cmath_chunkShellBorderlessPoints_Get(void) { return pCMATH_CHUNK_SHELL_BORDERLESS_POINTS; };
 
 static Vec3u8_t *pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS = NULL;
-Vec3u8_t *cmath_chunk_blockNeighborPoints_Get(void) { return pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS; };
+Vec3u8_t *cmath_chunk_blockNeighborPoints_Get(void) { return pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS; }
 
 static bool *pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL = NULL;
 bool *cmath_chunk_blockNeighborPointsInChunkBool_Get(void) { return pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL; };
@@ -123,7 +117,7 @@ static void bake_chunkPoints(void)
         return;
 
     if (!pCMATH_CHUNK_POINTS)
-        pCMATH_CHUNK_POINTS = (Vec3u8_t *)malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_POINTS_COUNT);
+        pCMATH_CHUNK_POINTS = malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_POINTS_COUNT);
 
     if (!pCMATH_CHUNK_POINTS)
     {
@@ -136,7 +130,7 @@ static void bake_chunkPoints(void)
     }
 
     if (!pCMATH_CHUNK_POINTS_PACKED)
-        pCMATH_CHUNK_POINTS_PACKED = (uint16_t *)malloc(sizeof(uint16_t) * CMATH_CHUNK_POINTS_PACKED_COUNT);
+        pCMATH_CHUNK_POINTS_PACKED = malloc(sizeof(uint16_t) * CMATH_CHUNK_POINTS_PACKED_COUNT);
 
     if (!pCMATH_CHUNK_POINTS_PACKED)
     {
@@ -148,7 +142,7 @@ static void bake_chunkPoints(void)
         return;
     }
 
-    const uint8_t AXIS_MIN = 0, AXIS_MAX = (uint8_t)CHUNK_AXIS_LENGTH;
+    const uint8_t AXIS_MIN = 0, AXIS_MAX = (uint8_t)CMATH_CHUNK_AXIS_LENGTH;
 
     for (uint8_t x = AXIS_MIN; x < AXIS_MAX; x++)
         for (uint8_t y = AXIS_MIN; y < AXIS_MAX; y++)
@@ -167,7 +161,7 @@ static void bake_chunkShellEdgePoints(void)
         return;
 
     if (!pCMATH_CHUNK_SHELL_EDGE_POINTS)
-        pCMATH_CHUNK_SHELL_EDGE_POINTS = (Vec3u8_t *)malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT);
+        pCMATH_CHUNK_SHELL_EDGE_POINTS = malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT);
 
     if (!pCMATH_CHUNK_SHELL_EDGE_POINTS)
     {
@@ -175,7 +169,7 @@ static void bake_chunkShellEdgePoints(void)
         return;
     }
 
-    const uint8_t AXIS_MIN = 0, AXIS_MAX = (uint8_t)CHUNK_AXIS_LENGTH - 1;
+    const uint8_t AXIS_MIN = 0, AXIS_MAX = (uint8_t)CMATH_CHUNK_AXIS_LENGTH - 1;
 
     size_t index = 0;
     // vertical edges (exclude vertices)
@@ -218,8 +212,7 @@ static void bake_chunkShellBorderless(void)
     if (pCMATH_CHUNK_SHELL_BORDERLESS_POINTS)
         return;
 
-    pCMATH_CHUNK_SHELL_BORDERLESS_POINTS =
-        (Vec3u8_t *)malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT);
+    pCMATH_CHUNK_SHELL_BORDERLESS_POINTS = malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT);
 
     if (!pCMATH_CHUNK_SHELL_BORDERLESS_POINTS)
     {
@@ -227,7 +220,7 @@ static void bake_chunkShellBorderless(void)
         return;
     }
 
-    const uint8_t AXIS_MIN = 0, AXIS_MAX = (uint8_t)CHUNK_AXIS_LENGTH - 1;
+    const uint8_t AXIS_MIN = 0, AXIS_MAX = (uint8_t)CMATH_CHUNK_AXIS_LENGTH - 1;
     size_t index = 0;
 
     // y = MAX (top), interior in x/z
@@ -268,7 +261,7 @@ static void bake_chunkCornerPoints(void)
         return;
 
     if (!pCMATH_CHUNK_CORNER_POINTS)
-        pCMATH_CHUNK_CORNER_POINTS = (Vec3u8_t *)malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_CORNER_POINT_COUNT);
+        pCMATH_CHUNK_CORNER_POINTS = malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_CORNER_POINTs_COUNT);
 
     if (!pCMATH_CHUNK_CORNER_POINTS)
     {
@@ -277,7 +270,7 @@ static void bake_chunkCornerPoints(void)
     }
 
     const uint8_t AXIS_MIN = 0;
-    const uint8_t AXIS_MAX = (uint8_t)CHUNK_AXIS_LENGTH - 1;
+    const uint8_t AXIS_MAX = (uint8_t)CMATH_CHUNK_AXIS_LENGTH - 1;
 
     pCMATH_CHUNK_CORNER_POINTS[0] = (Vec3u8_t){AXIS_MAX, AXIS_MAX, AXIS_MAX};
     pCMATH_CHUNK_CORNER_POINTS[1] = (Vec3u8_t){AXIS_MAX, AXIS_MAX, AXIS_MIN};
@@ -296,7 +289,7 @@ static void bake_chunkInnerPoints(void)
         return;
 
     if (!pCMATH_CHUNK_INNER_POINTS)
-        pCMATH_CHUNK_INNER_POINTS = (Vec3u8_t *)malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_INNER_POINTS_COUNT);
+        pCMATH_CHUNK_INNER_POINTS = malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_INNER_POINTS_COUNT);
 
     if (!pCMATH_CHUNK_INNER_POINTS)
     {
@@ -304,7 +297,7 @@ static void bake_chunkInnerPoints(void)
         return;
     }
 
-    const uint8_t AXIS_MIN = 1, AXIS_MAX = (uint8_t)CHUNK_AXIS_LENGTH - 1;
+    const uint8_t AXIS_MIN = 1, AXIS_MAX = (uint8_t)CMATH_CHUNK_AXIS_LENGTH - 1;
 
     size_t index = 0;
     for (uint8_t x = AXIS_MIN; x < AXIS_MAX; x++)
@@ -316,7 +309,7 @@ static void bake_chunkInnerPoints(void)
     //     pCMATH_CHUNK_INNER_POINTS[index++] = pCMATH_CHUNK_SHELL_BORDERLESS_POINTS[i];
 }
 
-/// @brief Bake a chunk's packed neighbors. ONLY within the chunk itself.
+/// @brief Bake a chunk's packed neighbors. Wraps into neighbor chunks.
 static void bake_blockNeighborPos(void)
 {
     const Vec3u8_t *pPOINTS = cmath_chunkPoints_Get();
@@ -326,14 +319,14 @@ static void bake_blockNeighborPos(void)
         return;
     }
 
-    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS = (Vec3u8_t *)malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_COUNT);
+    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS = malloc(sizeof(Vec3u8_t) * CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_COUNT);
     if (!pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS)
     {
         crash(CRASH_CHUNK_MATH);
         return;
     }
 
-    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL = (bool *)malloc(sizeof(bool) * CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL_COUNT);
+    pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL = malloc(sizeof(bool) * CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL_COUNT);
     if (!pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL)
     {
         crash(CRASH_CHUNK_MATH);
@@ -348,22 +341,66 @@ static void bake_blockNeighborPos(void)
 
         for (int face = 0; face < 6; ++face)
         {
-            const int NX = (int)X + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].x;
-            const int NY = (int)Y + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].y;
-            const int NZ = (int)Z + pCMATH_CUBE_NEIGHBOR_OFFSETS[face].z;
+            const Vec3i_t N_POS = cmath_vec3i_add_vec3i(pCMATH_CUBE_NEIGHBOR_OFFSETS[face], (Vec3i_t){X, Y, Z});
 
-            const bool IN_CHUNK = (NX >= 0 && NX < (int)CHUNK_AXIS_LENGTH) &&
-                                  (NY >= 0 && NY < (int)CHUNK_AXIS_LENGTH) &&
-                                  (NZ >= 0 && NZ < (int)CHUNK_AXIS_LENGTH);
+            uint8_t NX = (uint8_t)N_POS.x;
+            uint8_t NY = (uint8_t)N_POS.y;
+            uint8_t NZ = (uint8_t)N_POS.z;
 
-            const Vec3u8_t POS = (Vec3u8_t){(uint8_t)NX, (uint8_t)NY, (uint8_t)NZ};
+            const bool IN_CHUNK = (NX >= 0 && NX < (int)CMATH_CHUNK_AXIS_LENGTH) &&
+                                  (NY >= 0 && NY < (int)CMATH_CHUNK_AXIS_LENGTH) &&
+                                  (NZ >= 0 && NZ < (int)CMATH_CHUNK_AXIS_LENGTH);
 
-            pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS[cmath_blockNeighborIndex(i, face)] = POS;
+            const Vec3u8_t POS = (Vec3u8_t){NX, NY, NZ};
+
+            pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS[cmath_blockNeighborIndex(i, face)] =
+                IN_CHUNK
+                    ? POS
+                    : cmath_chunk_wrapLocalPos(POS.x, POS.y, POS.z, face);
+
             pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_IN_CHUNK_BOOL[cmath_blockNeighborIndex(i, face)] = IN_CHUNK;
         }
     }
 }
 #pragma endregion
+#if defined(DEBUG_CMATH)
+#pragma region Validation
+static bool validation_localPointsInChunk(const Vec3u8_t *pPOINTS, size_t size, bool verbose, const char *pName)
+{
+    if (!pPOINTS || !pName)
+        return false;
+
+    Vec3u8_t *pWrongPoints = malloc(sizeof(Vec3u8_t) * size);
+    if (!pWrongPoints)
+        return false;
+
+    size_t wrongCount = 0;
+    for (size_t i = 0; i < size; i++)
+    {
+        const Vec3u8_t POINT = pPOINTS[i];
+        const uint8_t BOUND = (uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1);
+        if (POINT.x > BOUND || POINT.y > BOUND || POINT.z > BOUND)
+            pWrongPoints[wrongCount++] = POINT;
+    }
+
+    if (wrongCount > 0)
+    {
+        logs_log(LOG_ERROR, "%s: %zu local points are baked incorrectly! (Outside of chunk)", pName, wrongCount);
+        if (verbose)
+        {
+            for (size_t i = 0; i < wrongCount; i++)
+            {
+                const Vec3u8_t POINT = pWrongPoints[i];
+                logs_log(LOG_ERROR, "Point (%u, %u, %u) is out of chunk bounds!", POINT.x, POINT.y, POINT.z);
+            }
+        }
+    }
+
+    free(pWrongPoints);
+    return wrongCount == 0;
+}
+#pragma endregion
+#endif
 #pragma region Instantiate
 static bool instantiated = false;
 void cmath_instantiate(void)
@@ -380,6 +417,24 @@ void cmath_instantiate(void)
     }
     else
         logs_log(LOG_ERROR, "Attempted to double-initialize cmath!");
+
+#if defined(DEBUG_CMATH)
+    const bool VERBOSE = true;
+    logs_log(LOG_DEBUG, "Cmath validation in progress...");
+    validation_localPointsInChunk(pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS, CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_COUNT,
+                                  VERBOSE, "pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS");
+    validation_localPointsInChunk(pCMATH_CHUNK_CORNER_POINTS, CMATH_CHUNK_CORNER_POINTs_COUNT,
+                                  VERBOSE, "pCMATH_CHUNK_CORNER_POINTS");
+    validation_localPointsInChunk(pCMATH_CHUNK_INNER_POINTS, CMATH_CHUNK_INNER_POINTS_COUNT,
+                                  VERBOSE, "pCMATH_CHUNK_INNER_POINTS");
+    validation_localPointsInChunk(pCMATH_CHUNK_POINTS, CMATH_CHUNK_POINTS_COUNT,
+                                  VERBOSE, "pCMATH_CHUNK_POINTS");
+    validation_localPointsInChunk(pCMATH_CHUNK_SHELL_BORDERLESS_POINTS, CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT,
+                                  VERBOSE, "pCMATH_CHUNK_SHELL_BORDERLESS_POINTS");
+    validation_localPointsInChunk(pCMATH_CHUNK_SHELL_EDGE_POINTS, CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT,
+                                  VERBOSE, "pCMATH_CHUNK_SHELL_EDGE_POINTS");
+    logs_log(LOG_DEBUG, "Cmath validation complete.");
+#endif
 }
 #pragma endregion
 #pragma region Destroy

@@ -19,12 +19,12 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 
 /// @brief Iterates the provided chunk positions and returns a heap array of chunk positions matching query from that collection.
 /// Places the length of that collection into pCount. If there are duplicate chunkpos in the query then there will be duplicate
-/// results.
+/// results. ORDER IS NON_DETERMINISTIC
 Chunk_t **chunkManager_getChunks(const State_t *restrict pSTATE, const Vec3i_t *restrict pCHUNK_POS, const size_t numChunkPos,
                                  size_t *restrict pCount, const bool RESIZE);
 
 /// @brief Returns an array (length = CUBE_FACE_COUNT) of pointers to each loaded chunk or null if it is not loaded around
-/// neighbor chunk at CHUNK_POS. (Heap)
+/// neighbor chunk at CHUNK_POS. (Heap) indexed by CubeFace_e
 Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 
 /// @brief Adds the passed entity to each chunk in the passed collection's entity loading linked list.

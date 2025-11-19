@@ -28,9 +28,11 @@ void world_loop(State_t *pState)
 void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
 {
     pLoadingEntity;
+    RADIUS;
+    CHUNK_POS;
 
-    size_t size;
-    Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS - 1, &size);
+    size_t size = 0;
+    Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
 
     size_t newCount = size;
     size_t existingCount = size;

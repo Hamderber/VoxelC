@@ -14,7 +14,8 @@
 #pragma endregion
 #pragma region Defines
 #if defined(DEBUG)
-#define DEBUG_CHUNKGEN
+// #define DEBUG_CHUNKGEN
+// #define DEBUG_CHUNKSOLID
 #endif
 
 // The order of these determines what will occur adjacent (blending)
@@ -237,21 +238,23 @@ bool chunkGen_genChunk(const WeightMaps_t *pWEIGHTED_MAPS, const BlockDefinition
 
     chunkSolidityGrid_build(pStoneSolidity, cmath_chunkPointsPacked_Get());
 
-    // Carve the chunk. Non-air is basic stone first
+// // Carve the chunk. Non-air is basic stone first
+#if !defined(DEBUG_CHUNKSOLID)
     const bool CHUNK_HAS_ANYTHING_SOLID = chunkGen_cave_carve(CHUNK_POS, pPackedPos, pStoneSolidity);
 
-    // Mitigate small air pockets and single floating stones
+    // // Mitigate small air pockets and single floating stones
     if (CHUNK_HAS_ANYTHING_SOLID)
     {
         chunkGen_fillSingleAirsInChunk(pPackedPos, pStoneSolidity);
         chunkGen_clearSingleSolidsInChunk(pPackedPos, pStoneSolidity);
     }
-
+#endif
     chunkGen_blockDefinitionsInit(pBLOCK_DEFINITIONS, pChunk, pPackedPos, pStoneSolidity);
-
-    // Apply characteristics if there is anything solid
+#if !defined(DEBUG_CHUNKSOLID)
+    // // Apply characteristics if there is anything solid
     if (CHUNK_HAS_ANYTHING_SOLID)
-        // This is by far the most expensive operation
+//     // This is by far the most expensive operation
+#endif
         chunkGen_paintStone(pWEIGHTED_MAPS, pBLOCK_DEFINITIONS, pChunk, CHUNK_POS, pStoneSolidity);
 
     pChunk->pTransparencyGrid = chunkGen_transparencyGrid(pChunk);

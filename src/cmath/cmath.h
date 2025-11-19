@@ -411,6 +411,16 @@ static inline Vec3i_t cmath_vec3i_add_vec3i(Vec3i_t left, Vec3i_t right)
     };
 }
 
+/// @brief Subtracts the axes of the right from left vector into one new vector. Left - Right. (int)
+static inline Vec3i_t cmath_vec3i_sub_vec3i(Vec3i_t left, Vec3i_t right)
+{
+    return (Vec3i_t){
+        .x = left.x - right.x,
+        .y = left.y - right.y,
+        .z = left.z - right.z,
+    };
+}
+
 /// @brief Adds the given scalar to each axis of the vector (int)
 static inline Vec3i_t cmath_vec3i_add_scalar(Vec3i_t vec3, int scalar)
 {
@@ -418,6 +428,16 @@ static inline Vec3i_t cmath_vec3i_add_scalar(Vec3i_t vec3, int scalar)
         .x = vec3.x + scalar,
         .y = vec3.y + scalar,
         .z = vec3.z + scalar,
+    };
+}
+
+/// @brief Subtracts the given scalar to each axis of the vector (int)
+static inline Vec3i_t cmath_vec3i_sub_scalar(Vec3i_t vec3, int scalar)
+{
+    return (Vec3i_t){
+        .x = vec3.x - scalar,
+        .y = vec3.y - scalar,
+        .z = vec3.z - scalar,
     };
 }
 
@@ -1030,12 +1050,30 @@ static inline Mat4c_t cmath_perspective(float fovYRad, float aspect, float nearC
 #pragma region Geometry
 /// @brief How many faces are on a cube
 #define CMATH_GEOM_CUBE_FACES 6
+typedef enum CubeFace_e
+{
+    CUBE_FACE_LEFT = 0,   // -X (left)
+    CUBE_FACE_RIGHT = 1,  // +X (right)
+    CUBE_FACE_TOP = 2,    // +Y (up)
+    CUBE_FACE_BOTTOM = 3, // -Y (down)
+    CUBE_FACE_FRONT = 4,  // +Z (front)
+    CUBE_FACE_BACK = 5,   // -Z (back)
+} CubeFace_e;
+
+static const char *pCUBE_FACE_NAMES[] = {
+    "CUBE_FACE_LEFT",
+    "CUBE_FACE_RIGHT",
+    "CUBE_FACE_TOP",
+    "CUBE_FACE_BOTTOM",
+    "CUBE_FACE_FRONT",
+    "CUBE_FACE_BACK",
+};
 #pragma endregion
 #pragma region Chunk
 // This shall NEVER change
-static const uint16_t CHUNK_AXIS_LENGTH = 16;
+static const uint16_t CMATH_CHUNK_AXIS_LENGTH = 16;
 // 16x16x16
-static const uint32_t CHUNK_BLOCK_CAPACITY = 4096;
+static const uint32_t CMATH_CHUNK_BLOCK_CAPACITY = 4096;
 #define LXYZ_MASK_4 0x0FU
 #define LXYZ_SHIFT_X 8U
 #define LXYZ_SHIFT_Y 4U
@@ -1050,7 +1088,7 @@ static const size_t CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT = 168;
 /// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
 static const size_t CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT = 1176;
 /// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
-static const size_t CMATH_CHUNK_CORNER_POINT_COUNT = 8;
+static const size_t CMATH_CHUNK_CORNER_POINTs_COUNT = 8;
 /// @brief Capacity of pCHUNK_INNER_POINTS (const)
 static const size_t CMATH_CHUNK_INNER_POINTS_COUNT = 2744;
 /// @brief Capcity of pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS (const)
@@ -1076,7 +1114,7 @@ static inline uint8_t cmath_chunk_blockPosPacked_getLocal_z(const uint16_t P) { 
 /// @brief Converts a block's x y z (local space) to block index in the chunk
 static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, const uint8_t Z)
 {
-    return X * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH + Y * CHUNK_AXIS_LENGTH + Z;
+    return X * CMATH_CHUNK_AXIS_LENGTH * CMATH_CHUNK_AXIS_LENGTH + Y * CMATH_CHUNK_AXIS_LENGTH + Z;
 }
 
 /// @brief Gets the neighbor chunk positions of the passed pos. Size CMATH_GEOM_CUBE_FACES heap-allocated array.
@@ -1104,20 +1142,49 @@ static inline size_t cmath_blockNeighborIndex(size_t i, int face) { return i * C
 Vec3u8_t *cmath_chunk_blockNeighborPoints_Get(void);
 bool *cmath_chunk_blockNeighborPointsInChunkBool_Get(void);
 
+/// @brief Wraps the given point to stay within chunk bounds, converting out-of-bounds chunk pos into local neighboring pos depending on
+/// the cubeface passed.
+static inline Vec3u8_t cmath_chunk_wrapLocalPos(uint8_t nx, uint8_t ny, uint8_t nz, CubeFace_e face)
+{
+    switch (face)
+    {
+    case CUBE_FACE_RIGHT: // nx == CHUNK_AXIS_LENGTH
+        return (Vec3u8_t){0, ny, nz};
+
+    case CUBE_FACE_LEFT: // nx == -1
+        return (Vec3u8_t){(uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1), ny, nz};
+
+    case CUBE_FACE_TOP: // ny == CHUNK_AXIS_LENGTH
+        return (Vec3u8_t){nx, 0, nz};
+
+    case CUBE_FACE_BOTTOM: // ny == -1
+        return (Vec3u8_t){nx, (uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1), nz};
+
+    case CUBE_FACE_FRONT: // nz == CHUNK_AXIS_LENGTH
+        return (Vec3u8_t){nx, ny, 0};
+
+    case CUBE_FACE_BACK: // nz == -1
+        return (Vec3u8_t){nx, ny, (uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1)};
+    }
+
+    // This should never happen
+    return (Vec3u8_t){0, 0, 0};
+}
+
 /// @brief Converts CHUNK_POS to world (Vec3i)
 static inline Vec3i_t cmath_chunk_chunkPos_2_worldPosI(const Vec3i_t CHUNK_POS)
 {
     return (Vec3i_t){
-        CHUNK_POS.x * CHUNK_AXIS_LENGTH,
-        CHUNK_POS.y * CHUNK_AXIS_LENGTH,
-        CHUNK_POS.z * CHUNK_AXIS_LENGTH};
+        CHUNK_POS.x * CMATH_CHUNK_AXIS_LENGTH,
+        CHUNK_POS.y * CMATH_CHUNK_AXIS_LENGTH,
+        CHUNK_POS.z * CMATH_CHUNK_AXIS_LENGTH};
 }
 
 /// @brief Floor-divide to work for negative chunk pos
 static inline int cmath_chunk_floorDivChunkAxis(int x)
 {
     // Otherwise -1/16 for example = 0 which would result in wrong chunkPos for negative chunks
-    return (x >= 0) ? (x / CHUNK_AXIS_LENGTH) : ((x - (CHUNK_AXIS_LENGTH - 1)) / CHUNK_AXIS_LENGTH);
+    return (x >= 0) ? (x / CMATH_CHUNK_AXIS_LENGTH) : ((x - (CMATH_CHUNK_AXIS_LENGTH - 1)) / CMATH_CHUNK_AXIS_LENGTH);
 }
 
 /// @brief Converts world position to chunk position
@@ -1133,7 +1200,7 @@ static inline Vec3i_t cmath_worldPosI_2_chunkPos(const Vec3i_t WORLD_POS)
 /// @brief Converts a world position axis coord to chunk position (index)
 static inline int cmath_chunk_indexFromWorldF(float x)
 {
-    return (int)floorf(x / (float)CHUNK_AXIS_LENGTH);
+    return (int)floorf(x / (float)CMATH_CHUNK_AXIS_LENGTH);
 }
 
 /// @brief Converts world position (float) to chunk position
@@ -1144,6 +1211,15 @@ static inline Vec3i_t cmath_chunk_worldPosF_2_chunkPos(Vec3f_t wp)
         .y = cmath_chunk_indexFromWorldF(wp.y),
         .z = cmath_chunk_indexFromWorldF(wp.z),
     };
+}
+
+/// @brief Converts a block's position packed12 to local pos
+static inline Vec3u8_t cmath_chunk_blockPosPacked_2_localPos(const uint16_t BLOCK_POS_PACKED12)
+{
+    return (Vec3u8_t){
+        cmath_chunk_blockPosPacked_getLocal_x(BLOCK_POS_PACKED12),
+        cmath_chunk_blockPosPacked_getLocal_y(BLOCK_POS_PACKED12),
+        cmath_chunk_blockPosPacked_getLocal_z(BLOCK_POS_PACKED12)};
 }
 
 /// @brief Converts a block's position packed12 to world pos
@@ -1159,8 +1235,8 @@ static inline Vec3i_t blockPosPacked_get_worldPos(const Vec3i_t CHUNK_POS, const
 /// @brief Converts a block's position packed12 to block index in the chunk
 static inline uint16_t cmath_chunk_blockPosPacked_2_chunkBlockIndex(const uint16_t BLOCK_POS_PACKED)
 {
-    return cmath_chunk_blockPosPacked_getLocal_x(BLOCK_POS_PACKED) * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH +
-           cmath_chunk_blockPosPacked_getLocal_y(BLOCK_POS_PACKED) * CHUNK_AXIS_LENGTH +
+    return cmath_chunk_blockPosPacked_getLocal_x(BLOCK_POS_PACKED) * CMATH_CHUNK_AXIS_LENGTH * CMATH_CHUNK_AXIS_LENGTH +
+           cmath_chunk_blockPosPacked_getLocal_y(BLOCK_POS_PACKED) * CMATH_CHUNK_AXIS_LENGTH +
            cmath_chunk_blockPosPacked_getLocal_z(BLOCK_POS_PACKED);
 }
 
@@ -1180,7 +1256,7 @@ static inline Boundsi_t cmath_chunk_getBoundsi(const Vec3i_t CHUNK_POS)
     const Vec3i_t WORLD_POS = cmath_chunk_chunkPos_2_worldPosI(CHUNK_POS);
     return (Boundsi_t){
         .A = WORLD_POS,
-        .B = cmath_vec3i_add_scalar(WORLD_POS, CHUNK_AXIS_LENGTH)};
+        .B = cmath_vec3i_add_scalar(WORLD_POS, CMATH_CHUNK_AXIS_LENGTH)};
 }
 #pragma endregion
 #pragma region Algorithms

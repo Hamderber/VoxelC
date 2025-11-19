@@ -97,7 +97,7 @@ Chunk_t *chunk_world_create(const Vec3i_t CHUNK_POS)
         return NULL;
 
     chunkState_set(pChunk, CHUNK_STATE_CPU_EMPTY);
-    pChunk->pBlockVoxels = calloc(CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
+    pChunk->pBlockVoxels = calloc(CMATH_CHUNK_BLOCK_CAPACITY, sizeof(BlockVoxel_t));
     pChunk->chunkPos = CHUNK_POS;
 
 #if defined(DEBUG_CHUNK)

@@ -6,7 +6,7 @@
 #include "world/voxel/blockFlags.h"
 #pragma endregion
 #pragma region Defines
-#define GRID_SIDE (CHUNK_AXIS_LENGTH + ((uint16_t)2))
+#define GRID_SIDE (CMATH_CHUNK_AXIS_LENGTH + ((uint16_t)2))
 #define GRID_STRIDE_X ((uint8_t)1)
 #define GRID_STRIDE_Y GRID_SIDE
 #define GRID_STRIDE_Z (GRID_SIDE * GRID_SIDE)

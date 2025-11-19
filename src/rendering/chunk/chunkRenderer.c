@@ -10,7 +10,7 @@
 #pragma endregion
 #pragma region Defines
 #if defined(DEBUG)
-#define DEBUG_CHUNKRENDER
+// #define DEBUG_CHUNKRENDER
 #if defined(DEBUG_CHUNKRENDER)
 static uint32_t remeshQueueSize = 0;
 static uint32_t remeshCount = 0;
@@ -106,6 +106,7 @@ static bool chunkRenderer_meshBatch(State_t *restrict pState, const uint32_t BAT
             break;
 
         bool result = chunkRenderer_chunk_remesh(pState, pPOINTS, pNEIGHBOR_BLOCK_POS, pNEIGHBOR_BLOCK_IN_CHUNK, pRemesh);
+        result;
 #if defined(DEBUG_CHUNKRENDER)
         const Vec3i_t CHUNK_POS = pRemesh->chunkPos;
         if (result)

@@ -21,6 +21,11 @@
 #include "chunk/chunkSource_local.h"
 #include "chunk/chunkManager_t.h"
 #pragma endregion
+#pragma region Defines
+#if defined(DEBUG)
+#define DEBUG_CHUNKMANAGER
+#endif
+#pragma endregion
 #pragma region Get Chunk
 Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
 {
@@ -31,7 +36,7 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
     }
     if (!pSTATE->pWorldState->pChunkManager->pChunksLL)
     {
-        logs_log(LOG_ERROR, "getChunk: chunk list is empty");
+        logs_log(LOG_ERROR, "getChunk: chunk list is undefined");
         return NULL;
     }
 
@@ -43,6 +48,12 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS)
         if (cmath_vec3i_equals(pC->chunkPos, CHUNK_POS, 0))
             return (Chunk_t *)pC;
     }
+
+#if defined(DEBUG_CHUNKMANAGER)
+    logs_log(LOG_DEBUG, "Failed to get chunk at (%d, %d, %d) belonging to chunk manager %p.", CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z,
+             pSTATE->pWorldState->pChunkManager);
+#endif
+
     return NULL;
 }
 
@@ -110,11 +121,44 @@ Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CH
     if (!pPOS)
         return NULL;
 
-    size_t count;
-    Chunk_t **ppChunks = chunkManager_getChunks(pSTATE, pPOS, CMATH_GEOM_CUBE_FACES, &count, false);
-
+    size_t count = 0;
+    const bool RESIZE = false;
+    Chunk_t **ppNEIGHBORS_UNSORTED = chunkManager_getChunks(pSTATE, pPOS, CMATH_GEOM_CUBE_FACES, &count, RESIZE);
     free(pPOS);
-    return ppChunks;
+
+    if (!ppNEIGHBORS_UNSORTED)
+        return NULL;
+
+    Chunk_t **ppFace = calloc(CMATH_GEOM_CUBE_FACES, sizeof(Chunk_t *));
+    if (!ppFace)
+    {
+        free(ppNEIGHBORS_UNSORTED);
+        return NULL;
+    }
+
+    for (size_t i = 0; i < count; i++)
+    {
+        Chunk_t *pN = ppNEIGHBORS_UNSORTED[i];
+        if (!pN)
+            continue;
+
+        Vec3i_t delta = cmath_vec3i_sub_vec3i(pN->chunkPos, CHUNK_POS);
+
+        for (int face = 0; face < CMATH_GEOM_CUBE_FACES; face++)
+        {
+            Vec3i_t offset = pCMATH_CUBE_NEIGHBOR_OFFSETS[face];
+
+            const int TOLERANCE = 0;
+            if (cmath_vec3i_equals(delta, offset, TOLERANCE))
+            {
+                ppFace[face] = pN;
+                break;
+            }
+        }
+    }
+
+    free(ppNEIGHBORS_UNSORTED);
+    return ppFace;
 }
 #pragma endregion
 #pragma region Create Chunk
