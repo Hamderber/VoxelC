@@ -96,6 +96,7 @@
         "randomnoise.h": "c",
         "index_buffer.h": "c",
         "chunk.h": "c",
-        "worldconfig_t.h": "c"
+        "worldconfig_t.h": "c",
+        "random_tests.h": "c"
     }
 }

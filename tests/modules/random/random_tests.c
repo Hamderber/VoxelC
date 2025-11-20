@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "cmath/cmath.h"
 #include "core/random.h"
-#include "../unit_tests.h"
+#include "../../unit_tests.h"
 
 // Good midpoint for monte carlo simulation count
 static const int NUM_TESTS = 5000;
