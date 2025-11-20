@@ -4,6 +4,7 @@
 #include "modules/random/random_tests.h"
 #include "modules/collections/linkedList_tests.h"
 #include "modules/collections/dynamicStack_tests.h"
+#include "modules/collections/flags64_tests.h"
 #include "modules/event_tests.h"
 // #include "modules/chunk_tests.h"
 
@@ -22,6 +23,9 @@ int unitTests_run(void)
 
     ut_section("Dynamic Stack Tests");
     fails += dynamicStack_tests_run();
+
+    ut_section("Flags64 Tests");
+    fails += flags64_tests_run();
 
     ut_section("Event Tests");
     fails += event_tests_run();
