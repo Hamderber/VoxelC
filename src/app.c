@@ -32,9 +32,9 @@ void app_init(State_t *restrict pState)
     const uint32_t PRNG_SEED = 0; // 8675309U;
     random_init(PRNG_SEED);
     randomNoise_init(random_seedGet());
-    weightedMaps_init(pState);
 
     cmath_instantiate();
+    weightedMaps_instantiate();
 
     glfwInstance_init();
 
@@ -117,7 +117,7 @@ void app_cleanup(State_t *restrict pState)
 
     em_destroy(pState);
 
-    weightedMaps_destroy(pState);
+    weightedMaps_destroy();
     cmath_destroy();
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);

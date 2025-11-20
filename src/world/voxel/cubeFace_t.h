@@ -2,16 +2,6 @@
 
 #include "cmath/cmath.h"
 
-typedef enum CubeFace_e
-{
-    CUBE_FACE_LEFT = 0,   // -X (left)
-    CUBE_FACE_RIGHT = 1,  // +X (right)
-    CUBE_FACE_TOP = 2,    // +Y (up)
-    CUBE_FACE_BOTTOM = 3, // -Y (down)
-    CUBE_FACE_FRONT = 4,  // +Z (front)
-    CUBE_FACE_BACK = 5,   // -Z (back)
-} CubeFace_e;
-
 // ORDER REQUIRED: [0]=TL, [1]=BL, [2]=TR, [3]=BR (viewed from OUTSIDE), CCW
 static const Vec3i_t pFACE_POSITIONS[6][4] = {
     // LEFT  (-X), view from -X -> +X

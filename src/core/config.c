@@ -539,5 +539,5 @@ void config_init(struct State_t *pState)
 
     pState->config = *(AppConfig_t *)config_loadOrCreate(CONFIG_TYPE_APP);
     pState->input = *(Input_t *)config_loadOrCreate(CONFIG_TYPE_KEYBINDINGS);
-    pState->worldConfig = *(WorldConfig_t *)config_loadOrCreate(CONFIG_TYPE_WORLD);
+    pState->pWorldConfig = (WorldConfig_t *)config_loadOrCreate(CONFIG_TYPE_WORLD);
 }

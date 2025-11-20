@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include "cmath/cmath.h"
 #include "core/types/state_t.h"
-#include "world/chunk.h"
+#include "api/chunk/chunkAPI.h"
+#include "chunk/chunkManager_t.h"
+#include "world/voxel/block_t.h"
 
 typedef enum ChunkQuery_e
 {
@@ -17,26 +19,16 @@ Chunk_t *chunkManager_getChunk(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 
 /// @brief Iterates the provided chunk positions and returns a heap array of chunk positions matching query from that collection.
 /// Places the length of that collection into pCount. If there are duplicate chunkpos in the query then there will be duplicate
-/// results.
+/// results. ORDER IS NON_DETERMINISTIC
 Chunk_t **chunkManager_getChunks(const State_t *restrict pSTATE, const Vec3i_t *restrict pCHUNK_POS, const size_t numChunkPos,
                                  size_t *restrict pCount, const bool RESIZE);
 
 /// @brief Returns an array (length = CUBE_FACE_COUNT) of pointers to each loaded chunk or null if it is not loaded around
-/// neighbor chunk at CHUNK_POS. (Heap)
+/// neighbor chunk at CHUNK_POS. (Heap) indexed by CubeFace_e
 Chunk_t **chunkManager_getChunkNeighbors(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
-
-/// @brief Create chunks at the passed positions and add them directly to the world.
-/// Maximum size must be passed through both new and already loaded. The final resulting size of each is placed into the passed addresses.
-Chunk_t **chunkManager_chunk_createBatch(State_t *restrict pState, const Vec3i_t *restrict pCHUNK_POS, const size_t COUNT_MAX,
-                                         Vec3i_t *restrict pChunkPosUnloaded, size_t *restrict pUnloadedCount,
-                                         Vec3i_t *restrict pChunkPosLoaded, size_t *restrict pLoadedCount);
 
 /// @brief Adds the passed entity to each chunk in the passed collection's entity loading linked list.
 bool chunkManager_chunk_addLoadingEntity(Chunk_t **ppChunks, size_t numChunks, Entity_t *pEntity);
-
-/// @brief Adds the world's permanent chunk loading entity to each chunk in the passed collection's entity loading linked list.
-/// Having that entity be in the loading collection will prevent the chunk from being unloaded.
-bool chunkManager_chunk_permanentlyLoad(State_t *pState, Chunk_t **ppChunks, size_t numChunks);
 
 /// @brief Gets the the block in the chunk's local coord system
 const inline BlockVoxel_t chunkManager_getBlock(const Chunk_t *pCHUNK, const Vec3u8_t LOCAL_POS)
@@ -57,8 +49,5 @@ bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
 /// a linked list destructor
 void chunk_destroy(void *pCtx, Chunk_t *pChunk);
 
-/// @brief Subscribes to events in the chunk event channel
-void chunkManager_create(State_t *pState);
-
-/// @brief Destroys the chunk manager, any loaded chunks, and unsubscribes from chunk events
-void chunkManager_destroy(State_t *pState);
+bool chunkManager_chunks_populateNew(State_t *pState, ChunkManager_t *pChunkManager, ChunkSource_t *pSource,
+                                     Chunk_t **ppNewChunks, size_t count);

@@ -1,7 +1,6 @@
 #pragma region Includes
 #pragma once
 #include <stdint.h>
-#include "world/chunk.h"
 #include "world/voxel/cubeFace_t.h"
 #include "rendering/types/faceTexture_t.h"
 #pragma endregion
@@ -51,14 +50,14 @@ typedef enum BlockRenderType_e
     BLOCK_RENDER_ALPHA,
 } BlockRenderType_e;
 
-typedef struct
+typedef struct BlockDefinition_t
 {
     const BlockID_e BLOCK_ID;
     const BlockRenderType_e BLOCK_RENDER_TYPE;
     const FaceTexture_t pFACE_TEXTURES[6];
 } BlockDefinition_t;
 
-typedef struct
+typedef struct BlockVoxel_t
 {
     const BlockDefinition_t *pBLOCK_DEFINITION;
     // 12 bits needed to pack 16x16x16 pos
@@ -246,6 +245,7 @@ static const BlockDefinition_t sBLOCK_DEF_MARBLE_WHITE = {
     }};
 #pragma endregion
 #pragma region All Blocks
+// TODO: Put this in a .c
 /* Get a collection of pointers to all block definitions.
 Access with "const BlockDefinition_t *const *pBLOCK_DEFINITIONS = block_defs_getAll();" */
 static const BlockDefinition_t *const *block_defs_getAll(void)

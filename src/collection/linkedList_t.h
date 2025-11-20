@@ -73,6 +73,26 @@ static inline bool linkedList_node_remove(LinkedList_t **ppRoot, LinkedList_t *p
     return true;
 }
 
+/// @brief Removes the node whose pData equals pData from the list. If returns true,
+/// it has been detached from the list and must still be freed by the caller.
+static inline bool linkedList_data_remove(LinkedList_t **ppRoot, void *pData)
+{
+    if (!ppRoot || !pData)
+        return false;
+
+    LinkedList_t **pp = ppRoot;
+    while (*pp && (*pp)->pData != pData)
+        pp = &(*pp)->pNext;
+
+    if (!*pp)
+        return false;
+
+    LinkedList_t *pToRemove = *pp;
+    *pp = pToRemove->pNext;
+    pToRemove->pNext = NULL;
+    return true;
+}
+
 /// @brief Inserts pAdd after pCurrent (always). pAdd->pNext is set to old pCurrent->pNext.
 /// Returns pAdd on success, NULL on bad args.
 static inline LinkedList_t *linkedList_node_insertAfter(LinkedList_t *pCurrent, LinkedList_t *pAdd)
@@ -173,8 +193,8 @@ static inline LinkedList_t *linkedList_node_addUnique(LinkedList_t **ppRoot, Lin
 static inline bool linkedList_destroy(LinkedList_t **ppRoot, LinkedListDataDestructor destructor, void *pCtx)
 {
     size_t removedSize = 0;
-    // root node will always have NULL data
-    if (!ppRoot || (*ppRoot)->pData || !(*ppRoot)->pNext)
+    // root node will always have NULL data (sentinel)
+    if (!ppRoot)
         return false;
 
     LinkedList_t *pNode = *ppRoot;

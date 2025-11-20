@@ -35,43 +35,43 @@
 #pragma endregion
 #pragma region Types
 /// @brief 4-dimensional representation of rotation used in computer graphics etc. (float)
-typedef struct
+typedef struct Quaternionf_t
 {
     float qx, qy, qz, qw;
 } Quaternionf_t;
 
 /// @brief 2-dimensional value representation (float)
-typedef struct
+typedef struct Vec2f_t
 {
     float x, y;
 } Vec2f_t;
 
 /// @brief 3-dimensional value representation (float)
-typedef struct
+typedef struct Vec3f_t
 {
     float x, y, z;
 } Vec3f_t;
 
 /// @brief 3-dimensional value representation (int)
-typedef struct
+typedef struct Vec3i_t
 {
     int x, y, z;
 } Vec3i_t;
 
 /// @brief 3-dimensional value representation (uint8_t)
-typedef struct
+typedef struct Vec3u8_t
 {
     uint8_t x, y, z;
 } Vec3u8_t;
 
 /// @brief 4-dimensional value representation (float). A w of 1 means position and non-1 means rotation.
-typedef struct
+typedef struct Vec4f_t
 {
     float x, y, z, w;
 } Vec4f_t;
 
 /// @brief 4x4 Matrix column-major (array index is for each column). Struct members are the same as the shader codes'.
-typedef struct
+typedef struct Mat4c_t
 {
     Vec4f_t m[4];
 } Mat4c_t;
@@ -372,9 +372,19 @@ static inline bool cmath_vec3i_equals(const Vec3i_t LEFT, const Vec3i_t RIGHT, i
 }
 
 /// @brief Multiplies each axis of the vector by the given scalar (float)
-static inline Vec3f_t cmath_vec3f_mult_scalarF(Vec3f_t vec3, float scalar)
+static inline Vec3f_t cmath_vec3f_mult_scalar(Vec3f_t vec3, float scalar)
 {
     return (Vec3f_t){
+        .x = vec3.x * scalar,
+        .y = vec3.y * scalar,
+        .z = vec3.z * scalar,
+    };
+}
+
+/// @brief Multiplies each axis of the vector by the given scalar (int)
+static inline Vec3i_t cmath_vec3i_mult_scalar(Vec3i_t vec3, int scalar)
+{
+    return (Vec3i_t){
         .x = vec3.x * scalar,
         .y = vec3.y * scalar,
         .z = vec3.z * scalar,
@@ -401,6 +411,36 @@ static inline Vec3i_t cmath_vec3i_add_vec3i(Vec3i_t left, Vec3i_t right)
     };
 }
 
+/// @brief Subtracts the axes of the right from left vector into one new vector. Left - Right. (int)
+static inline Vec3i_t cmath_vec3i_sub_vec3i(Vec3i_t left, Vec3i_t right)
+{
+    return (Vec3i_t){
+        .x = left.x - right.x,
+        .y = left.y - right.y,
+        .z = left.z - right.z,
+    };
+}
+
+/// @brief Adds the given scalar to each axis of the vector (int)
+static inline Vec3i_t cmath_vec3i_add_scalar(Vec3i_t vec3, int scalar)
+{
+    return (Vec3i_t){
+        .x = vec3.x + scalar,
+        .y = vec3.y + scalar,
+        .z = vec3.z + scalar,
+    };
+}
+
+/// @brief Subtracts the given scalar to each axis of the vector (int)
+static inline Vec3i_t cmath_vec3i_sub_scalar(Vec3i_t vec3, int scalar)
+{
+    return (Vec3i_t){
+        .x = vec3.x - scalar,
+        .y = vec3.y - scalar,
+        .z = vec3.z - scalar,
+    };
+}
+
 /// @brief Calculates the magnitude (length) of the given vector (float)
 static inline float cmath_vec3f_magnitudeF(Vec3f_t vec3)
 {
@@ -416,7 +456,7 @@ static inline Vec3f_t cmath_vec3f_normalize(Vec3f_t vec3)
     if (length < CMATH_EPSILON_F)
         return VEC3F_ZERO;
 
-    return cmath_vec3f_mult_scalarF(vec3, 1.0F / length);
+    return cmath_vec3f_mult_scalar(vec3, 1.0F / length);
 }
 
 /// @brief Linearly interpolates between two vectors by t->E[0, 1] (float)
@@ -551,7 +591,7 @@ static inline Quaternionf_t cmath_quat_fromAxisAngle(float radians, Vec3f_t axis
     float s = sinf(radians * 0.5F);
     float c = cosf(radians * 0.5F);
 
-    Vec3f_t n = cmath_vec3f_mult_scalarF(axis, s / len);
+    Vec3f_t n = cmath_vec3f_mult_scalar(axis, s / len);
 
     return (Quaternionf_t){
         .qx = n.x,
@@ -565,7 +605,7 @@ static inline Quaternionf_t cmath_quat_fromAxisAngle(float radians, Vec3f_t axis
 static inline Quaternionf_t cmath_quat_fromEuler(Vec3f_t euler)
 {
     // half-angles
-    Vec3f_t half = cmath_vec3f_mult_scalarF(euler, 0.5F);
+    Vec3f_t half = cmath_vec3f_mult_scalar(euler, 0.5F);
 
     // sin/cos
     float sx = sinf(half.x), cx = cosf(half.x);
@@ -1010,12 +1050,30 @@ static inline Mat4c_t cmath_perspective(float fovYRad, float aspect, float nearC
 #pragma region Geometry
 /// @brief How many faces are on a cube
 #define CMATH_GEOM_CUBE_FACES 6
+typedef enum CubeFace_e
+{
+    CUBE_FACE_LEFT = 0,   // -X (left)
+    CUBE_FACE_RIGHT = 1,  // +X (right)
+    CUBE_FACE_TOP = 2,    // +Y (up)
+    CUBE_FACE_BOTTOM = 3, // -Y (down)
+    CUBE_FACE_FRONT = 4,  // +Z (front)
+    CUBE_FACE_BACK = 5,   // -Z (back)
+} CubeFace_e;
+
+static const char *pCUBE_FACE_NAMES[] = {
+    "CUBE_FACE_LEFT",
+    "CUBE_FACE_RIGHT",
+    "CUBE_FACE_TOP",
+    "CUBE_FACE_BOTTOM",
+    "CUBE_FACE_FRONT",
+    "CUBE_FACE_BACK",
+};
 #pragma endregion
 #pragma region Chunk
 // This shall NEVER change
-static const uint16_t CHUNK_AXIS_LENGTH = 16;
+static const uint16_t CMATH_CHUNK_AXIS_LENGTH = 16;
 // 16x16x16
-static const uint32_t CHUNK_BLOCK_CAPACITY = 4096;
+static const uint32_t CMATH_CHUNK_BLOCK_CAPACITY = 4096;
 #define LXYZ_MASK_4 0x0FU
 #define LXYZ_SHIFT_X 8U
 #define LXYZ_SHIFT_Y 4U
@@ -1030,7 +1088,7 @@ static const size_t CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT = 168;
 /// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
 static const size_t CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT = 1176;
 /// @brief Capacity of pCHUNK_SHELL_EDGE_POINTS (const)
-static const size_t CMATH_CHUNK_CORNER_POINT_COUNT = 8;
+static const size_t CMATH_CHUNK_CORNER_POINTs_COUNT = 8;
 /// @brief Capacity of pCHUNK_INNER_POINTS (const)
 static const size_t CMATH_CHUNK_INNER_POINTS_COUNT = 2744;
 /// @brief Capcity of pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS (const)
@@ -1049,17 +1107,17 @@ static inline uint16_t blockPos_pack_localXYZ(const uint8_t LOCAL_X, const uint8
            (uint16_t)((LOCAL_Z & LXYZ_MASK_4) << LXYZ_SHIFT_Z);
 }
 
-static inline uint8_t cmath_chunkBlockPosPackedGetLocal_x(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_X) & LXYZ_MASK_4); }
-static inline uint8_t cmath_chunkBlockPosPackedGetLocal_y(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Y) & LXYZ_MASK_4); }
-static inline uint8_t cmath_chunkBlockPosPackedGetLocal_z(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Z) & LXYZ_MASK_4); }
+static inline uint8_t cmath_chunk_blockPosPacked_getLocal_x(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_X) & LXYZ_MASK_4); }
+static inline uint8_t cmath_chunk_blockPosPacked_getLocal_y(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Y) & LXYZ_MASK_4); }
+static inline uint8_t cmath_chunk_blockPosPacked_getLocal_z(const uint16_t P) { return (uint8_t)((P >> LXYZ_SHIFT_Z) & LXYZ_MASK_4); }
 
 /// @brief Converts a block's x y z (local space) to block index in the chunk
 static inline uint16_t xyz_to_chunkBlockIndex(const uint8_t X, const uint8_t Y, const uint8_t Z)
 {
-    return X * CHUNK_AXIS_LENGTH * CHUNK_AXIS_LENGTH + Y * CHUNK_AXIS_LENGTH + Z;
+    return X * CMATH_CHUNK_AXIS_LENGTH * CMATH_CHUNK_AXIS_LENGTH + Y * CMATH_CHUNK_AXIS_LENGTH + Z;
 }
 
-/// @brief Gets the neighbor chunk positions of the passed pos. Size 6 heap-allocated array.
+/// @brief Gets the neighbor chunk positions of the passed pos. Size CMATH_GEOM_CUBE_FACES heap-allocated array.
 Vec3i_t *cmath_chunk_chunkNeighborPos_get(const Vec3i_t CHUNK_POS);
 
 /// @brief Gets a heap-allocated array of unique chunk positions for the neighbors of all chunk positions in pCHUNK_POS.
@@ -1072,16 +1130,134 @@ Vec3u8_t *cmath_chunkPoints_Get(void);
 uint16_t *cmath_chunkPointsPacked_Get(void);
 /// @brief The array of chunk shell corners (Vec3u8_t).
 Vec3u8_t *cmath_chunkCornerPoints_Get(void);
-/// @brief The array of positions in the chunk shell edges. The outer edges of the chunk face minus corners. The inner faces of the shell are skipped (Vec3u8_t).
+/// @brief The array of positions in the chunk shell edges. The outer edges of the chunk face minus corners.
+/// The inner faces of the shell are skipped (Vec3u8_t).
 Vec3u8_t *cmath_chunkShellEdgePoints_Get(void);
 /// @brief The array of positions in the chunk minus shell edges (Vec3u8_t). The inner points of the chunk.
 Vec3u8_t *cmath_chunkInnerPoints_Get(void);
 /// @brief The array of positions in the chunk shell without borders (Vec3u8_t).
 Vec3u8_t *cmath_chunkShellBorderlessPoints_Get(void);
-static inline size_t cmath_blockNeighborIndex(size_t i, int face) { return i * 6 + face; }
+static inline size_t cmath_blockNeighborIndex(size_t i, int face) { return i * CMATH_GEOM_CUBE_FACES + face; }
 /// @brief The array of positions of block neighbors for a chunk (Vec3u8_t).
 Vec3u8_t *cmath_chunk_blockNeighborPoints_Get(void);
 bool *cmath_chunk_blockNeighborPointsInChunkBool_Get(void);
+
+/// @brief Wraps the given point to stay within chunk bounds, converting out-of-bounds chunk pos into local neighboring pos depending on
+/// the cubeface passed.
+static inline Vec3u8_t cmath_chunk_wrapLocalPos(uint8_t nx, uint8_t ny, uint8_t nz, CubeFace_e face)
+{
+    switch (face)
+    {
+    case CUBE_FACE_RIGHT: // nx == CHUNK_AXIS_LENGTH
+        return (Vec3u8_t){0, ny, nz};
+
+    case CUBE_FACE_LEFT: // nx == -1
+        return (Vec3u8_t){(uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1), ny, nz};
+
+    case CUBE_FACE_TOP: // ny == CHUNK_AXIS_LENGTH
+        return (Vec3u8_t){nx, 0, nz};
+
+    case CUBE_FACE_BOTTOM: // ny == -1
+        return (Vec3u8_t){nx, (uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1), nz};
+
+    case CUBE_FACE_FRONT: // nz == CHUNK_AXIS_LENGTH
+        return (Vec3u8_t){nx, ny, 0};
+
+    case CUBE_FACE_BACK: // nz == -1
+        return (Vec3u8_t){nx, ny, (uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1)};
+    }
+
+    // This should never happen
+    return (Vec3u8_t){0, 0, 0};
+}
+
+/// @brief Converts CHUNK_POS to world (Vec3i)
+static inline Vec3i_t cmath_chunk_chunkPos_2_worldPosI(const Vec3i_t CHUNK_POS)
+{
+    return (Vec3i_t){
+        CHUNK_POS.x * CMATH_CHUNK_AXIS_LENGTH,
+        CHUNK_POS.y * CMATH_CHUNK_AXIS_LENGTH,
+        CHUNK_POS.z * CMATH_CHUNK_AXIS_LENGTH};
+}
+
+/// @brief Floor-divide to work for negative chunk pos
+static inline int cmath_chunk_floorDivChunkAxis(int x)
+{
+    // Otherwise -1/16 for example = 0 which would result in wrong chunkPos for negative chunks
+    return (x >= 0) ? (x / CMATH_CHUNK_AXIS_LENGTH) : ((x - (CMATH_CHUNK_AXIS_LENGTH - 1)) / CMATH_CHUNK_AXIS_LENGTH);
+}
+
+/// @brief Converts world position to chunk position
+static inline Vec3i_t cmath_worldPosI_2_chunkPos(const Vec3i_t WORLD_POS)
+{
+    return (Vec3i_t){
+        .x = cmath_chunk_floorDivChunkAxis(WORLD_POS.x),
+        .y = cmath_chunk_floorDivChunkAxis(WORLD_POS.y),
+        .z = cmath_chunk_floorDivChunkAxis(WORLD_POS.z),
+    };
+}
+
+/// @brief Converts a world position axis coord to chunk position (index)
+static inline int cmath_chunk_indexFromWorldF(float x)
+{
+    return (int)floorf(x / (float)CMATH_CHUNK_AXIS_LENGTH);
+}
+
+/// @brief Converts world position (float) to chunk position
+static inline Vec3i_t cmath_chunk_worldPosF_2_chunkPos(Vec3f_t wp)
+{
+    return (Vec3i_t){
+        .x = cmath_chunk_indexFromWorldF(wp.x),
+        .y = cmath_chunk_indexFromWorldF(wp.y),
+        .z = cmath_chunk_indexFromWorldF(wp.z),
+    };
+}
+
+/// @brief Converts a block's position packed12 to local pos
+static inline Vec3u8_t cmath_chunk_blockPosPacked_2_localPos(const uint16_t BLOCK_POS_PACKED12)
+{
+    return (Vec3u8_t){
+        cmath_chunk_blockPosPacked_getLocal_x(BLOCK_POS_PACKED12),
+        cmath_chunk_blockPosPacked_getLocal_y(BLOCK_POS_PACKED12),
+        cmath_chunk_blockPosPacked_getLocal_z(BLOCK_POS_PACKED12)};
+}
+
+/// @brief Converts a block's position packed12 to world pos
+static inline Vec3i_t blockPosPacked_get_worldPos(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
+{
+    const Vec3i_t ORIGIN = cmath_chunk_chunkPos_2_worldPosI(CHUNK_POS);
+    return (Vec3i_t){
+        ORIGIN.x + (int)cmath_chunk_blockPosPacked_getLocal_x(BLOCK_POS_PACKED12),
+        ORIGIN.y + (int)cmath_chunk_blockPosPacked_getLocal_y(BLOCK_POS_PACKED12),
+        ORIGIN.z + (int)cmath_chunk_blockPosPacked_getLocal_z(BLOCK_POS_PACKED12)};
+}
+
+/// @brief Converts a block's position packed12 to block index in the chunk
+static inline uint16_t cmath_chunk_blockPosPacked_2_chunkBlockIndex(const uint16_t BLOCK_POS_PACKED)
+{
+    return cmath_chunk_blockPosPacked_getLocal_x(BLOCK_POS_PACKED) * CMATH_CHUNK_AXIS_LENGTH * CMATH_CHUNK_AXIS_LENGTH +
+           cmath_chunk_blockPosPacked_getLocal_y(BLOCK_POS_PACKED) * CMATH_CHUNK_AXIS_LENGTH +
+           cmath_chunk_blockPosPacked_getLocal_z(BLOCK_POS_PACKED);
+}
+
+/// @brief Sample pos is in the center of the voxel (offset by 0.5F)
+static inline Vec3f_t cmath_chunk_blockPosPacked_2_worldSamplePos(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
+{
+    const Vec3i_t ORIGIN = cmath_chunk_chunkPos_2_worldPosI(CHUNK_POS);
+    return (Vec3f_t){
+        (float)ORIGIN.x + (float)cmath_chunk_blockPosPacked_getLocal_x(BLOCK_POS_PACKED12) + 0.5F,
+        (float)ORIGIN.y + (float)cmath_chunk_blockPosPacked_getLocal_y(BLOCK_POS_PACKED12) + 0.5F,
+        (float)ORIGIN.z + (float)cmath_chunk_blockPosPacked_getLocal_z(BLOCK_POS_PACKED12) + 0.5F};
+}
+
+/// @brief Calculates the AABB of a chunk with origin CHUNK_POS (world space Vec3i)
+static inline Boundsi_t cmath_chunk_getBoundsi(const Vec3i_t CHUNK_POS)
+{
+    const Vec3i_t WORLD_POS = cmath_chunk_chunkPos_2_worldPosI(CHUNK_POS);
+    return (Boundsi_t){
+        .A = WORLD_POS,
+        .B = cmath_vec3i_add_scalar(WORLD_POS, CMATH_CHUNK_AXIS_LENGTH)};
+}
 #pragma endregion
 #pragma region Algorithms
 /// @brief Returns an array of positions in the shell of the cube formed around origin and radius. Puts size of array in pSize.

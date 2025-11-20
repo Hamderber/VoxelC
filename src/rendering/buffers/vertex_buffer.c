@@ -230,6 +230,3 @@ void vertexBuffer_destroy(State_t *pState)
     vkFreeMemory(pState->context.device, pState->renderer.vertexBufferMemory, pState->context.pAllocator);
 }
 #pragma endregion
-#pragma region
-#undef VERTEX_BUFFER_DEBUG
-#pragma endregion

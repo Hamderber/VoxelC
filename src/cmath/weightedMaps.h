@@ -10,15 +10,8 @@ typedef enum WeightedMapIndex_e
     WEIGHTED_MAP_COUNT,
 } WeightedMapIndex_e;
 
-static void weightedMaps_init(State_t *pState)
-{
-    pState->weightedMaps.pWeightMaps = calloc(WEIGHTED_MAP_COUNT, sizeof(WeightedMap_t));
-    chunkGen_stoneNoise_init(pState);
-}
+WeightMaps_t *weightedMaps_get(void);
 
-static void weightedMaps_destroy(State_t *pState)
-{
-    // Don't free the weighted maps' CDFs because those are HEAP
-    free(pState->weightedMaps.pWeightMaps);
-    pState->weightedMaps.pWeightMaps = NULL;
-}
+void weightedMaps_destroy(void);
+
+void weightedMaps_instantiate(void);

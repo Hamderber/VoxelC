@@ -6,7 +6,7 @@
 #include "world/voxel/blockFlags.h"
 #pragma endregion
 #pragma region Defines
-#define GRID_SIDE (CHUNK_AXIS_LENGTH + ((uint16_t)2))
+#define GRID_SIDE (CMATH_CHUNK_AXIS_LENGTH + ((uint16_t)2))
 #define GRID_STRIDE_X ((uint8_t)1)
 #define GRID_STRIDE_Y GRID_SIDE
 #define GRID_STRIDE_Z (GRID_SIDE * GRID_SIDE)
@@ -42,9 +42,9 @@ static inline size_t chunkSolidityGrid_index16(const uint8_t LOCAL_X, const uint
 static inline size_t chunkSolidityGrid_index16_fromPacked(const uint16_t PACKED)
 {
     const Vec3u8_t LOCAL = {
-        .x = cmath_chunkBlockPosPackedGetLocal_x(PACKED),
-        .y = cmath_chunkBlockPosPackedGetLocal_y(PACKED),
-        .z = cmath_chunkBlockPosPackedGetLocal_z(PACKED)};
+        .x = cmath_chunk_blockPosPacked_getLocal_x(PACKED),
+        .y = cmath_chunk_blockPosPacked_getLocal_y(PACKED),
+        .z = cmath_chunk_blockPosPacked_getLocal_z(PACKED)};
 
     return chunkSolidityGrid_index18(LOCAL.x + HALO, LOCAL.y + HALO, LOCAL.z + HALO);
 }

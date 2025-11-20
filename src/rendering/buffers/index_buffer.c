@@ -220,6 +220,3 @@ void indexBuffer_destroy(State_t *pState)
     vkFreeMemory(pState->context.device, pState->renderer.indexBufferMemory, pState->context.pAllocator);
 }
 #pragma endregion
-#pragma region
-#undef INDEX_BUFFER_DEBUG
-#pragma endregion

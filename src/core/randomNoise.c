@@ -3,7 +3,6 @@
 #define FNL_USE_DOUBLE 1
 #define FNL_IMPL
 #include "../lib/FastNoiseLite.h"
-#include "world/chunk.h"
 #pragma endregion
 #pragma region Stone
 static fnl_state fnl_Stone;
@@ -19,7 +18,7 @@ static const double STONE_WARP_OFF_Z = 73.73;
 /// @return Smooth continuous noise value in [-1, 1].
 float randomNoise_stone_samplePackedPos(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = cmath_chunk_blockPosPacked_2_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -160,7 +159,7 @@ static const double WORM_WARP_OFF_Z = 46.73;
 /// @brief Perlin-worm tunnels. Carves slender, windy tubes. [0, 1]
 float randomNoise_carve_stageWorms(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = cmath_chunk_blockPosPacked_2_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -227,7 +226,7 @@ static const double RAVINE_Y_DRIFT_AMPL = 300.0;
 /// @brief Long chasms (huge) defined by 2D meanders with vertical shaping. [0, 1]
 float randomNoise_carve_stageRavinesHuge(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = cmath_chunk_blockPosPacked_2_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;

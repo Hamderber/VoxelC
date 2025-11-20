@@ -8,65 +8,12 @@
 #include "character/characterType_t.h"
 #include "character/character.h"
 #include "rendering/chunk/chunkRendering.h"
-#include "chunk.h"
 #include "core/random.h"
 #include "world/chunkManager.h"
 #include "chunkGenerator.h"
 #include "rendering/chunk/chunkRenderer.h"
-#pragma endregion
-#pragma region Add Chunk to Col.
-static size_t addedChunks = 0;
-void world_chunk_addToCollection(State_t *restrict pState, Chunk_t *restrict pChunk)
-{
-    if (!pState || !pChunk)
-        return;
-
-    LinkedList_t *pAdd = linkedList_data_add(&pState->pWorldState->pChunksLL, (void *)pChunk);
-    if (!pAdd)
-    {
-        logs_log(LOG_ERROR, "Failed to add chunk %p to the world's chunk linked list!", pChunk);
-        return;
-    }
-    addedChunks++;
-}
-#pragma endregion
-#pragma region Chunks Init
-static void spawn_generate(State_t *pState)
-{
-    size_t size;
-    const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
-    const int SPAWN_RAD = pState->worldConfig.spawnChunkLoadingRadius;
-    Vec3i_t *pPoints = cmath_algo_expandingCubicShell(SPAWN_ORIGIN, SPAWN_RAD, &size);
-
-    // spawn chunks are permanently chunkloaded
-    size_t newChunkCount = size, alreadyLoadedChunkCount = size;
-    Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
-    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
-                                                           pChunkPosUnloaded, &newChunkCount,
-                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
-
-    if (ppNewChunks)
-    {
-        // Permanently load these because this is spawn
-        chunkManager_chunk_permanentlyLoad(pState, ppNewChunks, newChunkCount);
-
-        for (size_t i = 0; i < newChunkCount; i++)
-            chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
-    }
-}
-
-static void world_chunks_init(State_t *pState)
-{
-    pState->pWorldState->pChunksLL = calloc(1, sizeof(LinkedList_t));
-    if (!pState->pWorldState->pChunksLL)
-        return;
-
-    Entity_t *pChunkLoadingEntity = em_entityCreateHeap();
-
-    pState->pWorldState->pChunkLoadingEntity = pChunkLoadingEntity;
-
-    spawn_generate(pState);
-}
+#include "chunk/chunkManagerNew.h"
+#include "chunk/chunkSource_local.h"
 #pragma endregion
 #pragma region Loop
 void world_loop(State_t *pState)
@@ -80,29 +27,66 @@ void world_loop(State_t *pState)
 #pragma region Load
 void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
 {
-    size_t size;
+    pLoadingEntity;
+    RADIUS;
+    CHUNK_POS;
+
+    size_t size = 0;
     Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
 
-    size_t newChunkCount = size, alreadyLoadedChunkCount = size;
-    Vec3i_t *pChunkPosUnloaded = NULL, *pChunkPosLoaded = NULL;
-    Chunk_t **ppNewChunks = chunkManager_chunk_createBatch(pState, pPoints, size,
-                                                           pChunkPosUnloaded, &newChunkCount,
-                                                           pChunkPosLoaded, &alreadyLoadedChunkCount);
+    size_t newCount = size;
+    size_t existingCount = size;
+    Chunk_t **ppNewChunks = NULL;
+    Chunk_t **ppExistingChunks = NULL;
 
-    if (ppNewChunks)
+    if (!chunkManager_chunks_aquire(pState->pWorldState->pChunkManager, pPoints, size, &ppNewChunks, &newCount,
+                                    &ppExistingChunks, &existingCount))
     {
-        // Permanently load these because this is spawn
-        chunkManager_chunk_addLoadingEntity(ppNewChunks, newChunkCount, pLoadingEntity);
-
-        for (size_t i = 0; i < newChunkCount; i++)
-            chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
+        logs_log(LOG_ERROR, "Failed to aquire %zu chunks!", size);
     }
+
+    if (newCount > 0)
+    {
+        if (!chunkManager_chunks_populateNew(pState, pState->pWorldState->pChunkManager, pState->pWorldState->pChunkSource,
+                                             ppNewChunks, newCount))
+        {
+            logs_log(LOG_ERROR, "Failed to populate %zu chunks!", size);
+        }
+    }
+
+    for (size_t i = 0; i < newCount; i++)
+        chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
+
+    free(ppNewChunks);
+    free(ppExistingChunks);
 }
 #pragma endregion
 #pragma region Create
+static void spawn_generate(State_t *pState)
+{
+    const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
+    const int SPAWN_RAD = pState->pWorldConfig->spawnChunkLoadingRadius + 1;
+    world_chunks_load(pState, pState->pWorldState->pChunkLoadingEntity, SPAWN_ORIGIN, SPAWN_RAD);
+    logs_log(LOG_DEBUG, "Spawn created for world %p.", pState->pWorldState);
+}
+
+static void world_chunks_init(State_t *pState)
+{
+    if (!pState->pWorldState->pChunkManager->pChunksLL)
+        return;
+
+    Entity_t *pChunkLoadingEntity = em_entityCreateHeap();
+
+    pState->pWorldState->pChunkLoadingEntity = pChunkLoadingEntity;
+
+    spawn_generate(pState);
+}
+
 static void init(State_t *pState)
 {
     pState->pWorldState = calloc(1, sizeof(WorldState_t));
+    pState->pWorldState->pChunkManager = chunkManager_createNew(pState);
+    pState->pWorldState->pChunkSource = chunkSource_createLocal(pState->pWorldState->pChunkManager, pState->pWorldConfig, NULL);
 
     chunkRenderer_create(pState->pWorldState);
 
@@ -115,7 +99,6 @@ static void init(State_t *pState)
 
 void world_load(State_t *pState)
 {
-    chunkManager_create(pState);
     init(pState);
     pState->pWorldState->isLoaded = true;
 }
@@ -126,14 +109,12 @@ void world_destroy(State_t *pState)
     if (!pState || !pState->pWorldState)
         return;
 
-    logs_log(LOG_DEBUG, "Chunks added: %d", addedChunks);
-
     pState->pWorldState->isLoaded = false;
 
     // Ensure nothing is in-flight that still uses these buffers
     vkDeviceWaitIdle(pState->context.device);
 
-    chunkManager_destroy(pState);
+    chunkManager_destroyNew(pState, pState->pWorldState->pChunkManager);
 
     pState->pWorldState = NULL;
 }

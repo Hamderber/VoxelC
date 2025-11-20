@@ -7,9 +7,9 @@
 #include "world/worldState_t.h"
 #include "character/characterController.h"
 #include "events/eventBus.h"
-#include "world/chunk.h"
 #include "world/chunkManager.h"
 #include "entity/entityManager.h"
+#include "api/chunk/chunkAPI.h"
 #pragma endregion
 #pragma region Player
 Vec3f_t character_player_positionLerped_get(const State_t *pSTATE)

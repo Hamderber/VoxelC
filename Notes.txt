@@ -85,3 +85,5 @@ TODO:
 23. Implement an input action cancellation of some type when pause is pressed to unzoom, stop sprinting/wasd etc
 24. Vertically squish worm caves and make them more horizontal to look more like actual caves
 25. Add separate time tracking to the world that is incremented with normal time but is reset on world load etc
+26. Make event buss handled by ptr and have world-specific events like physics and chunk etc be for the world and not the entire state
+27. Wrap all file-specific debug defines inside a debug vs release define (the cmake one)
