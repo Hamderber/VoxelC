@@ -5,13 +5,13 @@
 #include <vulkan/vulkan.h>
 #include "rendering/types/swapchainBuffering_t.h"
 
-typedef struct
+typedef struct AppConfig_t
 {
     const char *pAPPLICATION_NAME;
     const char *pENGINE_NAME;
     const char *pWINDOW_TITLE;
     uint32_t vkAPIVersion;
-    SwapchainBuffering_t swapchainBuffering;
+    SwapchainBuffering_e swapchainBuffering;
     VkComponentMapping swapchainComponentMapping;
     int windowWidth;
     int windowHeight;
@@ -20,6 +20,7 @@ typedef struct
     float cameraFOV;
     float cameraFarClippingPlane;
     float cameraNearClippingPlane;
+    uint32_t chunkRenderDistance;
     bool vsync;
     int anisotropy;
     bool resetCursorOnMenuExit;

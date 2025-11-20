@@ -34,7 +34,7 @@ int32_t random_rangeNbit(int numBits)
     // Because of the mean re-centering below, numBits = 1 always returns 0. Correct that by just adding a bit to the call
     // and assigning it to -1 to maintain the distribution.
     if (numBits == 1)
-        return (random_nextU32t() & 1) ? 1 : -1;
+        return (random_nextU32t() & 1) ? 1 : 0;
 
     uint64_t value = 0;
     int bitsRemaining = numBits;

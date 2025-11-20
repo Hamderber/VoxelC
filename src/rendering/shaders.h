@@ -10,15 +10,15 @@
 #include "rendering/types/shaderVertexVoxel_t.h"
 #include "rendering/graphics_pipeline.h"
 
-typedef enum
+typedef enum ShaderStage_e
 {
     SHADER_STAGE_VERTEX = 0,
     SHADER_STAGE_FRAGMENT = 1,
     SHADER_STAGE_COUNT,
-} ShaderStage_t;
+} ShaderStage_e;
 
-/// @brief Converts the ShaderStage_t to string for debugging purposes
-static const char *shaderStage_ToString(const ShaderStage_t S)
+/// @brief Converts the ShaderStage_e to string for debugging purposes
+static const char *shaderStage_ToString(const ShaderStage_e S)
 {
     switch (S)
     {

@@ -22,7 +22,7 @@ typedef struct
     VkPipeline graphicsPipelineWireframeVoxel;
     VkPipelineLayout pipelineLayoutWireframeVoxel;
 
-    GraphicsPipeline_t activeGraphicsPipeline;
+    GraphicsPipeline_e activeGraphicsPipeline;
 
     uint32_t renderpassAttachmentCount;
     VkRenderPass pRenderPass;
@@ -51,7 +51,7 @@ typedef struct
     VkDeviceMemory atlasTextureImageMemory;
     VkImageView atlasTextureImageView;
     uint32_t anisotropicFilteringOptionsCount;
-    AnisotropicFilteringOptions_t *pAnisotropicFilteringOptions;
+    AnisotropicFilteringOptions_e *pAnisotropicFilteringOptions;
     VkSampler textureSampler;
     VkImage depthImage;
     VkDeviceMemory depthImageMemory;

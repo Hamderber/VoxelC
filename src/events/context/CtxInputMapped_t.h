@@ -5,8 +5,8 @@
 
 typedef struct
 {
-    InputActionMapping_t action;
-    CtxDescriptor_t actionState;
+    InputActionMapping_e action;
+    CtxDescriptor_e actionState;
 } InputAction_t;
 
 typedef struct

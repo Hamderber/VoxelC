@@ -3,7 +3,6 @@
 #define FNL_USE_DOUBLE 1
 #define FNL_IMPL
 #include "../lib/FastNoiseLite.h"
-#include "world/chunk.h"
 #pragma endregion
 #pragma region Stone
 static fnl_state fnl_Stone;
@@ -17,9 +16,9 @@ static const double STONE_WARP_OFF_Z = 73.73;
 
 /// @brief Samples stable domain-warped geological noise at world position.
 /// @return Smooth continuous noise value in [-1, 1].
-float randomNoise_stone_samplePackedPos(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_stone_samplePackedPos(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(pC->chunkPos, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = cmath_chunk_blockPosPacked_2_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -72,6 +71,7 @@ static fnl_state fnl_WormField;
 static fnl_state fnl_WormWarp;
 static fnl_state fnl_RavineHugePath2D;
 static fnl_state fnl_RavineHugeWarp2D;
+static fnl_state fnl_RavineYCenter;
 static fnl_state fnl_GlobalFeatureDensityXZ;
 static fnl_state fnl_GlobalFeatureDensity3D;
 // Low-frequency scales (larger scale => slower variation => big regions with/without features)
@@ -157,9 +157,9 @@ static const double WORM_WARP_OFF_X = 73.19;
 static const double WORM_WARP_OFF_Y = 19.47;
 static const double WORM_WARP_OFF_Z = 46.73;
 /// @brief Perlin-worm tunnels. Carves slender, windy tubes. [0, 1]
-float randomNoise_carve_stageWorms(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_carve_stageWorms(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(pC->chunkPos, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = cmath_chunk_blockPosPacked_2_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -219,10 +219,14 @@ static const double RAVINE_HUGE_Y_CENTER = -24.0;
 static const double RAVINE_HUGE_HALF_HEIGHT = 11.0;
 // feather on the vertical envelope
 static const double RAVINE_HUGE_Y_SOFT = 20.0;
+// lower -> slower vertical climate changes
+static const double RAVINE_Y_CENTER_SCL = 0.00035;
+// how far up/down ravines can migrate (blocks)
+static const double RAVINE_Y_DRIFT_AMPL = 300.0;
 /// @brief Long chasms (huge) defined by 2D meanders with vertical shaping. [0, 1]
-float randomNoise_carve_stageRavinesHuge(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_carve_stageRavinesHuge(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const Vec3f_t ORIGIN = blockPacked_to_worldSamplePos(pC->chunkPos, BLOCK_POS_PACKED12);
+    const Vec3f_t ORIGIN = cmath_chunk_blockPosPacked_2_worldSamplePos(CHUNK_POS, BLOCK_POS_PACKED12);
     const double WX = (double)ORIGIN.x;
     const double WY = (double)ORIGIN.y;
     const double WZ = (double)ORIGIN.z;
@@ -252,20 +256,21 @@ float randomNoise_carve_stageRavinesHuge(const Chunk_t *pC, const uint16_t BLOCK
     base = base * base;
     base = base * base;
 
-    // small oscillatory bias so height center drifts a little, but stays tight
-    const double yBias = RAVINE_HUGE_Y_SHAPE_AM *
-                         (0.5 * (1.0 + sin(WX * RAVINE_HUGE_Y_SHAPE_SCL)) * 0.6 +
-                          0.5 * (1.0 + sin(WZ * RAVINE_HUGE_Y_SHAPE_SCL * 1.17)) * 0.4) *
-                         16.0;
+    // Low-frequency vertical “climate” so ravine altitudes wander over long distances
+    const double Y_FIELD = fnlGetNoise3D(&fnl_RavineYCenter,
+                                         (FNLfloat)(WX * RAVINE_Y_CENTER_SCL),
+                                         (FNLfloat)(WY * RAVINE_Y_CENTER_SCL * 0.25), // mild dependence on depth
+                                         (FNLfloat)(WZ * RAVINE_Y_CENTER_SCL));
+    const double Y_CENTER = Y_FIELD * RAVINE_Y_DRIFT_AMPL;
 
-    const double yCenter = RAVINE_HUGE_Y_CENTER + yBias;
-    const double yDist = fabs(WY - yCenter);
-    const float venv = cmath_noise_smooth_inv_band((float)yDist,
+    // Distance from the local center band
+    const double Y_DIST = fabs(WY - Y_CENTER);
+    const float VENV = cmath_noise_smooth_inv_band((float)Y_DIST,
                                                    (float)RAVINE_HUGE_HALF_HEIGHT,
                                                    (float)RAVINE_HUGE_Y_SOFT);
 
     // final mask: thin lateral * tight vertical
-    float mask = cmath_clampF01(base * cmath_clampF01(base * venv));
+    float mask = cmath_clampF01(base * cmath_clampF01(base * VENV));
 
     // XZ density gate (reduces how often ravines exist; does not change width/height)
     const double DENSITY_2D = fnlGetNoise2D(&fnl_GlobalFeatureDensityXZ,
@@ -277,10 +282,10 @@ float randomNoise_carve_stageRavinesHuge(const Chunk_t *pC, const uint16_t BLOCK
 }
 #pragma endregion
 #pragma region Carving Sample
-float randomNoise_carving_sampleXYZ(const Chunk_t *pC, const uint16_t BLOCK_POS_PACKED12)
+float randomNoise_carving_sampleXYZ(const Vec3i_t CHUNK_POS, const uint16_t BLOCK_POS_PACKED12)
 {
-    const float WORMS = randomNoise_carve_stageWorms(pC, BLOCK_POS_PACKED12);
-    const float RAVINES_HUGE = randomNoise_carve_stageRavinesHuge(pC, BLOCK_POS_PACKED12);
+    const float WORMS = randomNoise_carve_stageWorms(CHUNK_POS, BLOCK_POS_PACKED12);
+    const float RAVINES_HUGE = randomNoise_carve_stageRavinesHuge(CHUNK_POS, BLOCK_POS_PACKED12);
 
     const float ONE_MINUS_CARVE =
         (1.0F - cmath_clampF01(WORMS)) *

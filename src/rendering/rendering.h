@@ -4,7 +4,7 @@
 #include "events/eventTypes.h"
 
 /// @brief Event subscriber for toggling the wireframe pipeline
-EventResult_t rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx);
+EventResult_e rendering_wireframe_onTogglePress(State_t *pState, Event_t *pEvent, void *pCtx);
 
 /// @brief Recreate the rendering system
 void rendering_recreate(State_t *pState);

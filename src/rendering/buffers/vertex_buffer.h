@@ -6,6 +6,14 @@
 #include "rendering/types/shaderVertexVoxel_t.h"
 
 void vertexBuffer_createFromData_Model(State_t *state, ShaderVertexModel_t *vertices, uint32_t vertexCount);
-void vertexBuffer_createFromData_Voxel(State_t *pState, ShaderVertexVoxel_t *pVertices, uint32_t vertexCount);
+
+void vertexBuffer_createEmpty(State_t *restrict pState, uint32_t capacity, VkBuffer *restrict pOutBuffer,
+                              VkDeviceMemory *restrict pOutMemory);
+
+void vertexBuffer_updateFromData_Voxel(State_t *restrict pState, ShaderVertexVoxel_t *restrict pVertices, uint32_t vertexCursor,
+                                       VkBuffer buffer);
+
+void vertexBuffer_createFromData_Voxel(State_t *pState, ShaderVertexVoxel_t *pVertices, uint32_t vertexCount,
+                                       VkBuffer *pOutBuffer, VkDeviceMemory *pOutMemory);
 
 void vertexBuffer_destroy(State_t *state);

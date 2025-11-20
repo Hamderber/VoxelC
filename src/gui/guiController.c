@@ -23,13 +23,13 @@ void gui_toggleCursorCapture(State_t *state, bool isCaptured)
              isCaptured ? "captured" : "released", state->gui.mouse.x, state->gui.mouse.y, state->gui.mouse.dx, state->gui.mouse.dy);
 }
 
-void gui_publishChange(State_t *state, GUIMenuID_t id)
+void gui_publishChange(State_t *state, GUIMenuID_e id)
 {
     logs_log(LOG_DEBUG, "Menu depth %d. Opened %s", (int)state->gui.menuDepth, GUI_MENU_NAMES[(int)id]);
 
     CtxGUI_t ctx = {
         .menuDepth = state->gui.menuDepth,
-        .gui = &state->gui.GUIs[id],
+        .pGui = &state->gui.GUIs[id],
     };
 
     // If there is no gui open (besides overlay) take the cursor back
@@ -45,18 +45,18 @@ void gui_publishChange(State_t *state, GUIMenuID_t id)
     events_publish(state, &state->eventBus, EVENT_CHANNEL_GUI,
                    (Event_t){
                        .type = EVENT_TYPE_GUI,
-                       .data.gui = &ctx,
+                       .data.pGui = &ctx,
                    });
 }
 
-void gui_onMenuEnter(State_t *state, GUIMenuID_t id)
+void gui_onMenuEnter(State_t *state, GUIMenuID_e id)
 {
     state->gui.guiStack[state->gui.menuDepth++] = id;
 
     gui_publishChange(state, id);
 }
 
-void gui_onMenuExit(State_t *state, GUIMenuID_t id)
+void gui_onMenuExit(State_t *state, GUIMenuID_e id)
 {
     state->gui.guiStack[state->gui.menuDepth--] = GUI_ID_NONE;
     gui_publishChange(state, id);
@@ -76,7 +76,7 @@ void gui_depthToggle(State_t *state)
     }
 }
 
-EventResult_t gui_onMenuTogglePress(struct State_t *state, Event_t *event, void *ctx)
+EventResult_e gui_onMenuTogglePress(struct State_t *state, Event_t *event, void *ctx)
 {
     ctx = NULL;
     if (event == NULL)
@@ -84,13 +84,13 @@ EventResult_t gui_onMenuTogglePress(struct State_t *state, Event_t *event, void 
         return EVENT_RESULT_ERROR;
     }
 
-    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
+    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.pInputMapped != NULL)
     {
-        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+        for (size_t i = 0; i < event->data.pInputMapped->actionCount; i++)
         {
-            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            if (event->data.pInputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
             {
-                switch (event->data.inputMapped->inputActions[i].action)
+                switch (event->data.pInputMapped->inputActions[i].action)
                 {
                 case INPUT_ACTION_MENU_TOGGLE:
                     logs_log(LOG_DEBUG, "Menu toggle (pressed)");
@@ -105,7 +105,7 @@ EventResult_t gui_onMenuTogglePress(struct State_t *state, Event_t *event, void 
     return EVENT_RESULT_PASS;
 }
 
-EventResult_t gui_onFullscreenTogglePress(struct State_t *state, Event_t *event, void *ctx)
+EventResult_e gui_onFullscreenTogglePress(struct State_t *state, Event_t *event, void *ctx)
 {
     ctx = NULL;
     if (event == NULL)
@@ -113,13 +113,13 @@ EventResult_t gui_onFullscreenTogglePress(struct State_t *state, Event_t *event,
         return EVENT_RESULT_ERROR;
     }
 
-    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.inputMapped != NULL)
+    if (event->type == EVENT_TYPE_INPUT_MAPPED && event->data.pInputMapped != NULL)
     {
-        for (size_t i = 0; i < event->data.inputMapped->actionCount; i++)
+        for (size_t i = 0; i < event->data.pInputMapped->actionCount; i++)
         {
-            if (event->data.inputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
+            if (event->data.pInputMapped->inputActions[i].actionState == CTX_INPUT_ACTION_START)
             {
-                switch (event->data.inputMapped->inputActions[i].action)
+                switch (event->data.pInputMapped->inputActions[i].action)
                 {
                 case INPUT_ACTION_FULLSCREEN_TOGGLE:
                     logs_log(LOG_DEBUG, "Fullscreen toggle (pressed)");
@@ -138,7 +138,7 @@ void gui_buildGUIs(State_t *state)
 {
     for (size_t i = 0; i < GUI_ID_COUNT; i++)
     {
-        GUIMenuID_t id = (GUIMenuID_t)i;
+        GUIMenuID_e id = (GUIMenuID_e)i;
 
         state->gui.GUIs[i] = (GUI_t){
             // Overlay gui is always active

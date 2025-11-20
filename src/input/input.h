@@ -7,8 +7,8 @@
 #include "events/eventBus.h"
 #include "input/types/inputActionQuery_t.h"
 
-/// @brief Gets the InputActionMapping_t assocaited with the keycode.
-static inline InputActionMapping_t input_key_InputActionMapping_get(const State_t *pSTATE, const int KEYCODE)
+/// @brief Gets the InputActionMapping_e assocaited with the keycode.
+static inline InputActionMapping_e input_key_InputActionMapping_get(const State_t *pSTATE, const int KEYCODE)
 {
     return pSTATE->input.pInputKeys[KEYCODE].inputMapping;
 }
@@ -20,7 +20,7 @@ static inline bool input_key_HasInputActionMapping(const State_t *pSTATE, const 
 }
 
 /// @brief Publishes an input event as if user input caused it
-void input_inputAction_simulate(State_t *state, InputActionMapping_t inputActionMapped, CtxDescriptor_t actionState);
+void input_inputAction_simulate(State_t *state, InputActionMapping_e inputActionMapped, CtxDescriptor_e actionState);
 
 /// @brief Queries GLFW for user input and publishes the associated input events
 void input_poll(State_t *pState);
@@ -33,7 +33,7 @@ size_t input_inputAction_matchQuery(const Event_t *pEVENT, const InputActionQuer
 
 /* ACTION QUERY TEMPLATE:
 
-EventResult_t zoom_onPress(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e zoom_onPress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (!pState || !pEvent)

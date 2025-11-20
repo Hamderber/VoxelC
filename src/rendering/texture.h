@@ -6,7 +6,7 @@
 #include "rendering/types/textureRotation_t.h"
 #include "core/types/state_t.h"
 
-static inline void applyTextureRotation(Vec2f_t outUVs[4], const Vec2f_t inUVs[4], TextureRotation_t rotation)
+static inline void applyTextureRotation(Vec2f_t outUVs[4], const Vec2f_t inUVs[4], TextureRotation_e rotation)
 {
     switch (rotation)
     {

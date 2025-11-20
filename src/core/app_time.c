@@ -7,10 +7,10 @@
 void time_init(Time_t *pTime)
 {
     *pTime = (Time_t){
-        .fixedTimeAccumulated = 0.0,
-        .frameTimeDelta = 0.0,
-        .frameTimeLast = 0.0,
-        .frameTimeTotal = 0.0,
+        .CPU_fixedTimeAccumulated = 0.0,
+        .CPU_frameTimeDelta = 0.0,
+        .CPU_frameTimeLast = 0.0,
+        .CPU_frameTimeTotal = 0.0,
     };
 
     glfwSetTime(0.0);
@@ -21,9 +21,9 @@ void time_init(Time_t *pTime)
 void time_update(Time_t *pTime)
 {
     double currentTime = glfwGetTime();
-    pTime->frameTimeDelta = currentTime - pTime->frameTimeLast;
-    pTime->frameTimeLast = currentTime;
-    pTime->fixedTimeAccumulated += pTime->frameTimeDelta;
-    pTime->frameTimeTotal += pTime->frameTimeDelta;
-    pTime->framesPerSecond = 1.0 / pTime->frameTimeDelta;
+    pTime->CPU_frameTimeDelta = currentTime - pTime->CPU_frameTimeLast;
+    pTime->CPU_frameTimeLast = currentTime;
+    pTime->CPU_fixedTimeAccumulated += pTime->CPU_frameTimeDelta;
+    pTime->CPU_frameTimeTotal += pTime->CPU_frameTimeDelta;
+    pTime->CPU_framesPerSecond = 1.0 / pTime->CPU_frameTimeDelta;
 }

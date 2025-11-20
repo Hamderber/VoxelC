@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum
+typedef enum AtlasFace_e
 {
     // Only included noteworthy ones for now
     ATLAS_FACE_DEBUG_0 = 0,
@@ -26,4 +26,4 @@ typedef enum
     ATLAS_FACE_SANDSTONE_RED = 12,
     ATLAS_FACE_MARBLE_BLACK = 13,
     ATLAS_FACE_MARBLE_WHITE = 14,
-} AtlasFace_t;
+} AtlasFace_e;

@@ -13,9 +13,13 @@
 #include "entity/entity_t.h"
 #include "input/types/inputActionQuery_t.h"
 #include "input/input.h"
+#include "collection/flags64_t.h"
+#pragma endregion
+#pragma region Defines
+// #define DEBUG_ACTIONS
 #pragma endregion
 #pragma region Axial Input
-EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     pCtx;
     if (!pState || !pEvent)
@@ -64,13 +68,17 @@ EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCt
             case INPUT_ACTION_JUMP:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character jump (pressed)");
+#endif
                     // flight mode
                     pState->input.axialInput.y += 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character jump (released)");
+#endif
                     // flight mode
                     pState->input.axialInput.y -= 1.0F;
                 }
@@ -78,13 +86,17 @@ EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCt
             case INPUT_ACTION_CROUCH:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character crouch (pressed)");
+#endif
                     // flight mode
                     pState->input.axialInput.y -= 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character crouch (released)");
+#endif
                     // flight mode
                     pState->input.axialInput.y += 1.0F;
                 }
@@ -92,48 +104,64 @@ EventResult_t character_onAxialInput(State_t *pState, Event_t *pEvent, void *pCt
             case INPUT_ACTION_MOVE_FORWARD:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving forward (pressed)");
+#endif
                     pState->input.axialInput.z -= 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving forward (released)");
+#endif
                     pState->input.axialInput.z += 1.0F;
                 }
                 break;
             case INPUT_ACTION_MOVE_BACKWARD:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving backward (pressed)");
+#endif
                     pState->input.axialInput.z += 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving backward (released)");
+#endif
                     pState->input.axialInput.z -= 1.0F;
                 }
                 break;
             case INPUT_ACTION_MOVE_LEFT:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving left (pressed)");
+#endif
                     pState->input.axialInput.x -= 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving left (released)");
+#endif
                     pState->input.axialInput.x += 1.0F;
                 }
                 break;
             case INPUT_ACTION_MOVE_RIGHT:
                 if (ACTION.actionState == CTX_INPUT_ACTION_START)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving right (pressed)");
+#endif
                     pState->input.axialInput.x += 1.0F;
                 }
                 else if (ACTION.actionState == CTX_INPUT_ACTION_END)
                 {
+#if defined(DEBUG_ACTIONS)
                     logs_log(LOG_DEBUG, "Character moving right (released)");
+#endif
                     pState->input.axialInput.x -= 1.0F;
                 }
                 break;
@@ -157,16 +185,16 @@ void character_sprintToggle(State_t *pState, Character_t *pCharacter)
 
     pCharacter->isSprinting = !pCharacter->isSprinting;
 
-    float baseSpeed = pComponentData->physicsData->uniformSpeedBase;
-    float speed = pComponentData->physicsData->uniformSpeed;
-    pComponentData->physicsData->uniformSpeed = pCharacter->isSprinting ? speed * SPRINT_SPEED_MULTIPLIER : baseSpeed;
+    float baseSpeed = pComponentData->pPhysicsData->uniformSpeedBase;
+    float speed = pComponentData->pPhysicsData->uniformSpeed;
+    pComponentData->pPhysicsData->uniformSpeed = pCharacter->isSprinting ? speed * SPRINT_SPEED_MULTIPLIER : baseSpeed;
 
     camera_sprintFOV_toggle(pState, pCharacter->isSprinting);
 
-    logs_log(LOG_DEBUG, "Sprint toggled. Character %s speed is %lfm/s", pCharacter->pName, pComponentData->physicsData->uniformSpeed);
+    logs_log(LOG_DEBUG, "Sprint toggled. Character %s speed is %lfm/s", pCharacter->pName, pComponentData->pPhysicsData->uniformSpeed);
 }
 
-EventResult_t character_onSprintTogglePress(struct State_t *pState, Event_t *pEvent, void *pCtx)
+EventResult_e character_onSprintTogglePress(State_t *pState, Event_t *pEvent, void *pCtx)
 {
     if (pEvent == NULL)
         return EVENT_RESULT_ERROR;
@@ -217,7 +245,7 @@ void player_physicsIntentUpdate(State_t *pState)
     if (!em_entityDataGet(pState->pWorldState->pPlayerEntity, ENTITY_COMPONENT_TYPE_PHYSICS, &componentData))
         return;
 
-    EntityDataPhysics_t *pPhys = componentData->physicsData;
+    EntityDataPhysics_t *pPhys = componentData->pPhysicsData;
     pPhys->moveIntention = pState->input.axialInput;
     // For now, just directly rotate the player by the camera's rotation. Later will probably have to just do pitch
     pPhys->rotation = pState->context.camera.rotation;
@@ -231,8 +259,14 @@ void player_physicsIntentUpdate(State_t *pState)
     }
 }
 #pragma endregion
+#pragma region Entity Flags
+static void entity_flags_player(Entity_t *pEntity)
+{
+    flag64_setInline(&pEntity->entityFlags, ENTITY_FLAG_PLAYER, true);
+}
+#pragma endregion
 #pragma region Entity Create
-void character_entityCreate(State_t *pState, Character_t *pCharacter)
+Entity_t *character_entityCreate(State_t *pState, Character_t *pCharacter)
 {
     Entity_t *pCharacterEntity = em_entityCreateHeap();
     pCharacterEntity->type = ENTITY_TYPE_CREATURE;
@@ -240,31 +274,38 @@ void character_entityCreate(State_t *pState, Character_t *pCharacter)
     em_entityAddToCollection(&pState->entityManager.entityCollections[ENTITY_COLLECTION_PHYSICS], pCharacterEntity);
 
     pCharacterEntity->componentCount = 1;
-    pCharacterEntity->components = calloc(pCharacterEntity->componentCount, sizeof(EntityComponent_t));
+    pCharacterEntity->pComponents = calloc(pCharacterEntity->componentCount, sizeof(EntityComponent_t));
 
-    pCharacterEntity->components[0] = (EntityComponent_t){
-        .data = calloc(1, sizeof(EntityComponentData_t)),
+    pCharacterEntity->pComponents[0] = (EntityComponent_t){
+        .pComponentData = calloc(1, sizeof(EntityComponentData_t)),
         .type = ENTITY_COMPONENT_TYPE_PHYSICS};
-    pCharacterEntity->components[0].data->physicsData = calloc(1, sizeof(EntityDataPhysics_t));
-    pCharacterEntity->components[0].data->physicsData->uniformSpeed = DEFAULT_UNIFORM_SPEED;
-    pCharacterEntity->components[0].data->physicsData->uniformSpeedBase = DEFAULT_UNIFORM_SPEED;
-    pCharacterEntity->components[0].data->physicsData->useLocalAxes = true;
+    pCharacterEntity->pComponents[0].pComponentData->pPhysicsData = calloc(1, sizeof(EntityDataPhysics_t));
+    pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->uniformSpeed = DEFAULT_UNIFORM_SPEED;
+    pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->uniformSpeedBase = DEFAULT_UNIFORM_SPEED;
+    pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->useLocalAxes = true;
 
+    Vec3f_t worldPos = VEC3F_ZERO;
     switch (pCharacter->type)
     {
     case CHARACTER_TYPE_PLAYER:
-        Vec3f_t pos = (Vec3f_t){-3.0F, -3.0F, 15.0F};
-        pCharacterEntity->components[0].data->physicsData->pos = pos;
+        pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->worldPos = worldPos;
 
         // Adjust the drag to get the right "floatiness" while in flying
-        pCharacterEntity->components[0].data->physicsData->drag = 2.0F;
+        pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->drag = 2.0F;
 
         pState->pWorldState->pPlayerEntity = pCharacterEntity;
+
+        entity_flags_player(pCharacterEntity);
         break;
     default:
-        pCharacterEntity->components[0].data->physicsData->drag = 3.0F;
+        pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->drag = 3.0F;
         break;
     }
+
+    // Store initial chunkPos directly
+    pCharacterEntity->pComponents[0].pComponentData->pPhysicsData->chunkPos = cmath_chunk_worldPosF_2_chunkPos(worldPos);
+
+    return pCharacterEntity;
 }
 #pragma endregion
 #pragma region Init
@@ -281,13 +322,14 @@ static void character_eventsSubscribe(State_t *pState, Character_t *pCharacter)
                      CONSUME_LISTENER, CONSUME_EVENT, (void *)pCharacter);
 }
 
-void character_init(State_t *pState, Character_t *pCharacter)
+Entity_t *character_init(State_t *pState, Character_t *pCharacter)
 {
+    Entity_t *pEntity = NULL;
     switch (pCharacter->type)
     {
     case CHARACTER_TYPE_PLAYER:
         camera_init(pState);
-        character_entityCreate(pState, pCharacter);
+        pEntity = character_entityCreate(pState, pCharacter);
         character_eventsSubscribe(pState, pCharacter);
         break;
     case CHARACTER_TYPE_MOB:
@@ -295,5 +337,7 @@ void character_init(State_t *pState, Character_t *pCharacter)
         logs_log(LOG_WARN, "Character type not yet implemented!");
         break;
     }
+
+    return pEntity;
 }
 #pragma endregion

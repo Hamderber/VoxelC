@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 /// @brief LOG_INFO | WARN | ERROR | DEBUG | UNIT TEST | PHYSICS
-typedef enum
+typedef enum LogLevel_e
 {
     LOG_INFO,
     LOG_WARN,
@@ -12,7 +12,7 @@ typedef enum
     LOG_DEBUG,
     LOG_UNIT_TEST,
     LOG_PHYSICS,
-} LogLevel_t;
+} LogLevel_e;
 
 /// @brief ISO 8601-Style Timestamp minus time zone and miliseconds
 /// @param  isForFileName If the timestamp should include ':' (invalid for file names)
@@ -24,7 +24,7 @@ const char *logs_pathAfterSrc(const char *pFULL_PATH);
 
 /// @brief Writes to the current .log file (or console if not available) the passed log level and formatted string.
 /// Debug/Unit test is only written when compiled in DEBUG mode.
-void logs_log(LogLevel_t level, const char *format, ...);
+void logs_log(LogLevel_e level, const char *format, ...);
 
 /// @brief If the recieved func returns something that casts to a 0 then it is 'success.'
 /// Otherwise log the location the function was called and the passed formatted string for debugging context.

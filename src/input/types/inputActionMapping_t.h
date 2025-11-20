@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum
+typedef enum InputActionMapping_e
 {
     INPUT_ACTION_UNMAPPED = 0,
     INPUT_ACTION_FULLSCREEN_TOGGLE = 1,
@@ -15,7 +15,7 @@ typedef enum
     INPUT_ACTION_SPRINT_TOGGLE = 10,
     INPUT_ACTION_FOV_ZOOM = 11,
     INPUT_ACTION_COUNT,
-} InputActionMapping_t;
+} InputActionMapping_e;
 
 #define INPUT_ACTION_MAPPING_LONGEST_NAME 32
 

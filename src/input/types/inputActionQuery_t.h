@@ -7,6 +7,6 @@
 
 typedef struct
 {
-    InputActionMapping_t mapping;
-    CtxDescriptor_t actionCtx;
+    InputActionMapping_e mapping;
+    CtxDescriptor_e actionCtx;
 } InputActionQuery_t;

@@ -125,7 +125,7 @@ static void device_anisotropicFilteringOptions_get(State_t *state)
     // 1x, 2x, 4x, 8x, 16x max supported (powers of 2)
     int size = (int)floorf(log2f(afMax)) + 1;
     state->renderer.anisotropicFilteringOptionsCount = size;
-    state->renderer.pAnisotropicFilteringOptions = malloc(sizeof(AnisotropicFilteringOptions_t) * size);
+    state->renderer.pAnisotropicFilteringOptions = malloc(sizeof(AnisotropicFilteringOptions_e) * size);
 
     logs_logIfError(state->renderer.pAnisotropicFilteringOptions == NULL,
                     "Failed to allocate anisotropic filtering options!");
@@ -134,7 +134,7 @@ static void device_anisotropicFilteringOptions_get(State_t *state)
     for (int i = 0; i < size; i++)
     {
         // Binary shift increments in powers of 2
-        state->renderer.pAnisotropicFilteringOptions[i] = (AnisotropicFilteringOptions_t)(1 << i);
+        state->renderer.pAnisotropicFilteringOptions[i] = (AnisotropicFilteringOptions_e)(1 << i);
     }
 }
 

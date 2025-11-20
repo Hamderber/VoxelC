@@ -1,10 +1,10 @@
-#include "events/eventTypes.h"
 #include "core/logs.h"
 #include <string.h>
 #include "core/types/state_t.h"
+#include "events/eventTypes.h"
 
 // Allows duplicate listeners (undesired but maybe useful?)
-EventSubscribeResult_t events_listenerIndexFirst(EventSystem_t *sys, int *index)
+EventSubscribeResult_e events_listenerIndexFirst(EventSystem_t *sys, int *index)
 {
     for (size_t i = 0; i < MAX_EVENT_LISTENERS; i++)
     {
@@ -19,7 +19,7 @@ EventSubscribeResult_t events_listenerIndexFirst(EventSystem_t *sys, int *index)
 }
 
 // Prevents duplicates (default desired behaviour)
-EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCallbackFn fn, size_t *index)
+EventSubscribeResult_e events_listenerIndexSingleton(EventSystem_t *sys, EventCallbackFn fn, size_t *index)
 {
     bool indexFound = false;
 
@@ -54,7 +54,7 @@ EventSubscribeResult_t events_listenerIndexSingleton(EventSystem_t *sys, EventCa
     }
 }
 
-EventSubscribeResult_t events_subscribe(EventBus_t *bus, EventChannelID_t id, EventCallbackFn fn, bool consumeListener,
+EventSubscribeResult_e events_subscribe(EventBus_t *bus, EventChannelID_e id, EventCallbackFn fn, bool consumeListener,
                                         bool consumeEvent, void *subCtx)
 {
     if (!bus)
@@ -77,18 +77,18 @@ EventSubscribeResult_t events_subscribe(EventBus_t *bus, EventChannelID_t id, Ev
         sys->eventListeners[index].fn = fn;
         sys->eventListeners[index].consumeListener = consumeListener;
         sys->eventListeners[index].consumeEvent = consumeEvent;
-        sys->eventListeners[index].subscribeContext = subCtx;
+        sys->eventListeners[index].pSubscribeContext = subCtx;
 
         return EVENT_SUBSCRIBE_RESULT_PASS;
     }
     else
     {
-        logs_log(LOG_ERROR, "Failed to subscribe event listener to %s", EVENT_CHANNEL_NAMES[(int)id]);
+        logs_log(LOG_ERROR, "Failed to subscribe event listener to %s", pEVENT_CHANNEL_NAMES[(int)id]);
         return EVENT_SUBSCRIBE_RESULT_FAIL;
     }
 }
 
-EventSubscribeResult_t events_unsubscribe(EventBus_t *bus, EventChannelID_t id, EventCallbackFn fn)
+EventSubscribeResult_e events_unsubscribe(EventBus_t *bus, EventChannelID_e id, EventCallbackFn fn)
 {
     EventSystem_t *sys = &bus->channels[id].eventSystem;
     for (size_t i = 0; i < MAX_EVENT_LISTENERS; i++)
@@ -98,7 +98,7 @@ EventSubscribeResult_t events_unsubscribe(EventBus_t *bus, EventChannelID_t id, 
             sys->eventListeners[i].fn = NULL;
             sys->eventListeners[i].consumeListener = false;
             sys->eventListeners[i].consumeEvent = false;
-            sys->eventListeners[i].subscribeContext = NULL;
+            sys->eventListeners[i].pSubscribeContext = NULL;
 
             return EVENT_SUBSCRIBE_RESULT_PASS;
         }
@@ -108,9 +108,9 @@ EventSubscribeResult_t events_unsubscribe(EventBus_t *bus, EventChannelID_t id, 
     return EVENT_SUBSCRIBE_RESULT_FAIL;
 }
 
-EventSubscribeResult_t events_unsubscribeCollection(EventBus_t *bus, EventChannelID_t id, EventCallbackFn *fns, size_t count)
+EventSubscribeResult_e events_unsubscribeCollection(EventBus_t *bus, EventChannelID_e id, EventCallbackFn *fns, size_t count)
 {
-    EventSubscribeResult_t result = EVENT_SUBSCRIBE_RESULT_PASS;
+    EventSubscribeResult_e result = EVENT_SUBSCRIBE_RESULT_PASS;
 
     for (size_t i = 0; i < count; i++)
     {
@@ -123,7 +123,7 @@ EventSubscribeResult_t events_unsubscribeCollection(EventBus_t *bus, EventChanne
     return result;
 }
 
-void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_t event)
+void events_publish(State_t *state, EventBus_t *bus, EventChannelID_e id, Event_t event)
 {
     EventSystem_t *sys = &bus->channels[(int)id].eventSystem;
 
@@ -138,11 +138,11 @@ void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_
         if (listener->fn == NULL)
             continue;
 
-        EventResult_t result = listener->fn(state, &event, listener->subscribeContext);
+        EventResult_e result = listener->fn(state, &event, listener->pSubscribeContext);
         if (result == EVENT_RESULT_ERROR)
         {
             logs_log(LOG_ERROR, "Error during event listener %d in channel %s! The listener and event will be consumed.",
-                     (int)i, EVENT_CHANNEL_NAMES[(int)id]);
+                     (int)i, pEVENT_CHANNEL_NAMES[(int)id]);
             listener->consumeListener = true;
             result = EVENT_RESULT_CONSUME;
         }
@@ -159,7 +159,7 @@ void events_publish(State_t *state, EventBus_t *bus, EventChannelID_t id, Event_
 
     if (numUnsubEvents > 0 && events_unsubscribeCollection(bus, id, unsubFns, numUnsubEvents) != EVENT_SUBSCRIBE_RESULT_PASS)
     {
-        logs_log(LOG_ERROR, "Failed to unsubscribe event collection [%d] from %s!", numUnsubEvents, EVENT_CHANNEL_NAMES[(int)id]);
+        logs_log(LOG_ERROR, "Failed to unsubscribe event collection [%d] from %s!", numUnsubEvents, pEVENT_CHANNEL_NAMES[(int)id]);
     }
 }
 
@@ -168,11 +168,11 @@ void events_init(EventBus_t *bus)
     for (size_t i = 0; i < EVENT_CHANNEL_COUNT; i++)
     {
         bus->channels[i] = (EventChannel_t){
-            .ID = (EventChannelID_t)i,
+            .ID = (EventChannelID_e)i,
         };
 
         memset(&bus->channels[i].eventSystem, 0, sizeof(EventSystem_t));
 
-        logs_log(LOG_DEBUG, "Initalized event channel %s", EVENT_CHANNEL_NAMES[(int)i]);
+        logs_log(LOG_DEBUG, "Initalized event channel %s", pEVENT_CHANNEL_NAMES[(int)i]);
     }
 }

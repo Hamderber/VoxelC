@@ -14,6 +14,7 @@
 #include "input/types/input_t.h"
 #include "input/types/defaulyKeyMapping_t.h"
 #include "rendering/types/anisotropicFilteringOptions_t.h"
+#include "world/worldConfig_t.h"
 
 #define CFG_COMMENT "comment"
 #define APP_CFG_WINDOW "window"
@@ -27,16 +28,22 @@
 #define APP_CFG_VSYNC "vsync"
 #define APP_CFG_ANISOTROPY "anisotropy"
 #define APP_CFG_FOV "fov"
+#define APP_CFG_CHUNK_RENDER_DISTANCE "chunkRenderDistance"
+#define WORLD_CFG_WORLD "world"
+#define WORLD_CFG_SIMULATION_DISTANCE "simulationDistance"
+#define WORLD_CFG_SPAWN_LOAD_RADIUS "spawnLoadRadius"
 
-typedef enum
+typedef enum ConfigType_e
 {
     CONFIG_TYPE_APP,
     CONFIG_TYPE_KEYBINDINGS,
-} ConfigType_t;
+    CONFIG_TYPE_WORLD,
+} ConfigType_e;
 
 static const char *pCONFIG_FOLDER_NAME = "config";
 static const char *pKEYBINDINGS_FILE_NAME = "keybindings.json";
 static const char *pAPP_CONFIG_FILE_NAME = PROGRAM_NAME ".cfg.json";
+static const char *pWORLD_CONFIG_FILE_NAME = "world.cfg.json";
 static const double MOUSE_SENSITIVITY_MIN = 0.01;
 static const double MOUSE_SENSITIVITY_MAX = 2.0;
 
@@ -84,6 +91,12 @@ static AppConfig_t s_AppConfig = {
     .atlasPaddingPx = 8,
     .cameraFarClippingPlane = 500.0F,
     .cameraNearClippingPlane = 0.1F,
+    .chunkRenderDistance = 12,
+};
+
+static WorldConfig_t s_WorldConfig = {
+    .spawnChunkLoadingRadius = 2,
+    .chunkSimulationDistance = 12,
 };
 
 static Input_t s_Input = {0};
@@ -104,7 +117,7 @@ static void config_input_buildDefault(void)
         };
     }
 
-    InputActionMapping_t act;
+    InputActionMapping_e act;
     for (size_t i = 0; i < DEFAULT_KEY_MAPPINGS_COUNT; i++)
     {
         act = DEFAULT_KEY_MAPPINGS[i].action;
@@ -173,7 +186,7 @@ static void config_keyBindings_save(const Input_t *pINPUT, cJSON *pRoot)
     // Iterate over all GLFW keycodes
     for (int key = GLFW_KEY_SPACE; key <= GLFW_KEY_LAST; key++)
     {
-        InputActionMapping_t mapping = pINPUT->pInputKeys[key].inputMapping;
+        InputActionMapping_e mapping = pINPUT->pInputKeys[key].inputMapping;
 
         // Only save mapped keys
         if (mapping != INPUT_ACTION_UNMAPPED)
@@ -203,6 +216,17 @@ static void config_app_save(const AppConfig_t *pCFG, cJSON *pRoot)
     cJSON_AddBoolToObject(pRenderer, APP_CFG_VSYNC, pCFG->vsync);
     cJSON_AddNumberToObject(pRenderer, APP_CFG_ANISOTROPY, pCFG->anisotropy);
     cJSON_AddNumberToObject(pRenderer, APP_CFG_FOV, pCFG->cameraFOV);
+    cJSON_AddNumberToObject(pRenderer, APP_CFG_CHUNK_RENDER_DISTANCE, pCFG->chunkRenderDistance);
+}
+
+static void config_world_save(const WorldConfig_t *pWRLD, cJSON *pRoot)
+{
+    cJSON *pWorld = cJSON_AddObjectToObject(pRoot, WORLD_CFG_WORLD);
+    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "Spawn chunk radius that will be permanently loaded. Radius [0, 5].");
+    cJSON_AddNumberToObject(pWorld, WORLD_CFG_SPAWN_LOAD_RADIUS, pWRLD->spawnChunkLoadingRadius);
+    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "CPU-based simulation distance. Similar to chunk render distance,");
+    cJSON_AddStringToObject(pWorld, CFG_COMMENT, "but for the radius around a player that the cpu should still simulate [1, 32].");
+    cJSON_AddNumberToObject(pWorld, WORLD_CFG_SIMULATION_DISTANCE, pWRLD->chunkSimulationDistance);
 }
 
 static bool config_keyBindings_load(Input_t *pInput, const cJSON *pROOT)
@@ -224,14 +248,14 @@ static bool config_keyBindings_load(Input_t *pInput, const cJSON *pROOT)
 
             if (cJSON_IsNumber(pKey))
             {
-                pInput->pInputKeys[pKey->valueint].inputMapping = (InputActionMapping_t)i;
+                pInput->pInputKeys[pKey->valueint].inputMapping = (InputActionMapping_e)i;
                 logs_log(LOG_DEBUG, "Keycode %3d -> %s", pKey->valueint, pACTION_NAME);
             }
             else if (i != INPUT_ACTION_UNMAPPED)
             {
                 logs_log(LOG_WARN, "Failed to parse keycode assignment [%d] for %s. Using default.", i, pACTION_NAME);
                 // Default key shift left 1 because UNMAPPED is a binding
-                pInput->pInputKeys[DEFAULT_KEY_MAPPINGS[i - 1].defaultKey].inputMapping = (InputActionMapping_t)i;
+                pInput->pInputKeys[DEFAULT_KEY_MAPPINGS[i - 1].defaultKey].inputMapping = (InputActionMapping_e)i;
             }
         }
     }
@@ -292,6 +316,10 @@ static bool config_app_load(AppConfig_t *pCfg, const cJSON *pROOT)
         cJSON *pFOV = cJSON_GetObjectItem(pRenderer, APP_CFG_FOV);
         if (cJSON_IsNumber(pFOV))
             pCfg->cameraFOV = (float)pFOV->valuedouble;
+
+        cJSON *pChunkRenderDistance = cJSON_GetObjectItem(pRenderer, APP_CFG_CHUNK_RENDER_DISTANCE);
+        if (cJSON_IsNumber(pChunkRenderDistance))
+            pCfg->chunkRenderDistance = (uint32_t)pChunkRenderDistance->valueint;
     }
     else
         return false;
@@ -299,7 +327,29 @@ static bool config_app_load(AppConfig_t *pCfg, const cJSON *pROOT)
     return true;
 }
 
-static void config_save(void *pCfg, const ConfigType_t TYPE)
+static bool config_world_load(WorldConfig_t *pCfg, const cJSON *pROOT)
+{
+    if (!pCfg)
+        return false;
+
+    cJSON *pWorld = cJSON_GetObjectItemCaseSensitive(pROOT, WORLD_CFG_WORLD);
+    if (cJSON_IsObject(pWorld))
+    {
+        cJSON *pSimDist = cJSON_GetObjectItem(pWorld, WORLD_CFG_SIMULATION_DISTANCE);
+        if (cJSON_IsNumber(pSimDist))
+            pCfg->chunkSimulationDistance = cmath_clampI(pSimDist->valueint, 1, WORLD_CHUNK_SIM_DIST_MAX);
+
+        cJSON *pLoadRad = cJSON_GetObjectItem(pWorld, WORLD_CFG_SPAWN_LOAD_RADIUS);
+        if (cJSON_IsNumber(pLoadRad))
+            pCfg->spawnChunkLoadingRadius = cmath_clampI(pLoadRad->valueint, 0, WORLD_CHUNK_SPAWN_LOAD_RADIUS_MAX);
+    }
+    else
+        return false;
+
+    return true;
+}
+
+static void config_save(void *pCfg, const ConfigType_e TYPE)
 {
     logs_logIfError(pCfg == NULL, "Attempted to save the config from an invalid pointer!");
 
@@ -322,6 +372,9 @@ static void config_save(void *pCfg, const ConfigType_t TYPE)
     case CONFIG_TYPE_KEYBINDINGS:
         config_keyBindings_save((Input_t *)pCfg, pRoot);
         break;
+    case CONFIG_TYPE_WORLD:
+        config_world_save((WorldConfig_t *)pCfg, pRoot);
+        break;
     }
 
     char *pJsonStr = cJSON_Print(pRoot);
@@ -340,6 +393,9 @@ static void config_save(void *pCfg, const ConfigType_t TYPE)
         break;
     case CONFIG_TYPE_KEYBINDINGS:
         pFILE_NAME = pKEYBINDINGS_FILE_NAME;
+        break;
+    case CONFIG_TYPE_WORLD:
+        pFILE_NAME = pWORLD_CONFIG_FILE_NAME;
         break;
     }
 
@@ -385,7 +441,7 @@ static bool config_json_load(cJSON **ppRoot, const char *pFULL_PATH, const char 
     return true;
 }
 
-static void config_load(void *pCfg, const ConfigType_t TYPE)
+static void config_load(void *pCfg, const ConfigType_e TYPE)
 {
     if (!pCfg)
     {
@@ -406,6 +462,9 @@ static void config_load(void *pCfg, const ConfigType_t TYPE)
         break;
     case CONFIG_TYPE_KEYBINDINGS:
         pFILE_NAME = pKEYBINDINGS_FILE_NAME;
+        break;
+    case CONFIG_TYPE_WORLD:
+        pFILE_NAME = pWORLD_CONFIG_FILE_NAME;
         break;
     }
 
@@ -436,6 +495,9 @@ static void config_load(void *pCfg, const ConfigType_t TYPE)
         case CONFIG_TYPE_KEYBINDINGS:
             readResult = config_keyBindings_load((Input_t *)pCfg, pRoot);
             break;
+        case CONFIG_TYPE_WORLD:
+            readResult = config_world_load((WorldConfig_t *)pCfg, pRoot);
+            break;
         }
 
         if (!readResult)
@@ -448,7 +510,7 @@ static void config_load(void *pCfg, const ConfigType_t TYPE)
     cJSON_Delete(pRoot);
 }
 
-static inline void *config_loadOrCreate(const ConfigType_t TYPE)
+static inline void *config_loadOrCreate(const ConfigType_e TYPE)
 {
     switch (TYPE)
     {
@@ -460,6 +522,10 @@ static inline void *config_loadOrCreate(const ConfigType_t TYPE)
         config_input_buildDefault();
         config_load(&s_Input, TYPE);
         return &s_Input;
+        break;
+    case CONFIG_TYPE_WORLD:
+        config_load(&s_WorldConfig, TYPE);
+        return &s_WorldConfig;
         break;
     }
 
@@ -473,4 +539,5 @@ void config_init(struct State_t *pState)
 
     pState->config = *(AppConfig_t *)config_loadOrCreate(CONFIG_TYPE_APP);
     pState->input = *(Input_t *)config_loadOrCreate(CONFIG_TYPE_KEYBINDINGS);
+    pState->pWorldConfig = (WorldConfig_t *)config_loadOrCreate(CONFIG_TYPE_WORLD);
 }

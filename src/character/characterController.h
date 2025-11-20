@@ -10,4 +10,4 @@ static const float SPRINT_SPEED_MULTIPLIER = 1.5F;
 void player_physicsIntentUpdate(State_t *pState);
 
 /// @brief Initializes the given character's controller
-void character_init(State_t *pState, Character_t *pCharacter);
+Entity_t *character_init(State_t *pState, Character_t *pCharacter);

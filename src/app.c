@@ -19,8 +19,11 @@
 #include "rendering/model_3d.h"
 #include "core/randomNoise.h"
 #include "cmath/weightedMaps.h"
+#include "rendering/chunk/chunkRenderer.h"
+#include "rendering/renderGC.h"
+#include "core/cpuManager.h"
 
-void app_init(State_t *pState)
+void app_init(State_t *restrict pState)
 {
     logs_log(LOG_INFO, "Starting %s...", PROGRAM_NAME);
 
@@ -29,7 +32,9 @@ void app_init(State_t *pState)
     const uint32_t PRNG_SEED = 0; // 8675309U;
     random_init(PRNG_SEED);
     randomNoise_init(random_seedGet());
-    weightedMaps_init(pState);
+
+    cmath_instantiate();
+    weightedMaps_instantiate();
 
     glfwInstance_init();
 
@@ -44,8 +49,6 @@ void app_init(State_t *pState)
 
     rendering_create(pState);
 
-    time_init(&pState->time);
-
     events_init(&pState->eventBus);
 
     em_init(pState);
@@ -57,7 +60,7 @@ void app_init(State_t *pState)
     scene_model_createAll(pState);
 }
 
-void app_loop_render(State_t *pState)
+void app_loop_render(State_t *restrict pState)
 {
     // Handle the window events, including actually closing the window with the X
     window_events_poll();
@@ -79,20 +82,27 @@ void app_loop_render(State_t *pState)
     time_update(&pState->time);
 }
 
-void app_loop_main(State_t *pState)
+void app_loop_main(State_t *restrict pState)
 {
+    // Initalize time right before starting the actual user-facing part of the program
+    time_init(&pState->time);
+
     while (!win_shouldClose(&pState->window))
     {
+        world_loop(pState);
         phys_loop(pState);
         app_loop_render(pState);
-        // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.framesPerSecond, state->renderer.currentFrame);
+        cpuManager_captureDeltaTime(pState);
+        // logs_log(LOG_DEBUG, "FPS: %lf Frame: %d", state->time.CPU_framesPerSecond, state->renderer.currentFrame);
     }
 }
 
-void app_cleanup(State_t *pState)
+void app_cleanup(State_t *restrict pState)
 {
     scene_destroy(pState);
     world_destroy(pState);
+
+    renderGC_destroy(pState);
 
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
     // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.
@@ -107,7 +117,8 @@ void app_cleanup(State_t *pState)
 
     em_destroy(pState);
 
-    weightedMaps_destroy(pState);
+    weightedMaps_destroy();
+    cmath_destroy();
 
     logs_log(LOG_INFO, "%s exited sucessfully.", PROGRAM_NAME);
 }

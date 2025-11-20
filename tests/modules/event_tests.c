@@ -12,40 +12,40 @@ typedef struct
     int testValue;
 } EventTestPayload_t;
 
-static EventResult_t onGenericPass(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onGenericPass(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
     ctx;
 
-    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
+    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.pGeneric;
     payload->testValue += 1;
     return EVENT_RESULT_PASS;
 }
 
-static EventResult_t onConsumeListener(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onConsumeListener(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
     ctx;
 
-    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
+    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.pGeneric;
     payload->testValue += 10;
     return EVENT_RESULT_PASS;
 }
 
-static EventResult_t onConsumeEvent(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onConsumeEvent(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
     ctx;
 
-    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.generic;
+    EventTestPayload_t *payload = (EventTestPayload_t *)event->data.pGeneric;
     payload->testValue += 100;
     return EVENT_RESULT_PASS;
 }
 
-static EventResult_t onIntentionalError(struct State_t *state, Event_t *event, void *ctx)
+static EventResult_e onIntentionalError(struct State_t *state, Event_t *event, void *ctx)
 {
     // Unused
     state;
@@ -66,14 +66,14 @@ static void eventTests_subscribe(State_t *state, EventBus_t *bus)
     events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onConsumeEvent, false, true, NULL);
     events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onIntentionalError, false, false, NULL);
 
-    EventSubscribeResult_t badSub = events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, NULL, false, false, NULL);
+    EventSubscribeResult_e badSub = events_subscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, NULL, false, false, NULL);
     fails += ut_assert(badSub == EVENT_SUBSCRIBE_RESULT_FAIL, "Bad subscriber");
 
-    EventSubscribeResult_t badBus = events_subscribe(NULL, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
+    EventSubscribeResult_e badBus = events_subscribe(NULL, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass, false, false, NULL);
     fails += ut_assert(badBus == EVENT_SUBSCRIBE_RESULT_FAIL, "Bad event bus");
 
     payload.testValue = 1;
-    evt = (Event_t){.type = EVENT_TYPE_INPUT_RAW, .data.generic = &payload};
+    evt = (Event_t){.type = EVENT_TYPE_INPUT_RAW, .data.pGeneric = &payload};
 
     events_publish(state, bus, EVENT_CHANNEL_INPUT_ACTIONS, evt);
 
@@ -84,11 +84,11 @@ static void eventTests_subscribe(State_t *state, EventBus_t *bus)
 
     // The consumeListener function should have been unsubscribed automatically.
     payload.testValue = 5;
-    evt.data.generic = &payload;
+    evt.data.pGeneric = &payload;
     events_publish(state, bus, EVENT_CHANNEL_INPUT_ACTIONS, evt);
 
-    // Should no longer add +10 (only +1 from generic, +100 from consumeEvent)
-    fails += ut_assert(payload.testValue == 106, "Event: only +1 from generic, +100 from consumeEvent (consume)");
+    // Should no longer add +10 (only +1 from pGeneric, +100 from consumeEvent)
+    fails += ut_assert(payload.testValue == 106, "Event: only +1 from pGeneric, +100 from consumeEvent (consume)");
 
     events_unsubscribe(bus, EVENT_CHANNEL_INPUT_ACTIONS, onGenericPass);
     payload.testValue = 0;
