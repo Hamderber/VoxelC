@@ -1,6 +1,6 @@
 #include "unit_tests.h"
 #include "../src/cmath/cmath.h"
-#include "modules/math_tests.h"
+#include "modules/math/math_tests.h"
 #include "modules/random_tests.h"
 #include "modules/event_tests.h"
 // #include "modules/chunk_tests.h"

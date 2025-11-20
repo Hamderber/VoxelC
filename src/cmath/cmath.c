@@ -363,44 +363,6 @@ static void bake_blockNeighborPos(void)
     }
 }
 #pragma endregion
-#if defined(DEBUG_CMATH)
-#pragma region Validation
-static bool validation_localPointsInChunk(const Vec3u8_t *pPOINTS, size_t size, bool verbose, const char *pName)
-{
-    if (!pPOINTS || !pName)
-        return false;
-
-    Vec3u8_t *pWrongPoints = malloc(sizeof(Vec3u8_t) * size);
-    if (!pWrongPoints)
-        return false;
-
-    size_t wrongCount = 0;
-    for (size_t i = 0; i < size; i++)
-    {
-        const Vec3u8_t POINT = pPOINTS[i];
-        const uint8_t BOUND = (uint8_t)(CMATH_CHUNK_AXIS_LENGTH - 1);
-        if (POINT.x > BOUND || POINT.y > BOUND || POINT.z > BOUND)
-            pWrongPoints[wrongCount++] = POINT;
-    }
-
-    if (wrongCount > 0)
-    {
-        logs_log(LOG_ERROR, "%s: %zu local points are baked incorrectly! (Outside of chunk)", pName, wrongCount);
-        if (verbose)
-        {
-            for (size_t i = 0; i < wrongCount; i++)
-            {
-                const Vec3u8_t POINT = pWrongPoints[i];
-                logs_log(LOG_ERROR, "Point (%u, %u, %u) is out of chunk bounds!", POINT.x, POINT.y, POINT.z);
-            }
-        }
-    }
-
-    free(pWrongPoints);
-    return wrongCount == 0;
-}
-#pragma endregion
-#endif
 #pragma region Instantiate
 static bool instantiated = false;
 void cmath_instantiate(void)
@@ -417,24 +379,6 @@ void cmath_instantiate(void)
     }
     else
         logs_log(LOG_ERROR, "Attempted to double-initialize cmath!");
-
-#if defined(DEBUG_CMATH)
-    const bool VERBOSE = true;
-    logs_log(LOG_DEBUG, "Cmath validation in progress...");
-    validation_localPointsInChunk(pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS, CMATH_CHUNK_BLOCK_NEIGHBOR_POINTS_COUNT,
-                                  VERBOSE, "pCMATH_CHUNK_BLOCK_NEIGHBOR_POINTS");
-    validation_localPointsInChunk(pCMATH_CHUNK_CORNER_POINTS, CMATH_CHUNK_CORNER_POINTs_COUNT,
-                                  VERBOSE, "pCMATH_CHUNK_CORNER_POINTS");
-    validation_localPointsInChunk(pCMATH_CHUNK_INNER_POINTS, CMATH_CHUNK_INNER_POINTS_COUNT,
-                                  VERBOSE, "pCMATH_CHUNK_INNER_POINTS");
-    validation_localPointsInChunk(pCMATH_CHUNK_POINTS, CMATH_CHUNK_POINTS_COUNT,
-                                  VERBOSE, "pCMATH_CHUNK_POINTS");
-    validation_localPointsInChunk(pCMATH_CHUNK_SHELL_BORDERLESS_POINTS, CMATH_CHUNK_SHELL_BORDERLESS_POINTS_COUNT,
-                                  VERBOSE, "pCMATH_CHUNK_SHELL_BORDERLESS_POINTS");
-    validation_localPointsInChunk(pCMATH_CHUNK_SHELL_EDGE_POINTS, CMATH_CHUNK_SHELL_EDGE_POINTS_COUNT,
-                                  VERBOSE, "pCMATH_CHUNK_SHELL_EDGE_POINTS");
-    logs_log(LOG_DEBUG, "Cmath validation complete.");
-#endif
 }
 #pragma endregion
 #pragma region Destroy

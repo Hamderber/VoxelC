@@ -187,14 +187,14 @@ float randomNoise_carve_stageWorms(const Vec3i_t CHUNK_POS, const uint16_t BLOCK
                                            (FNLfloat)(WZW * WORM_FIELD_SCALE));
 
     const float D = (float)fabs(V);
-    const float MASK = cmath_noise_smooth_inv_band(D, (float)WORM_RADIUS, (float)WORM_FALLOFF);
+    const float MASK = cmath_noise_smoothInvBand(D, (float)WORM_RADIUS, (float)WORM_FALLOFF);
 
     // 3D density gate (reduces frequency, keeps tube thickness unchanged)
     const double DENSITY_3D = fnlGetNoise3D(&fnl_GlobalFeatureDensity3D,
                                             (FNLfloat)(WX * GLOBAL_FEATURE_DENSITY_SCL_3D),
                                             (FNLfloat)(WY * GLOBAL_FEATURE_DENSITY_SCL_3D),
                                             (FNLfloat)(WZ * GLOBAL_FEATURE_DENSITY_SCL_3D));
-    const float GATE_3D = cmath_noise_density_keep_gate(DENSITY_3D, GLOBAL_FEATURE_KEEP_WORMS, GLOBAL_FEATURE_GATE_SOFTNESS);
+    const float GATE_3D = cmath_noise_densityKeepGate(DENSITY_3D, GLOBAL_FEATURE_KEEP_WORMS, GLOBAL_FEATURE_GATE_SOFTNESS);
 
     return cmath_clampF01(MASK * GATE_3D);
 }
@@ -248,9 +248,9 @@ float randomNoise_carve_stageRavinesHuge(const Vec3i_t CHUNK_POS, const uint16_t
                                               (FNLfloat)(PZ * RAVINE_HUGE_PATH_SCALE));
 
     // ultra-thin horizontal band around |PATH| ~ 0
-    float base = cmath_noise_smooth_inv_band((float)fabs(PATH),
-                                             (float)RAVINE_HUGE_HALF_WIDTH,
-                                             (float)RAVINE_HUGE_FALLOFF);
+    float base = cmath_noise_smoothInvBand((float)fabs(PATH),
+                                           (float)RAVINE_HUGE_HALF_WIDTH,
+                                           (float)RAVINE_HUGE_FALLOFF);
 
     // sharpen the thinness aggressively (base^4)
     base = base * base;
@@ -265,9 +265,9 @@ float randomNoise_carve_stageRavinesHuge(const Vec3i_t CHUNK_POS, const uint16_t
 
     // Distance from the local center band
     const double Y_DIST = fabs(WY - Y_CENTER);
-    const float VENV = cmath_noise_smooth_inv_band((float)Y_DIST,
-                                                   (float)RAVINE_HUGE_HALF_HEIGHT,
-                                                   (float)RAVINE_HUGE_Y_SOFT);
+    const float VENV = cmath_noise_smoothInvBand((float)Y_DIST,
+                                                 (float)RAVINE_HUGE_HALF_HEIGHT,
+                                                 (float)RAVINE_HUGE_Y_SOFT);
 
     // final mask: thin lateral * tight vertical
     float mask = cmath_clampF01(base * cmath_clampF01(base * VENV));
@@ -276,7 +276,7 @@ float randomNoise_carve_stageRavinesHuge(const Vec3i_t CHUNK_POS, const uint16_t
     const double DENSITY_2D = fnlGetNoise2D(&fnl_GlobalFeatureDensityXZ,
                                             (FNLfloat)(WX * GLOBAL_FEATURE_DENSITY_SCL_XZ),
                                             (FNLfloat)(WZ * GLOBAL_FEATURE_DENSITY_SCL_XZ));
-    const float GATE_2D = cmath_noise_density_keep_gate(DENSITY_2D, GLOBAL_FEATURE_KEEP_RAVINES, GLOBAL_FEATURE_GATE_SOFTNESS);
+    const float GATE_2D = cmath_noise_densityKeepGate(DENSITY_2D, GLOBAL_FEATURE_KEEP_RAVINES, GLOBAL_FEATURE_GATE_SOFTNESS);
 
     return cmath_clampF01(mask * GATE_2D);
 }

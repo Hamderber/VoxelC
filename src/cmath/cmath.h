@@ -140,7 +140,7 @@ static const Vec3f_t VEC3_VOXEL_BACK_TOP_RIGHT = {1.0F, 1.0F, 0.0F};
 #pragma endregion
 #pragma endregion
 #pragma region Fundamentals
-/// @brief Clamps f between [min, max]
+/// @brief Clamps f between [min, max]. Assumes min <= max.
 static inline float cmath_clampF(float f, float min, float max)
 {
     if (f < min)
@@ -154,10 +154,10 @@ static inline float cmath_clampF(float f, float min, float max)
 /// @brief Clamps f between [0, 1]
 static inline float cmath_clampF01(float f)
 {
-    return f < 0.0F ? 0.0F : (f > 1.0F ? 1.0F : f);
+    return cmath_clampF(f, 0.0F, 1.0F);
 }
 
-/// @brief Clamps d between [min, max]
+/// @brief Clamps d between [min, max]. Assumes min <= max.
 static inline double cmath_clampD(double d, double min, double max)
 {
     if (d < min)
@@ -168,7 +168,7 @@ static inline double cmath_clampD(double d, double min, double max)
         return d;
 }
 
-/// @brief Clamps i between [min, max]
+/// @brief Clamps i between [min, max]. Assumes min <= max.
 static inline int cmath_clampI(int i, int min, int max)
 {
     if (i < min)
@@ -179,7 +179,7 @@ static inline int cmath_clampI(int i, int min, int max)
         return i;
 }
 
-/// @brief Clamps u between [min, max]
+/// @brief Clamps u between [min, max]. Assumes min <= max.
 static inline uint32_t cmath_clampU32t(uint32_t u, uint32_t min, uint32_t max)
 {
     if (u < min)
@@ -190,7 +190,7 @@ static inline uint32_t cmath_clampU32t(uint32_t u, uint32_t min, uint32_t max)
         return u;
 }
 
-/// @brief Clamps s between [min, max]
+/// @brief Clamps s between [min, max]. Assumes min <= max.
 static inline size_t cmath_clampSizet(size_t s, size_t min, size_t max)
 {
     if (s < min)
@@ -200,7 +200,8 @@ static inline size_t cmath_clampSizet(size_t s, size_t min, size_t max)
     else
         return s;
 }
-
+#pragma endregion
+#pragma region Noise
 /// @brief Clamped cubic Hermite smoothstep [0, x) U (x, 1] with smooth, monotonic S-curve in between and 0 slope endpoints
 static inline float cmath_noise_smoothstepf(float a, float b, float x)
 {
@@ -213,7 +214,7 @@ static inline float cmath_noise_smoothstepf(float a, float b, float x)
 
 /// @brief Maps a noise value n in [-1,1] to a gate in [0,1] that keeps ~'keep' fraction.
 /// Softness widens the transition so edges don’t look aliased.
-static inline float cmath_noise_density_keep_gate(const double N, const float KEEP, const float SOFTNESS)
+static inline float cmath_noise_densityKeepGate(const double N, const float KEEP, const float SOFTNESS)
 {
     // [-1,1] -> [0,1]
     const float D01 = (float)(0.5 * (N + 1.0));
@@ -225,7 +226,7 @@ static inline float cmath_noise_density_keep_gate(const double N, const float KE
 }
 
 /// @brief Circular/3d spherical mask with high center and low ends d <= r = 1 && d >= (r+fallof) = 0 total [0, 1]
-static inline float cmath_noise_smooth_inv_band(const float DIST_FROM_CENT, float r, float falloff)
+static inline float cmath_noise_smoothInvBand(const float DIST_FROM_CENT, float r, float falloff)
 {
     return 1.0F - cmath_noise_smoothstepf(r, r + falloff, DIST_FROM_CENT);
 }
@@ -1071,9 +1072,9 @@ static const char *pCUBE_FACE_NAMES[] = {
 #pragma endregion
 #pragma region Chunk
 // This shall NEVER change
-static const uint16_t CMATH_CHUNK_AXIS_LENGTH = 16;
+#define CMATH_CHUNK_AXIS_LENGTH (uint8_t)16
 // 16x16x16
-static const uint32_t CMATH_CHUNK_BLOCK_CAPACITY = 4096;
+#define CMATH_CHUNK_BLOCK_CAPACITY (uint32_t)4096
 #define LXYZ_MASK_4 0x0FU
 #define LXYZ_SHIFT_X 8U
 #define LXYZ_SHIFT_Y 4U
