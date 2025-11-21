@@ -96,6 +96,12 @@
         "randomnoise.h": "c",
         "index_buffer.h": "c",
         "chunk.h": "c",
-        "worldconfig_t.h": "c"
+        "worldconfig_t.h": "c",
+        "random_tests.h": "c",
+        "dynamicstack_t.h": "c",
+        "unit_tests.h": "c",
+        "chunkstate_e.h": "c",
+        "logs.h": "c",
+        "chunksourcevtable_t.h": "c"
     }
 }

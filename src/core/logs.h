@@ -14,6 +14,8 @@ typedef enum LogLevel_e
     LOG_PHYSICS,
 } LogLevel_e;
 
+void logs_toggleSimple(bool toggle);
+
 /// @brief ISO 8601-Style Timestamp minus time zone and miliseconds
 /// @param  isForFileName If the timestamp should include ':' (invalid for file names)
 /// @return *char[32]

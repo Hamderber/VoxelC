@@ -1,5 +1,7 @@
 #pragma region Includes
 #pragma once
+#include <stdlib.h>
+#include "core/logs.h"
 #pragma endregion
 #pragma region Definitions
 typedef struct LinkedList_t
@@ -26,15 +28,19 @@ static inline LinkedList_t *linkedList_node_new(void *pData)
 }
 
 /// @brief Creates a root node with data of NULL (sentinel)
-static inline LinkedList_t *linkedList_root(void)
-{
-    return linkedList_node_new(NULL);
-}
+static inline LinkedList_t *linkedList_create(void) { return linkedList_node_new(NULL); }
+
+/// @brief Verify that the node is a sentinel (non-null with no data). The root of a properly created linked list will always
+/// have a sentinel
+static inline bool linkedList_node_isSentinel(LinkedList_t *pNode) { return pNode && !pNode->pData; }
 
 /// @brief Adds a node to the end of the list
 static inline bool linkedList_node_add(LinkedList_t **ppRoot, LinkedList_t *pAdd)
 {
-    if (!ppRoot || !pAdd)
+    if (!ppRoot || !*ppRoot || !linkedList_node_isSentinel(*ppRoot))
+        return false;
+
+    if (!*ppRoot || !pAdd)
         return false;
 
     pAdd->pNext = NULL;
@@ -57,6 +63,9 @@ static inline bool linkedList_node_add(LinkedList_t **ppRoot, LinkedList_t *pAdd
 /// the calling function or otherwise.
 static inline bool linkedList_node_remove(LinkedList_t **ppRoot, LinkedList_t *pRemove)
 {
+    if (!ppRoot || !*ppRoot || !linkedList_node_isSentinel(*ppRoot))
+        return false;
+
     if (!ppRoot || !pRemove)
         return false;
 
@@ -77,6 +86,9 @@ static inline bool linkedList_node_remove(LinkedList_t **ppRoot, LinkedList_t *p
 /// it has been detached from the list and must still be freed by the caller.
 static inline bool linkedList_data_remove(LinkedList_t **ppRoot, void *pData)
 {
+    if (!ppRoot || !*ppRoot || !linkedList_node_isSentinel(*ppRoot))
+        return false;
+
     if (!ppRoot || !pData)
         return false;
 
@@ -123,9 +135,12 @@ static inline LinkedList_t *linkedList_data_insertAfter(LinkedList_t *pCurrent, 
     return pAdd;
 }
 
-/// @brief Creates a node with pData and adds it to the end of the list. Returns the added entry
+/// @brief Creates a node with pData and adds it to the end of the list. Returns the added entry. (Heap)
 static inline LinkedList_t *linkedList_data_add(LinkedList_t **ppRoot, void *pData)
 {
+    if (!ppRoot || !*ppRoot || !linkedList_node_isSentinel(*ppRoot))
+        return NULL;
+
     if (!ppRoot || !pData)
         return NULL;
 
@@ -146,12 +161,15 @@ static inline LinkedList_t *linkedList_data_add(LinkedList_t **ppRoot, void *pDa
 /// of the list. Returns the added entry or the entry that already contains that data.
 static inline LinkedList_t *linkedList_data_addUnique(LinkedList_t **ppRoot, void *pData)
 {
+    if (!ppRoot || !*ppRoot || !linkedList_node_isSentinel(*ppRoot))
+        return NULL;
+
     if (!ppRoot || !pData)
         return NULL;
 
     if (*ppRoot == NULL)
     {
-        *ppRoot = linkedList_root();
+        *ppRoot = linkedList_create();
         if (!*ppRoot)
             return NULL;
     }
@@ -171,6 +189,9 @@ static inline LinkedList_t *linkedList_data_addUnique(LinkedList_t **ppRoot, voi
 /// of the list. Returns the added entry or the entry that already exists.
 static inline LinkedList_t *linkedList_node_addUnique(LinkedList_t **ppRoot, LinkedList_t *pAdd)
 {
+    if (!ppRoot || !*ppRoot || !linkedList_node_isSentinel(*ppRoot))
+        return NULL;
+
     if (!ppRoot || !pAdd)
         return NULL;
 
@@ -192,12 +213,18 @@ static inline LinkedList_t *linkedList_node_addUnique(LinkedList_t **ppRoot, Lin
 /// Pass destructor function params as a collection through pCtx
 static inline bool linkedList_destroy(LinkedList_t **ppRoot, LinkedListDataDestructor destructor, void *pCtx)
 {
-    size_t removedSize = 0;
-    // root node will always have NULL data (sentinel)
     if (!ppRoot)
         return false;
 
     LinkedList_t *pNode = *ppRoot;
+
+    if (!pNode)
+        return true;
+
+    if (!linkedList_node_isSentinel(pNode))
+        return false;
+
+    size_t removedSize = 0;
     *ppRoot = NULL;
 
     while (pNode)

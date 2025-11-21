@@ -254,7 +254,7 @@ ChunkManager_t *chunkManager_createNew(State_t *pState)
         return NULL;
     }
 
-    pChunkManager->pChunksLL = linkedList_root();
+    pChunkManager->pChunksLL = linkedList_create();
 
     void *pSUB_CTX = (void *)pChunkManager;
     const bool CONSUME_LISTENER = false;

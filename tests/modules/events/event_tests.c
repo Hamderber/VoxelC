@@ -1,8 +1,8 @@
+#include "../../unit_tests.h"
 #include <string.h>
+#include "core/types/state_t.h"
 #include "events/eventBus.h"
 #include "events/eventTypes.h"
-#include "../../src/core/types/state_t.h"
-#include "../../tests/unit_tests.h"
 
 static int fails = 0;
 
