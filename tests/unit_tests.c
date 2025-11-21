@@ -9,6 +9,7 @@
 #include "modules/chunk/chunkState_tests.h"
 #include "modules/chunk/chunkAPI_tests.h"
 #include "modules/events/event_tests.h"
+#include "modules/voxel/voxel_tests.h"
 
 int unitTests_run(void)
 {
@@ -39,6 +40,9 @@ int unitTests_run(void)
     fails += chunk_tests_run();
     fails += chunkState_tests_run();
     fails += chunkAPI_tests_run();
+
+    ut_section("Voxel Tests");
+    fails += voxel_tests_run();
 
     if (fails == 0)
         printf("\nAll tests passed!\n");
