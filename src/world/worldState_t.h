@@ -8,9 +8,11 @@
 #include "collection/linkedList_t.h"
 #include "rendering/types/chunkRenderer_t.h"
 #include "chunk/chunkManager_t.h"
+#include "world/worldType_e.h"
 
 typedef struct WorldState_t
 {
+    WorldType_e worldType;
     ChunkSource_t *pChunkSource;
     ChunkManager_t *pChunkManager;
     bool isLoaded;
@@ -19,4 +21,5 @@ typedef struct WorldState_t
     // Assign chunks that will be permanently loaded to this instead of depending on a specific player
     Entity_t *pChunkLoadingEntity;
     ChunkRenderer_t chunkRenderer;
+    // TODO: Add a Time_t here for world physics etc
 } WorldState_t;

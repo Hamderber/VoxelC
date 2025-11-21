@@ -102,6 +102,7 @@
         "unit_tests.h": "c",
         "chunkstate_e.h": "c",
         "logs.h": "c",
-        "chunksourcevtable_t.h": "c"
+        "chunksourcevtable_t.h": "c",
+        "app_time.h": "c"
     }
 }

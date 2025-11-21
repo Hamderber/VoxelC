@@ -16,7 +16,8 @@ static inline bool cpuManager_lightenTheLoad(State_t *restrict pState)
         return false;
 
     double rollingDelta = cpuManager_rollingDeltaTimeAvg();
-    bool overloaded = phys_isRunningBehind(pState) || rollingDelta > ROLLING_DELTA_THRESHOLD;
+    bool overloaded = rollingDelta > ROLLING_DELTA_THRESHOLD;
+    // bool overloaded = phys_isRunningBehind(pState) || rollingDelta > ROLLING_DELTA_THRESHOLD;
 
     if (overloaded)
         logs_log(LOG_WARN, "CPU is overloaded! CPU Frame Time Average = %lf (CPU 'FPS' %lf) Last = %lf (CPU 'FPS' %lf)",

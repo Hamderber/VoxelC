@@ -22,6 +22,7 @@
 #include "rendering/chunk/chunkRenderer.h"
 #include "rendering/renderGC.h"
 #include "core/cpuManager.h"
+#include "world/worldCore.h"
 
 void app_init(State_t *restrict pState)
 {
@@ -55,9 +56,14 @@ void app_init(State_t *restrict pState)
 
     gui_init(pState);
 
-    world_load(pState);
+    // OLD. Pending deprication
+    // world_load(pState);
 
     scene_model_createAll(pState);
+
+    pState->pWorldState = worldCore_create(pState, WORLD_TYPE_LOCAL);
+
+    // TODO: player connect/join
 }
 
 void app_loop_render(State_t *restrict pState)
@@ -89,6 +95,7 @@ void app_loop_main(State_t *restrict pState)
 
     while (!win_shouldClose(&pState->window))
     {
+        worldCore_tick(pState, pState->time.CPU_frameTimeDelta);
         world_loop(pState);
         phys_loop(pState);
         app_loop_render(pState);
@@ -99,7 +106,13 @@ void app_loop_main(State_t *restrict pState)
 
 void app_cleanup(State_t *restrict pState)
 {
+    // Handle this way to eventually support multiple worlds
+    worldCore_destroy(pState, pState->pWorldState);
+    pState->pWorldState = NULL;
+
     scene_destroy(pState);
+
+    // OLD. Pending deprication
     world_destroy(pState);
 
     renderGC_destroy(pState);

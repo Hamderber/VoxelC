@@ -90,8 +90,8 @@ static void init(State_t *pState)
 
     chunkRenderer_create(pState->pWorldState);
 
-    pState->pWorldState->world.pPlayer = character_create(pState, CHARACTER_TYPE_PLAYER);
     world_chunks_init(pState);
+    pState->pWorldState->world.pPlayer = character_create(pState, CHARACTER_TYPE_PLAYER);
 
     // The world position is set when the character is created and it should be announced here on world join
     entity_player_chunkPos_update_publish(pState, pState->pWorldState->pPlayerEntity, NULL);
