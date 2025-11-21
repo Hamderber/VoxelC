@@ -8,10 +8,13 @@ typedef struct PendingBufferDestroy_t
     VkDeviceMemory memory;
 } PendingBufferDestroy_t;
 
-void renderGC_pushGarbage(const uint32_t FRAME_INDEX, VkBuffer buffer, VkDeviceMemory memory);
+void renderGC_updateFrame(const uint32_t FRAME_INDEX);
 
-void renderGC_flushGarbage(State_t *pState, const uint32_t FRAME_INDEX, const bool FLUSH_ALL);
+void renderGC_pushGarbage(VkBuffer buffer, VkDeviceMemory memory);
 
-void renderGC_init(State_t *pState);
+void renderGC_flushGarbage(const uint32_t FRAME_INDEX, const bool FLUSH_ALL);
 
-void renderGC_destroy(State_t *pState);
+/// @brief Caches the pointer to the pState that persists for app lifetime
+void renderGC_init(VkDevice device, uint32_t maxFramesInFlightCfg, VkAllocationCallbacks *pAllocatorCtx);
+
+void renderGC_destroy(void);

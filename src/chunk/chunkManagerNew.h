@@ -9,6 +9,9 @@ void chunkManager_chunk_register(ChunkManager_t *restrict pChunkManager, Chunk_t
 bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Vec3i_t *restrict pCHUNK_POS, size_t count,
                                 Chunk_t ***restrict pppNewChunks, size_t *restrict pNewCount, Chunk_t ***restrict pppExistingChunks,
                                 size_t *restrict pExistingCount);
+
+bool chunkManager_chunks_populateNew(ChunkManager_t *restrict pChunkManager, ChunkSource_t *restrict pSource,
+                                     Chunk_t **restrict ppNewChunks, size_t count);
 #pragma endregion
 #pragma region Create/Destroy
 ChunkManager_t *chunkManager_createNew(State_t *pState);

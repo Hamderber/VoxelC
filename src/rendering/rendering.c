@@ -158,7 +158,8 @@ void rendering_create(State_t *pState)
     commandBuffer_create(pState);
     syncObjects_create(pState);
 
-    renderGC_init(pState);
+    // Cached inside renderGC so if any of these change somehow the renderGC must be destroyed and recreated!
+    renderGC_init(pState->context.device, pState->config.maxFramesInFlight, pState->context.pAllocator);
 }
 #pragma endregion
 #pragma region Destroy

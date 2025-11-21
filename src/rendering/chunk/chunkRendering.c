@@ -58,13 +58,13 @@ void chunk_placeRenderInWorld(RenderChunk_t *restrict pChunk, Vec3f_t *restrict 
     pChunk->modelMatrix = cmath_mat_setTranslation(MAT4_IDENTITY, *pWorldPosition);
 }
 
-void chunk_render_Destroy(State_t *restrict pState, RenderChunk_t *restrict pRenderChunk)
+void chunk_render_Destroy(RenderChunk_t *restrict pRenderChunk)
 {
     if (!pRenderChunk)
         return;
 
-    renderGC_pushGarbage(pState->renderer.currentFrame, pRenderChunk->vertexBuffer, pRenderChunk->vertexMemory);
-    renderGC_pushGarbage(pState->renderer.currentFrame, pRenderChunk->indexBuffer, pRenderChunk->indexMemory);
+    renderGC_pushGarbage(pRenderChunk->vertexBuffer, pRenderChunk->vertexMemory);
+    renderGC_pushGarbage(pRenderChunk->indexBuffer, pRenderChunk->indexMemory);
 
     free(pRenderChunk);
 }
@@ -316,8 +316,8 @@ static bool chunk_mesh_create(State_t *restrict pState, const Vec3u8_t *restrict
         pRenderChunk->vertexCapacity = newVCap;
         pRenderChunk->indexCapacity = newICap;
 
-        renderGC_pushGarbage(pState->renderer.currentFrame, oldVB, oldVM);
-        renderGC_pushGarbage(pState->renderer.currentFrame, oldIB, oldIM);
+        renderGC_pushGarbage(oldVB, oldVM);
+        renderGC_pushGarbage(oldIB, oldIM);
 
         vertexBuffer_updateFromData_Voxel(pState, pFinalVerts, vertexCursor, pRenderChunk->vertexBuffer);
         indexBuffer_updateFromData_Voxel(pState, pFinalIndices, indexCursor, pRenderChunk->indexBuffer);

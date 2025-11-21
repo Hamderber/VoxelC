@@ -1,3 +1,7 @@
+/*
+    WorldCore does NOT create, load, or destroy chunks. It owns the logic that determines WHAT chunks should be interacted
+    with. The ChunkSource gives the chunks from some magical unknown place (from the perspective of the WorldCore).
+*/
 #pragma region Includes
 #include "api/chunk/chunkAPI.h"
 #include "core/types/state_t.h"
@@ -13,6 +17,51 @@
 #endif
 #pragma endregion
 #pragma region Operations
+// void worldCore_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
+// {
+//     pLoadingEntity;
+//     RADIUS;
+//     CHUNK_POS;
+
+//     size_t size = 0;
+//     Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
+
+//     size_t newCount = size;
+//     size_t existingCount = size;
+//     Chunk_t **ppNewChunks = NULL;
+//     Chunk_t **ppExistingChunks = NULL;
+
+//     if (!chunkManager_chunks_aquire(pState->pWorldState->pChunkManager, pPoints, size, &ppNewChunks, &newCount,
+//                                     &ppExistingChunks, &existingCount))
+//     {
+//         logs_log(LOG_ERROR, "Failed to aquire %zu chunks!", size);
+//     }
+
+//     if (newCount > 0)
+//     {
+//         if (!chunkManager_chunks_populateNew(pState, pState->pWorldState->pChunkManager, pState->pWorldState->pChunkSource,
+//                                              ppNewChunks, newCount))
+//         {
+//             logs_log(LOG_ERROR, "Failed to populate %zu chunks!", size);
+//         }
+//     }
+
+//     for (size_t i = 0; i < newCount; i++)
+//         chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
+
+//     free(ppNewChunks);
+//     free(ppExistingChunks);
+// }
+
+bool worldCore_spawn_getOrGenerate(State_t *pState)
+{
+    pState;
+    // const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
+    // const int SPAWN_RAD = pState->pWorldConfig->spawnChunkLoadingRadius;
+
+    return true;
+}
+
 void worldCore_tick(State_t *pState, double deltaTime)
 {
     deltaTime;

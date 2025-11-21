@@ -188,6 +188,5 @@ int chunkState_tests_run(void)
                        "ChunkState setBatch null element + invalid state");
     fails += ut_assert(test_chunkState_cpu_gpu_classification() == true,
                        "ChunkState cpu/gpu classification");
-
     return fails;
 }

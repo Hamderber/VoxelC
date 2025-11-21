@@ -45,13 +45,13 @@ void chunk_world_destroy(Chunk_t *pChunk)
 
 void chunk_destroy(void *pCtx, Chunk_t *pChunk)
 {
-    // Cast ctx to state so this can be used in a linked list destructor
-    if (!pCtx || !pChunk)
+    // Unused in this instance
+    pCtx;
+
+    if (!pChunk)
         return;
 
     const Vec3i_t CHUNK_POS = pChunk->chunkPos;
-
-    State_t *pState = (State_t *)pCtx;
 
     // Fall-through for handling different chunk states during destruction!
     switch (pChunk->chunkState)
@@ -67,8 +67,8 @@ Something must've gone wrong for this to happen.",
         if (chunkState_gpu(pChunk))
         {
             // TODO: Finish decoupling the state from the chunk system. There is only one state and only one renderer, after all
-            chunk_render_Destroy(pState, pChunk->pRenderChunk);
-            pChunk->pRenderChunk = NULL;
+            chunk_render_Destroy(pChunk->pRenderChunk);
+            (pChunk)->pRenderChunk = NULL;
             chunkState_set(pChunk, CHUNK_STATE_CPU_ONLY);
         }
 

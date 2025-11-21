@@ -57,11 +57,11 @@ void app_init(State_t *restrict pState)
     gui_init(pState);
 
     // OLD. Pending deprication
-    // world_load(pState);
+    world_load(pState);
 
     scene_model_createAll(pState);
 
-    pState->pWorldState = worldCore_create(pState, WORLD_TYPE_LOCAL);
+    // pState->pWorldState = worldCore_create(pState, WORLD_TYPE_LOCAL);
 
     // TODO: player connect/join
 }
@@ -84,6 +84,7 @@ void app_loop_render(State_t *restrict pState)
     }
 
     rendering_present(pState);
+    renderGC_updateFrame(pState->renderer.currentFrame);
 
     time_update(&pState->time);
 }
@@ -107,15 +108,15 @@ void app_loop_main(State_t *restrict pState)
 void app_cleanup(State_t *restrict pState)
 {
     // Handle this way to eventually support multiple worlds
-    worldCore_destroy(pState, pState->pWorldState);
-    pState->pWorldState = NULL;
+    // worldCore_destroy(pState, pState->pWorldState);
+    // pState->pWorldState = NULL;
 
     scene_destroy(pState);
 
     // OLD. Pending deprication
     world_destroy(pState);
 
-    renderGC_destroy(pState);
+    renderGC_destroy();
 
     // Order matters here (including order inside of destroy functions)because of potential physical device and interdependency.
     // vulkan_init() is called first for init vulkan so it must be destroyed last. Last In First Out / First In Last Out.

@@ -4,41 +4,44 @@
 #include "renderGC.h"
 #include "collection/dynamicStack_t.h"
 
+static VkDevice vkDevice = {0};
+static uint32_t maxFramesInFlight = 0;
+static VkAllocationCallbacks *pAllocator = NULL;
 static const size_t FLUSH_COUNT_PER_FRAME = 8;
 static size_t *pCount = NULL;
 static size_t *pCapacity = NULL;
 static PendingBufferDestroy_t **ppPendingBufferDestroys = NULL;
+static uint32_t frameIndex = 0;
 
-void renderGC_pushGarbage(const uint32_t FRAME_INDEX, VkBuffer buffer, VkDeviceMemory memory)
+void renderGC_updateFrame(const uint32_t FRAME_INDEX) { frameIndex = FRAME_INDEX; }
+
+void renderGC_pushGarbage(VkBuffer buffer, VkDeviceMemory memory)
 {
-    size_t count = pCount[FRAME_INDEX];
-    size_t capacity = pCapacity[FRAME_INDEX];
+    size_t count = pCount[frameIndex];
+    size_t capacity = pCapacity[frameIndex];
 
     if (count >= capacity)
     {
         size_t newCap = capacity * 2;
-        PendingBufferDestroy_t *pNew = realloc(ppPendingBufferDestroys[FRAME_INDEX], newCap * sizeof(PendingBufferDestroy_t));
+        PendingBufferDestroy_t *pNew = realloc(ppPendingBufferDestroys[frameIndex], newCap * sizeof(PendingBufferDestroy_t));
 
         if (!pNew)
             crashHandler_crash_graceful(CRASH_LOCATION, "Failed to grow rendering garbage collector array!");
 
-        ppPendingBufferDestroys[FRAME_INDEX] = pNew;
-        pCapacity[FRAME_INDEX] = newCap;
+        ppPendingBufferDestroys[frameIndex] = pNew;
+        pCapacity[frameIndex] = newCap;
         capacity = newCap;
     }
 
-    ppPendingBufferDestroys[FRAME_INDEX][count] = (PendingBufferDestroy_t){
+    ppPendingBufferDestroys[frameIndex][count] = (PendingBufferDestroy_t){
         .buffer = buffer,
         .memory = memory};
 
-    pCount[FRAME_INDEX] = count + 1;
+    pCount[frameIndex] = count + 1;
 }
 
-void renderGC_flushGarbage(State_t *pState, const uint32_t FRAME_INDEX, const bool FLUSH_ALL)
+void renderGC_flushGarbage(const uint32_t FRAME_INDEX, const bool FLUSH_ALL)
 {
-    if (!pState)
-        return;
-
     size_t count = pCount[FRAME_INDEX];
     if (count == 0)
         return;
@@ -52,9 +55,9 @@ void renderGC_flushGarbage(State_t *pState, const uint32_t FRAME_INDEX, const bo
         VkDeviceMemory memory = pGarbage[i].memory;
 
         if (buffer != VK_NULL_HANDLE)
-            vkDestroyBuffer(pState->context.device, buffer, pState->context.pAllocator);
+            vkDestroyBuffer(vkDevice, buffer, pAllocator);
         if (memory != VK_NULL_HANDLE)
-            vkFreeMemory(pState->context.device, memory, pState->context.pAllocator);
+            vkFreeMemory(vkDevice, memory, pAllocator);
 
         pCount[FRAME_INDEX]--;
 
@@ -64,15 +67,15 @@ void renderGC_flushGarbage(State_t *pState, const uint32_t FRAME_INDEX, const bo
     }
 }
 
-void renderGC_init(State_t *pState)
+void renderGC_init(VkDevice device, uint32_t maxFramesInFlightCfg, VkAllocationCallbacks *pAllocatorCtx)
 {
     bool crash = false;
     do
     {
-        if (!pState)
-            break;
+        vkDevice = device;
+        maxFramesInFlight = maxFramesInFlightCfg;
+        pAllocator = pAllocatorCtx;
 
-        uint32_t maxFramesInFlight = pState->config.maxFramesInFlight;
         ppPendingBufferDestroys = calloc(maxFramesInFlight, sizeof(PendingBufferDestroy_t *));
         pCount = calloc(maxFramesInFlight, sizeof(size_t));
         pCapacity = calloc(maxFramesInFlight, sizeof(size_t));
@@ -99,17 +102,16 @@ void renderGC_init(State_t *pState)
     crashHandler_crash_graceful(CRASH_LOCATION, "The program cannot continue without an intialized rendering garbage collector!");
 }
 
-void renderGC_destroy(State_t *pState)
+void renderGC_destroy(void)
 {
-    if (!pState || !ppPendingBufferDestroys)
+    if (!ppPendingBufferDestroys)
         return;
-
-    uint32_t maxFramesInFlight = pState->config.maxFramesInFlight;
 
     // Flush dangling garbage
     for (uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
-        renderGC_flushGarbage(pState, i, true);
+        const bool FLUSH_ALL = true;
+        renderGC_flushGarbage(i, FLUSH_ALL);
         free(ppPendingBufferDestroys[i]);
     }
 

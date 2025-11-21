@@ -111,27 +111,6 @@ static bool test_chunk_destroy_cpu_loading(void)
     return true;
 }
 
-static bool test_chunk_destroy_null_args(void)
-{
-    const Vec3i_t POS = {1, 1, 1};
-    Chunk_t *pChunk = chunk_world_create(POS);
-    if (!pChunk)
-        return false;
-
-    // NULL ctx: function should early-out, chunk is leaked but that's caller's bug.
-    // Test only checks "no crash / no UB", not correctness of that misuse.
-    chunk_destroy(NULL, pChunk);
-
-    // Now destroy properly to avoid leak during tests
-    int dummyCtx = 0;
-    chunk_destroy(&dummyCtx, pChunk);
-
-    // NULL chunk
-    chunk_destroy(&dummyCtx, NULL);
-
-    return true;
-}
-
 int chunk_tests_run(void)
 {
     fails += ut_assert(test_chunk_world_create_basic() == true,
@@ -144,8 +123,6 @@ int chunk_tests_run(void)
                        "Chunk destroy CPU_ONLY");
     fails += ut_assert(test_chunk_destroy_cpu_loading() == true,
                        "Chunk destroy CPU_LOADING warning + fallthrough");
-    fails += ut_assert(test_chunk_destroy_null_args() == true,
-                       "Chunk destroy NULL args safety");
 
     return fails;
 }

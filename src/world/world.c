@@ -25,11 +25,11 @@ void world_loop(State_t *pState)
 }
 #pragma endregion
 #pragma region Load
-void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEntity, const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
+void world_chunks_load(WorldState_t *restrict pWorldState, Entity_t *restrict pLoadingEntity,
+                       const Vec3i_t CHUNK_POS, const uint32_t RADIUS)
 {
-    pLoadingEntity;
-    RADIUS;
-    CHUNK_POS;
+    if (!pWorldState || !pWorldState->pChunkManager || !pLoadingEntity)
+        return;
 
     size_t size = 0;
     Vec3i_t *pPoints = cmath_algo_expandingCubicShell(CHUNK_POS, RADIUS, &size);
@@ -39,7 +39,7 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
     Chunk_t **ppNewChunks = NULL;
     Chunk_t **ppExistingChunks = NULL;
 
-    if (!chunkManager_chunks_aquire(pState->pWorldState->pChunkManager, pPoints, size, &ppNewChunks, &newCount,
+    if (!chunkManager_chunks_aquire(pWorldState->pChunkManager, pPoints, size, &ppNewChunks, &newCount,
                                     &ppExistingChunks, &existingCount))
     {
         logs_log(LOG_ERROR, "Failed to aquire %zu chunks!", size);
@@ -47,7 +47,7 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
 
     if (newCount > 0)
     {
-        if (!chunkManager_chunks_populateNew(pState, pState->pWorldState->pChunkManager, pState->pWorldState->pChunkSource,
+        if (!chunkManager_chunks_populateNew(pWorldState->pChunkManager, pWorldState->pChunkSource,
                                              ppNewChunks, newCount))
         {
             logs_log(LOG_ERROR, "Failed to populate %zu chunks!", size);
@@ -55,19 +55,18 @@ void world_chunks_load(State_t *restrict pState, Entity_t *restrict pLoadingEnti
     }
 
     for (size_t i = 0; i < newCount; i++)
-        chunkRenderer_enqueueRemesh(pState->pWorldState, ppNewChunks[i]);
+        chunkRenderer_enqueueRemesh(pWorldState, ppNewChunks[i]);
 
     free(ppNewChunks);
     free(ppExistingChunks);
 }
 #pragma endregion
 #pragma region Create
-static void spawn_generate(State_t *pState)
+static void spawn_generate(WorldState_t *pWorldState, const uint32_t SPAWN_RADIUS)
 {
     const Vec3i_t SPAWN_ORIGIN = VEC3I_ZERO;
-    const int SPAWN_RAD = pState->pWorldConfig->spawnChunkLoadingRadius + 1;
-    world_chunks_load(pState, pState->pWorldState->pChunkLoadingEntity, SPAWN_ORIGIN, SPAWN_RAD);
-    logs_log(LOG_DEBUG, "Spawn created for world %p.", pState->pWorldState);
+    world_chunks_load(pWorldState, pWorldState->pChunkLoadingEntity, SPAWN_ORIGIN, SPAWN_RADIUS);
+    logs_log(LOG_DEBUG, "Spawn created for world %p.", pWorldState);
 }
 
 static void world_chunks_init(State_t *pState)
@@ -79,7 +78,7 @@ static void world_chunks_init(State_t *pState)
 
     pState->pWorldState->pChunkLoadingEntity = pChunkLoadingEntity;
 
-    spawn_generate(pState);
+    spawn_generate(pState->pWorldState, pState->pWorldConfig->spawnChunkLoadingRadius);
 }
 
 static void init(State_t *pState)

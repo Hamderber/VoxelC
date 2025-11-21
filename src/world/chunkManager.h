@@ -44,10 +44,3 @@ const inline BlockRenderType_e chunkManager_getBlockRenderType(const Chunk_t *pC
 
 /// @brief Checks if the chunk is loaded (in the chunks linked list)
 bool chunk_isLoaded(const State_t *pSTATE, const Vec3i_t CHUNK_POS);
-
-/// @brief Destroys the and frees internals of the chunk. DOES NOT free the chunk. pCtx here is pState (so this can be called from)
-/// a linked list destructor
-void chunk_destroy(void *pCtx, Chunk_t *pChunk);
-
-bool chunkManager_chunks_populateNew(State_t *pState, ChunkManager_t *pChunkManager, ChunkSource_t *pSource,
-                                     Chunk_t **ppNewChunks, size_t count);

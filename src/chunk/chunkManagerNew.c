@@ -76,7 +76,7 @@ EventResult_e chunkEvents_player_onChunkChange(State_t *pState, Event_t *pEvent,
              chunkPos.x, chunkPos.y, chunkPos.z, pChunkManager);
 #endif
 
-    world_chunks_load(pState, pEntity, chunkPos, simDist);
+    world_chunks_load(pState->pWorldState, pEntity, chunkPos, simDist);
 
     return EVENT_RESULT_PASS;
 }
@@ -207,8 +207,8 @@ bool chunkManager_chunks_aquire(ChunkManager_t *restrict pChunkManager, const Ve
     return true;
 }
 
-bool chunkManager_chunks_populateNew(State_t *pState, ChunkManager_t *pChunkManager, ChunkSource_t *pSource,
-                                     Chunk_t **ppNewChunks, size_t count)
+bool chunkManager_chunks_populateNew(ChunkManager_t *restrict pChunkManager, ChunkSource_t *restrict pSource,
+                                     Chunk_t **restrict ppNewChunks, size_t count)
 {
     Chunk_t **ppOutChunksBad = NULL;
     size_t outCount = 0;
@@ -228,7 +228,7 @@ bool chunkManager_chunks_populateNew(State_t *pState, ChunkManager_t *pChunkMana
                 chunkManager_chunk_deregister(pChunkManager, ppOutChunksBad[i]);
                 // Don't worry about the render side because this must pass first to get tangible data for the rendering side
                 // to do anything
-                chunk_destroy(pState, ppOutChunksBad[i]);
+                chunk_destroy(NULL, ppOutChunksBad[i]);
             }
             free(ppOutChunksBad);
         }
