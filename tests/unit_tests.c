@@ -5,11 +5,16 @@
 #include "modules/collections/linkedList_tests.h"
 #include "modules/collections/dynamicStack_tests.h"
 #include "modules/collections/flags64_tests.h"
-#include "modules/event_tests.h"
-// #include "modules/chunk_tests.h"
+#include "modules/chunk/chunk_tests.h"
+#include "modules/chunk/chunkState_tests.h"
+#include "modules/chunk/chunkAPI_tests.h"
+#include "modules/events/event_tests.h"
 
 int unitTests_run(void)
 {
+    // Make logs.c skip the timestamping stuff
+    logs_toggleSimple(true);
+
     int fails = 0;
 
     ut_section("CMath Tests");
@@ -30,8 +35,10 @@ int unitTests_run(void)
     ut_section("Event Tests");
     fails += event_tests_run();
 
-    // ut_section("Chunk Tests");
-    // fails += chunk_tests_run();
+    ut_section("Chunk Tests");
+    fails += chunk_tests_run();
+    fails += chunkState_tests_run();
+    fails += chunkAPI_tests_run();
 
     if (fails == 0)
         printf("\nAll tests passed!\n");

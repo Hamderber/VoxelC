@@ -61,16 +61,6 @@ ChunkSource_t *chunkSource_createLocal(ChunkManager_t *restrict pChunkManager, W
 static bool local_loadChunks(ChunkSource_t *restrict pSource, Chunk_t **ppChunks, size_t count,
                              Chunk_t ***pppOutChunksBad, size_t *restrict pOutCount)
 {
-    if (!pSource || !ppChunks || count == 0 || !pppOutChunksBad || !pOutCount)
-    {
-        if (pOutCount)
-            *pOutCount = 0;
-        return false;
-    }
-
-    *pOutCount = 0;
-    *pppOutChunksBad = NULL;
-
     Chunk_t **ppBadChunks = malloc(sizeof(Chunk_t *) * count);
     if (!ppBadChunks)
         return false;
@@ -154,9 +144,6 @@ static void local_tick(ChunkSource_t *pSource, double deltaTime)
 
 static void local_destroy(ChunkSource_t *pSource)
 {
-    if (!pSource)
-        return;
-
     LocalChunkSourceImpl_t *pImplData = (LocalChunkSourceImpl_t *)pSource->pImplData;
     free(pImplData);
     free(pSource);

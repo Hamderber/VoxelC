@@ -3,6 +3,7 @@
 struct Chunk_t;
 struct ChunkSource_t;
 
+/// @brief See chunkAPI.h for function promises (saves double-checking params for validity)
 typedef struct ChunkSourceVTable_t
 {
     /// @brief Verifies chunk at chunkpos has valid CPU data

@@ -1,6 +1,6 @@
+#include "../../unit_tests.h"
 #include <stdbool.h>
 #include "collection/linkedList_t.h"
-#include "../../unit_tests.h"
 
 static int fails = 0;
 

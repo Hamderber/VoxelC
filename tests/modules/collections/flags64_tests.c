@@ -1,8 +1,8 @@
+#include "../../unit_tests.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include "collection/flags64_t.h"
-#include "../../unit_tests.h"
 
 static int fails = 0;
 

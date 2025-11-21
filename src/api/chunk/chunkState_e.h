@@ -39,11 +39,16 @@ static inline bool chunkState_set(Chunk_t *pChunk, ChunkState_e state)
 {
     if (!pChunk)
         return false;
+
+    if (state < 0 || state >= CHUNK_STATE_COUNT)
+        return false;
+
 #if defined(DEBUG_CHUNKSTATE)
     const Vec3i_t CHUNK_POS = pChunk->chunkPos;
     logs_log(LOG_DEBUG, "Chunk %p at (%d, %d, %d) state %s -> %s.", pChunk, CHUNK_POS.x, CHUNK_POS.y, CHUNK_POS.z,
              pCHUNK_STATE_NAMES[pChunk->chunkState], pCHUNK_STATE_NAMES[state]);
 #endif
+
     pChunk->chunkState = state;
     return true;
 }
@@ -53,10 +58,13 @@ static inline bool chunkState_setBatch(Chunk_t **ppChunks, size_t count, ChunkSt
     if (!ppChunks)
         return false;
 
-    for (size_t i = 0; i < count; i++)
-        chunkState_set(ppChunks[i], state);
+    bool fail = false;
 
-    return true;
+    for (size_t i = 0; i < count; i++)
+        if (!chunkState_set(ppChunks[i], state))
+            fail = true;
+
+    return !fail;
 }
 
 static inline bool chunkState_cpu(const Chunk_t *pCHUNK)

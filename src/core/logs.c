@@ -11,10 +11,16 @@
 #include "fileIO.h"
 #pragma endregion
 #pragma region Defines
-#define LOGS_FANCY
+// #define LOGS_SIMPLE
 #pragma endregion
 static FILE *s_pLogFile = NULL;
 static char s_pLogName[MAX_FILE_NAME_LENGTH];
+static bool logsSimple = false;
+
+void logs_toggleSimple(bool toggle)
+{
+    logsSimple = toggle;
+}
 
 const char *logs_pathAfterSrc(const char *pFULL_PATH)
 {
@@ -127,9 +133,12 @@ void logs_log(LogLevel_e level, const char *pFORMAT, ...)
     // Print to file if open otherwise console
     FILE *pTarget = s_pLogFile ? s_pLogFile : stdout;
 
-#if defined(LOGS_FANCY)
-    const bool IS_FOR_FILE = false;
-    fprintf(pTarget, "[%s][%s] ", pPREFIX, logs_timestampGet(IS_FOR_FILE));
+#if !defined(LOGS_SIMPLE)
+    if (!logsSimple)
+    {
+        const bool IS_FOR_FILE = false;
+        fprintf(pTarget, "[%s][%s] ", pPREFIX, logs_timestampGet(IS_FOR_FILE));
+    }
 #endif
     vfprintf(pTarget, pFORMAT, args);
     fprintf(pTarget, "\n");
